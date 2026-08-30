@@ -1,0 +1,29 @@
+{
+  "name": "cairn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A radial map for Internal Family Systems (IFS) parts work — Self, managers, firefighters, and exiles, mapped and edited in the browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oak-wildwood/cairn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/oak-wildwood/cairn/issues"
+  },
+  "homepage": "https://github.com/oak-wildwood/cairn#readme",
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "svelte": "^5.57.0",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0"
+  }
+}
