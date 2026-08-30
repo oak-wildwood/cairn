@@ -5,9 +5,13 @@
   "type": "module",
   "description": "A radial map for Internal Family Systems (IFS) parts work — Self, managers, firefighters, and exiles, mapped and edited in the browser.",
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
