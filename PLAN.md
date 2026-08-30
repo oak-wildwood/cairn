@@ -80,6 +80,10 @@ they're used (modal form, filters, connector styling).
 
 ```ts
 export type PartRole = "manager" | "firefighter" | "exile" | "unknown";
+// "unknown" means a part that hasn't been fully identified/named yet — a real,
+// functional role value, not a placeholder. It's the only thing that drives dashed
+// connection rendering below, so it must be a selectable option in the Add/Edit
+// Part modal, not just a type-level fallback.
 export type ConnectionStyle = "solid" | "dashed";
 
 export interface Part {
@@ -87,6 +91,7 @@ export interface Part {
   name: string;
   role: PartRole;
   description: string;
+  feelings: string[];       // short tags, e.g. ["exhausted", "sad", "forgotten"]
   bodyLocation: string;
   trigger: string;
   positiveIntention: string;
@@ -103,8 +108,10 @@ export interface Connection {
   sourceId: string;         // Part.id, or "self"
   targetId: string;         // Part.id
   label: string;            // e.g. "protects", "triggers", "soothes"
-  style: ConnectionStyle;
 }
+// ConnectionStyle is not stored on Connection — it's derived at render time:
+// dashed if either endpoint part's role is "unknown" (not yet fully surfaced),
+// solid otherwise. "self" never counts as unknown. See connectionStyle() below.
 
 // Persisted blob (localStorage)
 export interface PersistedState {
@@ -115,8 +122,8 @@ export interface PersistedState {
 ```
 
 The field list comes directly from IFS practitioner worksheets (name, role,
-description, body location, trigger, positive intention, fears, origins, notes) —
-not invented from scratch.
+description, feelings, body location, trigger, positive intention, fears, origins,
+notes) — not invented from scratch.
 
 ## File structure
 
@@ -127,16 +134,32 @@ src/
   App.svelte
   lib/
     types.ts                  // Part, Connection, PartRole, ConnectionStyle, PersistedState
-    store.svelte.ts           // $state: parts, connections, activeFilter, editingPartId
-    layout.ts                 // pure fns: zone -> angle range, index -> position
+    store.svelte.ts           // $state: parts, connections, activeFilter,
+                               // selectedPartId (detail panel), editingPartId (modal;
+                               // null id = adding new), drawingConnection
+                               // ({ sourceId, pointerX, pointerY } | null, live
+                               // in-progress drag-to-connect), selectedConnectionId
+    layout.ts                 // pure fns: zone -> angle range, index -> position;
+                               // connectionStyle(sourceRole, targetRole) -> "dashed"
+                               // if either is "unknown", else "solid"
     theme.ts                  // Nocturnal palette + type tokens as constants
     persistence.ts            // localStorage load/save, debounced, versioned
     export.ts                 // SVG -> canvas -> PNG download
     components/
       Diagram.svelte           // the <svg>, owns filters/defs, iterates connections then parts
-      SelfNode.svelte
-      PartNode.svelte          // circle + glow filter + labels; drag handling
-      Connection.svelte        // one bezier path, styled by relationship type
+      SelfNode.svelte          // fixed, centered; hover shows connection handles
+                                // (no drag-to-reposition, no detail panel)
+      PartNode.svelte          // circle + glow filter + labels; hover shows connection
+                                // handles; pointer gestures disambiguate click (open
+                                // detail panel) vs body-drag (reposition) vs
+                                // handle-drag (draw connection)
+      Connection.svelte        // one bezier path; solid/dashed via layout.ts's
+                                // connectionStyle(), not a stored field; selectable;
+                                // renders the inline label editor (foreignObject/
+                                // HTML overlay) at its midpoint
+      PartDetailPanel.svelte   // read-only side panel, all worksheet-derived fields
+                                // plus a read-only Connections list; Edit / Delete
+                                // actions for the part itself
       PartModal.svelte         // add/edit form, all worksheet-derived fields
       Legend.svelte            // filter pills, counts via $derived
       Toolbar.svelte           // "+ Add a part" / "Export" buttons
@@ -176,32 +199,87 @@ server." Commit at milestone boundaries, not mid-milestone.
    the comp before any state management exists.
 2. **Store + reactive render** — move the hardcoded data into `store.svelte.ts`;
    `Diagram.svelte` renders from the store via `{#each}`.
-3. **Add/Edit Part modal** — `PartModal.svelte` with all worksheet-derived fields;
-   wire to store (add new part, edit existing, delete).
-4. **Drag to reposition** — pointer events on `PartNode.svelte`, writes manual
-   `x`/`y` override to the store.
-5. **Filter legend** — `Legend.svelte` toggles `activeFilter`; `Diagram.svelte` dims/
+3. **Detail panel (read-only)** — `PartDetailPanel.svelte`, a side panel (not a
+   modal/overlay) that opens when a part is clicked, showing all worksheet-derived
+   fields read-only (description, feelings as tags, body location, trigger, positive
+   intention, fears, origins, notes, status). Includes a **Connections** section
+   listing every connection touching this part in either direction (as source or
+   target), each row showing the relationship label and the other part's name — read
+   only at this milestone. Closes via an X or by clicking another part / empty
+   canvas. Includes explicit "Edit" and "Delete" actions for the part itself — this
+   milestone does not yet make those actions do anything beyond opening the modal
+   from Milestone 4 (Edit) and removing the part from the store (Delete). Click must
+   be disambiguated from the drag gesture added in Milestone 6, so a click that ends
+   without meaningful pointer movement opens the panel; a drag does not.
+4. **Add/Edit Part modal** — `PartModal.svelte` with all worksheet-derived fields;
+   wire to store (add new part via the Toolbar's "+ Add a part", edit existing via
+   the detail panel's "Edit" action). Delete lives on the detail panel, not the
+   modal. Deleting a part must also delete every `Connection` where it's the
+   `sourceId` or `targetId` — no dangling references left in the store.
+5. **Drag to reposition** — pointer events on `PartNode.svelte`, writes manual
+   `x`/`y` override to the store. This establishes the pointer-gesture foundation
+   (down / move / up, drag-distance threshold to distinguish a drag from a click)
+   that Milestone 6 extends for connection-drawing.
+6. **Connections via canvas drag** — Excalidraw-style direct manipulation, replacing
+   the earlier idea of a form/dropdown-based "add connection" control:
+   - **Hover**: hovering a part shows small connection handles on its circumference
+     (distinct from the node body, which still initiates the Milestone 5 move-drag).
+     `SelfNode` gets the same hover handles — Self is a valid drag-to-connect
+     endpoint, matching the data model's existing `sourceId`/`targetId: "self"`.
+     Connections to/from Self render and edit identically to part-to-part ones;
+     Self has no drag-to-reposition or detail panel, so only the handle gesture
+     applies to it.
+   - **Draw**: pointer-down on a handle and dragging shows a live line following the
+     cursor; dragging over another part (or Self) highlights it as a valid drop
+     target; releasing over it creates a `Connection` (`sourceId`/`targetId` from
+     the two endpoints); releasing over empty canvas cancels. Its solid/dashed
+     rendering is automatic from `connectionStyle()` (Layout math), not something
+     set at creation time.
+   - **Label**: immediately after a connection is created, a small inline text input
+     appears at the connection's midpoint (an absolutely-positioned HTML input over
+     the SVG, or a `foreignObject` — not a native SVG `<text>`, which can't be
+     edited in place) so the relationship label can be typed right away; blurring
+     with an empty label is allowed (editable later) rather than forcing a value.
+   - **Edit**: clicking an existing connection's line or label selects it and
+     reopens that same inline input to change the label.
+   - **Delete**: with a connection selected, a small delete affordance (or the
+     Delete/Backspace key) removes it from the store.
+   - Three gestures on `PartNode` must now be disambiguated: pointer-down on a
+     handle → draw connection; pointer-down on the body that moves past a drag
+     threshold → reposition (Milestone 5); pointer-down and up with no meaningful
+     movement → open the detail panel (Milestone 3).
+   - The detail panel's Connections list (Milestone 3) stays a read-only summary,
+     matching the reference inspiration — all creating, editing, and deleting of
+     connections happens on the canvas, not in the panel.
+7. **Filter legend** — `Legend.svelte` toggles `activeFilter`; `Diagram.svelte` dims/
    hides non-matching parts (opacity, not removal — positions stay stable).
-6. **Persistence** — `persistence.ts` loads on mount, saves on a debounced `$effect`
+8. **Persistence** — `persistence.ts` loads on mount, saves on a debounced `$effect`
    watching the store; versioned blob per the data model above. Validate the parsed
    JSON against the expected shape before trusting it (a hand-edited or stale
    localStorage blob shouldn't crash the app) — a small type guard, not a schema
    library.
-7. **PNG export** — `export.ts`: clone the `<svg>`, ensure all styling is inline SVG
+9. **PNG export** — `export.ts`: clone the `<svg>`, ensure all styling is inline SVG
    attributes (not external CSS classes) so the clone is self-contained, serialize via
    `XMLSerializer`, draw to an offscreen canvas at 2x for crispness, `toDataURL` ->
    trigger download.
-8. **Polish pass** — diff against the Nocturnal comp: glow filter tuning, nebula wash
-   placement, font loading (self-host or `<link>` Google Fonts with fallback stacks),
-   connector curve smoothness.
+10. **Polish pass** — diff against the Nocturnal comp: glow filter tuning, nebula
+    wash placement, font loading (self-host or `<link>` Google Fonts with fallback
+    stacks), connector curve smoothness.
 
 ## Acceptance criteria for v1
 
+- Clicking a part opens a read-only detail panel with all of its fields; Edit and
+  Delete actions from there reach the modal and store respectively.
 - Add, edit, and delete a part via the modal; changes persist across a page reload.
 - Self is always centered; new parts auto-place within their role's sector; existing
   parts can be dragged and keep their position after reload.
-- Connections render as curved lines, styled solid/dashed by relationship type,
-  colored by the source part's role.
+- Drag from one part (or Self) to another on the canvas to create a connection
+  between them; type its relationship label inline immediately after creating it;
+  click an existing connection to edit that label or delete it. Connections render
+  as curved lines, colored by the source part's role, dashed automatically when
+  either endpoint's role is still "unknown" and solid otherwise, and update
+  immediately as they're added/edited/deleted. A part's detail panel lists its
+  connections read-only, for reference.
 - Filter pills (All / Managers / Firefighters / Exiles) toggle visibility with live
   counts.
 - "Export" produces a PNG that visually matches the on-screen state.
@@ -210,6 +288,8 @@ server." Commit at milestone boundaries, not mid-milestone.
 
 ## Explicitly out of scope for v1
 
+- "Open conversation" / guided-dialogue or journaling feature with a part (seen in
+  reference inspiration, not this app) — a plausible v2.
 - Daily check-in / Self-energy 1–5 tracking (a plausible v2).
 - Any multi-user, sharing, or account system.
 - Any backend, API, or persistence beyond localStorage.
@@ -224,6 +304,12 @@ above); no real personal data goes in this repo.
 
 ## Open questions
 
+- Where does an `"unknown"`-role part sit in the radial layout? The three sectors
+  under Layout math only cover manager/firefighter/exile, and `theme.ts`'s
+  role-color mapping has no entry for `"unknown"` either. Needs the fuller
+  definition of what "unknown" / "not fully surfaced" means (mentioned above) before
+  this can be resolved — until then, treat any milestone touching layout or theming
+  as covering the three known roles only.
 - Deploy target for a live demo, if any (static host, or just local dev) — not
   required for v1, worth deciding before adding export/share features.
 - CI currently only checks PR titles (from `gh repo-init`). Worth adding a workflow
