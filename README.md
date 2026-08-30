@@ -36,10 +36,11 @@ Other scripts:
 | `npm start` / `npm run dev` | Local dev server with hot reload |
 | `npm run build`    | Production build, output to `dist/` |
 | `npm run preview`  | Serve the production build locally  |
+| `npm run check`    | Type-check the whole project (`svelte-check`) |
 
 ## Stack
 
-- **Svelte 5** (runes) for UI and state — plain JS, no TypeScript
+- **Svelte 5** (runes) for UI and state, in **TypeScript**
 - **Vite** for dev server and build
 - **D3** (`d3-shape`, `d3-scale` only) used purely as a geometry library — no
   `d3-selection` or DOM binding; Svelte owns the DOM entirely

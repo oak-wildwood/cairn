@@ -16,13 +16,23 @@ nebula washes marking the three sectors, Cormorant Garamond + Manrope type.
 
 ## Stack
 
-- Vite + Svelte 5 (runes), plain JS — no TypeScript, kept small on purpose for a
-  solo prototype.
+- Vite + Svelte 5 (runes), **TypeScript**, `strict: true`. This project is meant to
+  read as current, professional-grade front-end work, not just a personal-scale
+  prototype — type everything, don't reach for `any`.
+- TypeScript is pinned to the latest **5.x/6.x** line (`^6.0.3` as of this writing),
+  not the newest major (TypeScript 7, the Go-native rewrite): `svelte-check` doesn't
+  support TS 7 yet (peer range `^5.0.0 || ^6.0.0`), and a broken type-checker would
+  undercut the "state of the art" goal more than a one-major-behind pin does. Revisit
+  this pin once `svelte-check` catches up — check `npm view svelte-check peerDependencies`
+  before bumping.
 - D3 used only for its math: `d3-shape` (bezier curve helpers) and `d3-scale`. No
   `d3-selection` / DOM joins — Svelte owns the DOM entirely.
 - No component library, no CSS framework — hand-rolled to match the Nocturnal comp
   (SVG filters for glow, radial gradients) exactly.
 - No backend, no auth, no build-time data.
+- `npm run check` (`svelte-check`) must be clean — 0 errors, 0 warnings — before any
+  milestone below is considered done. It already passes on the current scaffold;
+  keep it that way rather than accumulating type debt to fix later.
 
 ### Why this stack (short version)
 
@@ -39,37 +49,69 @@ nebula washes marking the three sectors, Cormorant Garamond + Manrope type.
 - **visx** was the closest runner-up (same "D3 does math, framework does DOM"
   philosophy) — Svelte's templating just needs less ceremony per component.
 
+### Code quality bar
+
+This is a public, portfolio-visible repo, and the goal stated for it is explicitly
+"best of class / state of the art" — the agent executing this plan should hold to
+that, not just get milestones green:
+
+- `strict: true` TypeScript, no `any` without a comment explaining why it's
+  unavoidable (e.g. a third-party type gap). Prefer precise types over casting.
+- No dead code, no commented-out attempts, no TODO left unresolved at a milestone
+  boundary — open a note in this file's Open Questions instead if something's
+  genuinely deferred.
+- Modal form fields get real `<label for>` associations; drag and filter
+  interactions should be operable without a mouse where that's not disproportionate
+  effort (filter pills are plain buttons — trivial; full keyboard drag-repositioning
+  of nodes is a reasonable thing to explicitly punt on, but say so if punted).
+- Match the Nocturnal comp's actual values (colors, blur radii, font sizes) rather
+  than approximating "something dark and glowy" — the comp is the spec.
+- Keep components small and single-purpose per the file structure below; if a
+  component grows past doing the one thing its name says, that's a signal to split
+  it, not a milestone to rush through.
+
 ## Data model
 
-```js
-// Part
-{
-  id: string,              // uuid
-  name: string,
-  role: "manager" | "firefighter" | "exile" | "unknown",
-  description: string,
-  bodyLocation: string,
-  trigger: string,
-  positiveIntention: string,
-  fears: string,
-  origins: string,
-  notes: string,
-  status: string,           // free text, e.g. "active", "emerging", "witnessed", "unwitnessed"
-  x: number | null,         // manual override; null = use computed layout position
-  y: number | null,
+These are real `interface`/type declarations to add under `src/lib/types.ts` — not
+pseudocode. Keep `role` and `style` as string-literal unions (not `enum`; Svelte/Vite
+projects generally prefer literal unions — no runtime footprint, cleaner
+`isolatedModules` behavior) so invalid values are caught at compile time everywhere
+they're used (modal form, filters, connector styling).
+
+```ts
+export type PartRole = "manager" | "firefighter" | "exile" | "unknown";
+export type ConnectionStyle = "solid" | "dashed";
+
+export interface Part {
+  id: string;               // uuid
+  name: string;
+  role: PartRole;
+  description: string;
+  bodyLocation: string;
+  trigger: string;
+  positiveIntention: string;
+  fears: string;
+  origins: string;
+  notes: string;
+  status: string;           // free text, e.g. "active", "emerging", "witnessed", "unwitnessed"
+  x: number | null;         // manual override; null = use computed layout position
+  y: number | null;
 }
 
-// Connection
-{
-  id: string,
-  sourceId: string,         // Part.id, or "self"
-  targetId: string,         // Part.id
-  label: string,            // e.g. "protects", "triggers", "soothes"
-  style: "solid" | "dashed",
+export interface Connection {
+  id: string;
+  sourceId: string;         // Part.id, or "self"
+  targetId: string;         // Part.id
+  label: string;            // e.g. "protects", "triggers", "soothes"
+  style: ConnectionStyle;
 }
 
 // Persisted blob (localStorage)
-{ schemaVersion: 1, parts: Part[], connections: Connection[] }
+export interface PersistedState {
+  schemaVersion: 1;
+  parts: Part[];
+  connections: Connection[];
+}
 ```
 
 The field list comes directly from IFS practitioner worksheets (name, role,
@@ -80,14 +122,16 @@ not invented from scratch.
 
 ```
 src/
-  main.js
+  main.ts
+  vite-env.d.ts
   App.svelte
   lib/
-    store.svelte.js          // $state: parts, connections, activeFilter, editingPartId
-    layout.js                 // pure fns: zone -> angle range, index -> position
-    theme.js                  // Nocturnal palette + type tokens as constants
-    persistence.js            // localStorage load/save, debounced, versioned
-    export.js                 // SVG -> canvas -> PNG download
+    types.ts                  // Part, Connection, PartRole, ConnectionStyle, PersistedState
+    store.svelte.ts           // $state: parts, connections, activeFilter, editingPartId
+    layout.ts                 // pure fns: zone -> angle range, index -> position
+    theme.ts                  // Nocturnal palette + type tokens as constants
+    persistence.ts            // localStorage load/save, debounced, versioned
+    export.ts                 // SVG -> canvas -> PNG download
     components/
       Diagram.svelte           // the <svg>, owns filters/defs, iterates connections then parts
       SelfNode.svelte
@@ -98,8 +142,10 @@ src/
       Toolbar.svelte           // "+ Add a part" / "Export" buttons
 ```
 
-None of this exists yet beyond `App.svelte` as a placeholder — it gets built out
-milestone by milestone below.
+Every `.svelte` file's `<script>` tag is `<script lang="ts">`. Nothing beyond
+`App.svelte` (placeholder), `main.ts`, and `vite-env.d.ts` exists yet — it gets built
+out milestone by milestone below, each one starting from `types.ts` where new shapes
+are needed rather than inlining ad hoc types in a component.
 
 ## Layout math
 
@@ -120,11 +166,15 @@ would just reset all parts' `x`/`y` to `null`.
 
 ## Milestones
 
+Each milestone's definition of done includes `npm run check` passing with 0
+errors/warnings and `npm run build` succeeding — not just "looks right in the dev
+server." Commit at milestone boundaries, not mid-milestone.
+
 1. **Static render** — hardcode 6 example parts (Inner Critic, The Planner, The
-   Scroller, Catastrophizer, Little One, The Forgotten One), render the full
-   Nocturnal-styled diagram with no interactivity. Goal: pixel-match the comp before
-   any state management exists.
-2. **Store + reactive render** — move the hardcoded data into `store.svelte.js`;
+   Scroller, Catastrophizer, Little One, The Forgotten One) typed against `types.ts`,
+   render the full Nocturnal-styled diagram with no interactivity. Goal: pixel-match
+   the comp before any state management exists.
+2. **Store + reactive render** — move the hardcoded data into `store.svelte.ts`;
    `Diagram.svelte` renders from the store via `{#each}`.
 3. **Add/Edit Part modal** — `PartModal.svelte` with all worksheet-derived fields;
    wire to store (add new part, edit existing, delete).
@@ -132,9 +182,12 @@ would just reset all parts' `x`/`y` to `null`.
    `x`/`y` override to the store.
 5. **Filter legend** — `Legend.svelte` toggles `activeFilter`; `Diagram.svelte` dims/
    hides non-matching parts (opacity, not removal — positions stay stable).
-6. **Persistence** — `persistence.js` loads on mount, saves on a debounced `$effect`
-   watching the store; versioned blob per the data model above.
-7. **PNG export** — `export.js`: clone the `<svg>`, ensure all styling is inline SVG
+6. **Persistence** — `persistence.ts` loads on mount, saves on a debounced `$effect`
+   watching the store; versioned blob per the data model above. Validate the parsed
+   JSON against the expected shape before trusting it (a hand-edited or stale
+   localStorage blob shouldn't crash the app) — a small type guard, not a schema
+   library.
+7. **PNG export** — `export.ts`: clone the `<svg>`, ensure all styling is inline SVG
    attributes (not external CSS classes) so the clone is self-contained, serialize via
    `XMLSerializer`, draw to an offscreen canvas at 2x for crispness, `toDataURL` ->
    trigger download.
@@ -173,3 +226,6 @@ above); no real personal data goes in this repo.
 
 - Deploy target for a live demo, if any (static host, or just local dev) — not
   required for v1, worth deciding before adding export/share features.
+- CI currently only checks PR titles (from `gh repo-init`). Worth adding a workflow
+  that runs `npm run check` and `npm run build` on PRs once there's real code to
+  break — not needed while the repo is just the scaffold.

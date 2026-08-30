@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   // Baseline scaffold only — see PLAN.md for the build sequence.
   // Milestone 1 (static Nocturnal-styled render) replaces this placeholder.
 </script>
