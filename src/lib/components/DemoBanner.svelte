@@ -2,10 +2,11 @@
   /**
    * Says plainly that the map below is sample content.
    *
-   * Rendered unconditionally, because right now it is unconditionally true:
-   * the app has no persistence yet and always renders `exampleData.ts`. Once
-   * Milestone 8 lands and a real map can be loaded from localStorage, this
-   * becomes conditional on whether seed data is actually what's on screen.
+   * `App.svelte` renders this only while that is true — an untouched seed map
+   * with nothing restored from localStorage. The moment a map is loaded or
+   * edited it belongs to the person using it, and calling their own parts
+   * "for demonstration only" would be false in the place the app is asking
+   * them to be most honest.
    */
 </script>
 
