@@ -19,6 +19,21 @@ So "match the comp" is a specification, not a mood board. A cleaner-looking
 approximation is a regression, and the comp's own values are the tie-breaker in any
 visual disagreement.
 
+But it is a starting point, not a ceiling, and the app has already outgrown it. The
+comp is one still picture of six parts: it has no hover state, no drag, no detail
+panel, no modal, no reciprocal connectors, no arrowheads. Its authority is over the
+values it actually sets — colours, gradient stops, filter deviations, type — and it
+stays the tie-breaker wherever it *does* speak. Where it is silent, its silence is
+not a prohibition: build the thing, derive the value from what the comp establishes
+nearby, and mark it `DERIVED` with the reasoning, per `theme.ts`. What is forbidden
+is quietly restyling something the comp *did* settle.
+
+The comp is also not the authority on domain content — which parts exist, and which
+relationships hold between them. That is IFS, and where the two appear to disagree
+about substance rather than appearance, IFS wins. `exampleData.ts` draws the comp's
+six parts, but its connections answer to the domain: a protector/exile bond drawn
+one-way is a half-drawn bond regardless of how the comp illustrated it.
+
 ## Hard rules
 
 - **Never import `d3-selection`, or any D3 that touches the DOM.** Svelte owns the

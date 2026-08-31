@@ -123,10 +123,22 @@ export const EXAMPLE_PARTS: readonly Part[] = [
 ];
 
 /**
- * The comp's five connectors. Direction matters: a connector takes its color
- * from its source, which is why The Kid -> The Fixer edge is exile
- * pink rather than manager blue — it is the wound reaching the protector, not
- * the other way round.
+ * Direction matters: a connector takes its color from its source, which is why
+ * the The Kid -> The Fixer edge is exile pink rather than manager blue — it is
+ * the wound reaching the protector, not the other way round.
+ *
+ * The comp draws five connectors, and these are those five plus the return leg
+ * of two of them. The comp is the authority on how a connector *looks*, not on
+ * which relationships an IFS map contains — it is one illustrative picture of
+ * six parts, and a protector/exile bond drawn one-way is a half-drawn bond.
+ * IFS has the exile activating its protector while that protector works to
+ * suppress the exile: both directions, at once, between the same pair. So The
+ * Kid triggers The Fixer *and* The Fixer protects The Kid; The Kid triggers The
+ * Avoider *and* The Avoider protects The Kid. Rendering these as reciprocal
+ * pairs is what earns them arrowheads (see Connection.svelte).
+ *
+ * Polarization is the exception and stays a single connector: The Fixer and The
+ * Analyst are in a mutual standoff, which is symmetric, so one line states it.
  */
 export const EXAMPLE_CONNECTIONS: readonly Connection[] = [
   {
@@ -154,9 +166,21 @@ export const EXAMPLE_CONNECTIONS: readonly Connection[] = [
     label: "triggers",
   },
   {
+    id: "c-fixer-kid",
+    sourceId: "the-fixer",
+    targetId: "the-kid",
+    label: "protects",
+  },
+  {
     id: "c-avoider-kid",
     sourceId: "the-avoider",
     targetId: "the-kid",
     label: "protects",
+  },
+  {
+    id: "c-kid-avoider",
+    sourceId: "the-kid",
+    targetId: "the-avoider",
+    label: "triggers",
   },
 ];
