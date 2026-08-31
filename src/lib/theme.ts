@@ -319,6 +319,7 @@ export const TYPE_SCALE = {
   countMeta: { size: 13 },
   button: { size: 13, weight: 600 },
   pill: { size: 12.5, weight: 600 },
-  sectorLabel: { size: 12, letterSpacing: 3, weight: 600, opacity: 0.75 },
+  // DERIVED: the comp's sector labels are 12px; bumped a step for legibility.
+  sectorLabel: { size: 13, letterSpacing: 3, weight: 600, opacity: 0.75 },
   footer: { size: 16 },
 } as const;
