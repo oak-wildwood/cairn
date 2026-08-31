@@ -92,9 +92,9 @@ they're used (modal form, filters, connector styling).
 ```ts
 export type PartRole = "manager" | "firefighter" | "exile" | "unknown";
 // "unknown" means a part that hasn't been fully identified/named yet — a real,
-// functional role value, not a placeholder. It's the only thing that drives dashed
-// connection rendering below, so it must be a selectable option in the Add/Edit
-// Part modal, not just a type-level fallback.
+// functional role value, not a placeholder, so it must be a selectable option in
+// the Add/Edit Part modal rather than just a type-level fallback. It dims the
+// connectors touching it (connectionOpacity below); it does not change their dash.
 export type ConnectionStyle = "solid" | "dashed";
 
 export interface Part {
@@ -125,9 +125,9 @@ export interface Connection {
   targetId: string;         // Part.id
   label: string;            // e.g. "protects", "triggers", "soothes"
 }
-// ConnectionStyle is not stored on Connection — it's derived at render time:
-// dashed if either endpoint part's role is "unknown" (not yet fully surfaced),
-// solid otherwise. "self" never counts as unknown. See connectionStyle() below.
+// ConnectionStyle is not stored on Connection — it's derived at render time from
+// the endpoint ids: solid if either endpoint is Self (a part's access to Self),
+// dashed between two parts (an inter-part dynamic). See connectionStyle() below.
 
 // Persisted blob (localStorage)
 export interface PersistedState {
@@ -156,12 +156,14 @@ src/
                                // ({ sourceId, pointerX, pointerY } | null, live
                                // in-progress drag-to-connect), selectedConnectionId
     layout.ts                 // pure fns: zone -> angle range, index -> position;
-                               // connectionStyle(sourceRole, targetRole) -> "dashed"
-                               // if either is "unknown", else "solid" (line dashing,
-                               // role-driven — distinct from PartNode's own dashed
-                               // circle stroke, which is status-driven, e.g. status
-                               // "emerging"/"unwitnessed" per the comp: two separate
-                               // dashed treatments, don't conflate them)
+                               // connectionStyle(sourceId, targetId) -> "solid" if
+                               // either endpoint is Self, else "dashed";
+                               // connectionOpacity(sourceRole, targetRole, base)
+                               // dims a connector when an endpoint's role is still
+                               // "unknown". Three distinct treatments — connector
+                               // dash = edge kind, node stroke dash = status
+                               // (PartNode), dimmed connector = unsurfaced role —
+                               // each channel is spoken for, so don't overload one
     theme.ts                  // Nocturnal palette + type tokens as constants
     persistence.ts            // localStorage load/save, debounced, versioned
     export.ts                 // SVG -> canvas -> PNG download
@@ -204,12 +206,31 @@ Bearing convention: 0° = north/12 o'clock, clockwise.
 
 For each part: angle = evenly distributed within its zone's arc by index among parts
 sharing that zone; radius = a base value, bumped outward if a zone has more parts than
-comfortably fit at one radius. `layout.js` exports a pure function
+comfortably fit at one radius. `layout.ts` exports a pure function
 `computeLayout(parts) -> Map<partId, {x, y}>` with no DOM or D3-selection involvement.
 
+Those ranges are not a clean partition: manager and exile overlap across 270°–275°,
+and 130°–140° and 350°–5° belong to no sector. That never shows because parts are
+distributed with `scalePoint().padding(0.5)`, which insets the first and last node by
+half a step and so keeps them off their sector's boundaries. Removing the padding
+puts parts into the overlap.
+
+An `"unknown"`-role part has no sector by definition, so it orbits outside all three
+on a full-circle ring — see Open questions.
+
 Drag writes `part.x` / `part.y` directly (no longer `null`); the layout function is
-only consulted for parts where `x`/`y` are `null`. A "Re-arrange" action (post-v1)
-would just reset all parts' `x`/`y` to `null`.
+only consulted for parts where `x`/`y` are `null`. A part with an override still
+consumes its slot in the sector distribution, so dragging one part never reshuffles
+its untouched siblings. A "Re-arrange" action (post-v1) would just reset all parts'
+`x`/`y` to `null`.
+
+Connector appearance is also decided here, by two pure functions:
+`connectionStyle(sourceId, targetId)` returns `"solid"` when either endpoint is Self
+and `"dashed"` between two parts — the dash encodes the *kind* of edge, not how sure
+of it we are — and `connectionOpacity(sourceRole, targetRole, base)` dims a connector
+whose endpoint role is still `"unknown"`. Keeping those separate is deliberate: the
+dash pattern is already carrying edge kind, so it cannot also carry how surfaced a
+part is.
 
 ## Milestones
 
@@ -304,8 +325,9 @@ server." Commit at milestone boundaries, not mid-milestone.
 - Drag from one part (or Self) to another on the canvas to create a connection
   between them; type its relationship label inline immediately after creating it;
   click an existing connection to edit that label or delete it. Connections render
-  as curved lines, colored by the source part's role, dashed automatically when
-  either endpoint's role is still "unknown" and solid otherwise, and update
+  as curved lines, colored by the source part's role, solid when either endpoint is
+  Self and dashed between two parts, dimmed while an endpoint's role is still
+  "unknown", and update
   immediately as they're added/edited/deleted. A part's detail panel lists its
   connections read-only, for reference.
 - Filter pills (All / Managers / Firefighters / Exiles) toggle visibility with live
@@ -332,12 +354,13 @@ above); no real personal data goes in this repo.
 
 ## Open questions
 
-- Where does an `"unknown"`-role part sit in the radial layout? The three sectors
-  under Layout math only cover manager/firefighter/exile, and `theme.ts`'s
-  role-color mapping has no entry for `"unknown"` either. Needs the fuller
-  definition of what "unknown" / "not fully surfaced" means (mentioned above) before
-  this can be resolved — until then, treat any milestone touching layout or theming
-  as covering the three known roles only.
+- What does an `"unknown"` role actually mean, and does its treatment follow?
+  Answered provisionally in code, because the layout and the palette both had to put
+  it *somewhere* once the modal offers the role: `layout.ts` orbits unknown parts on
+  a full-circle ring outside the three sectors (reads as "noticed but not yet
+  placed", without inventing a fourth sector), and `theme.ts` gives them a neutral
+  lavender-grey marked `DERIVED` rather than one of the three sector hues. Both are
+  reversible once "not fully surfaced" has a fuller definition.
 - Deploy target for a live demo, if any (static host, or just local dev) — not
   required for v1, worth deciding before adding export/share features.
 - CI currently only checks PR titles (from `gh repo-init`). Worth adding a workflow

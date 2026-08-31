@@ -10,15 +10,16 @@
 /**
  * "unknown" is a real, functional role — a part that has been noticed but not
  * yet identified as protector or exile — not a type-level fallback. It is a
- * selectable option in the Add/Edit Part modal, and it is the only thing that
- * drives dashed connection rendering.
+ * selectable option in the Add/Edit Part modal. It dims the connectors touching
+ * it (`connectionOpacity`); it does not change their dash, which encodes edge
+ * kind instead. See the three treatments spelled out in `layout.ts`.
  */
 export type PartRole = "manager" | "firefighter" | "exile" | "unknown";
 
 /** The three roles that own an angular sector in the radial layout. */
 export type SectorRole = Exclude<PartRole, "unknown">;
 
-/** Derived at render time from the two endpoints' roles — never stored. */
+/** Derived at render time from the two endpoint ids — never stored. */
 export type ConnectionStyle = "solid" | "dashed";
 
 /** The Self node is a valid connection endpoint but is not a `Part`. */
