@@ -25,9 +25,13 @@
   interface Props {
     parts: readonly Part[];
     connections: readonly Connection[];
+    selectedPartId: string | null;
+    onselect: (id: string) => void;
+    onclear: () => void;
   }
 
-  const { parts, connections }: Props = $props();
+  const { parts, connections, selectedPartId, onselect, onclear }: Props =
+    $props();
 
   const positions = $derived(computeLayout(parts));
   const partsById = $derived(new Map(parts.map((part) => [part.id, part])));
@@ -118,12 +122,21 @@
     </filter>
   </defs>
 
+  <!--
+    Clicking the backdrop clears the selection. This is a pointer convenience
+    with two keyboard equivalents already in place — the panel's close button
+    and Escape — so the element deliberately stays out of the tab order rather
+    than becoming a focusable control that reads as "background".
+  -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <rect
     x={BACKDROP.x}
     y={BACKDROP.y}
     width={BACKDROP.size}
     height={BACKDROP.size}
     fill="url(#bgGrad)"
+    onclick={onclear}
   />
 
   <!-- nebula washes marking the three sectors -->
@@ -173,7 +186,12 @@
   {#each parts as part (part.id)}
     {@const position = positions.get(part.id)}
     {#if position}
-      <PartNode {part} {position} />
+      <PartNode
+        {part}
+        {position}
+        selected={part.id === selectedPartId}
+        {onselect}
+      />
     {/if}
   {/each}
 </svg>

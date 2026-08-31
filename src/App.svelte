@@ -2,6 +2,7 @@
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import Diagram from "./lib/components/Diagram.svelte";
   import Legend from "./lib/components/Legend.svelte";
+  import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import { store } from "./lib/store.svelte";
 
@@ -14,7 +15,14 @@
     store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
       .length,
   );
+
+  /** Escape is the keyboard equivalent of clicking the canvas to deselect. */
+  function handleWindowKey(event: KeyboardEvent): void {
+    if (event.key === "Escape") store.clearSelection();
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKey} />
 
 <div class="shell">
   <DemoBanner />
@@ -47,8 +55,27 @@
 
     <hr class="rule" />
 
-    <section class="canvas">
-      <Diagram parts={store.parts} connections={store.connections} />
+    <section class="workspace">
+      <div class="canvas">
+        <Diagram
+          parts={store.parts}
+          connections={store.connections}
+          selectedPartId={store.selectedPartId}
+          onselect={(id) => store.select(id)}
+          onclear={() => store.clearSelection()}
+        />
+      </div>
+
+      {#if store.selectedPart}
+        {@const selected = store.selectedPart}
+        <PartDetailPanel
+          part={selected}
+          connections={store.connectionsFor(selected.id)}
+          parts={store.parts}
+          onclose={() => store.clearSelection()}
+          ondelete={(id) => store.deletePart(id)}
+        />
+      {/if}
     </section>
 
     <hr class="rule" />
@@ -172,10 +199,25 @@
     border-top: 1px solid var(--rule);
   }
 
-  .canvas {
+  .workspace {
+    display: flex;
     flex: 1 1 0;
     min-height: 0;
+    gap: 1.5rem;
+  }
+
+  .canvas {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
     display: flex;
+  }
+
+  @media (max-width: 900px) {
+    .workspace {
+      flex-direction: column;
+      gap: 1rem;
+    }
   }
 
   .footer {

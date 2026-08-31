@@ -6,9 +6,22 @@
   interface Props {
     part: Part;
     position: Point;
+    selected: boolean;
+    onselect: (id: string) => void;
   }
 
-  const { part, position }: Props = $props();
+  const { part, position, selected, onselect }: Props = $props();
+
+  /**
+   * Enter and Space activate, matching a real button. Milestone 5 adds a drag
+   * gesture on this same node, at which point the pointer path grows a
+   * movement threshold — the keyboard path here stays as it is.
+   */
+  function handleKey(event: KeyboardEvent): void {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onselect(part.id);
+  }
 
   const tokens = $derived(ROLES[part.role]);
 
@@ -42,7 +55,28 @@
   );
 </script>
 
-<g transform="translate({position.x}, {position.y})">
+<g
+  class="node"
+  transform="translate({position.x}, {position.y})"
+  role="button"
+  tabindex="0"
+  aria-label="{part.name}, {part.role}, {part.status}"
+  aria-pressed={selected}
+  onclick={() => onselect(part.id)}
+  onkeydown={handleKey}
+>
+  {#if selected}
+    <!-- DERIVED: the comp has no selected state. A concentric ring in the
+         role's own accent marks it without introducing a new colour. -->
+    <circle
+      r={NODE.radius + 9}
+      fill="none"
+      stroke={tokens.accent}
+      stroke-width="1.4"
+      opacity="0.55"
+    />
+  {/if}
+
   <circle
     r={NODE.radius}
     fill={tokens.nodeFill}
@@ -71,3 +105,19 @@
     text-anchor="middle">{meta}</text
   >
 </g>
+
+<style>
+  .node {
+    cursor: pointer;
+  }
+
+  .node:focus {
+    outline: none;
+  }
+
+  .node:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 4px;
+    border-radius: 50%;
+  }
+</style>
