@@ -2,6 +2,7 @@
   "name": "cairn",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "A radial map for Internal Family Systems (IFS) parts work — Self, managers, firefighters, and exiles, mapped and edited in the browser.",
   "scripts": {
