@@ -1,6 +1,6 @@
 <script lang="ts">
   import { wrapLabel } from "../layout";
-  import { isLowDefinition, NODE, ROLES } from "../theme";
+  import { HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
 
   interface Props {
@@ -10,9 +10,51 @@
     onselect: (id: string) => void;
     /** Commit a dragged position, in diagram space. */
     onmove: (id: string, point: Point) => void;
+    /** Begin drawing a connection out of this node. */
+    onconnectstart: (id: string) => void;
+    /** True while a connection is being drawn and could land here. */
+    dropTarget: boolean;
+    /** True while any connection is being drawn, from any node. */
+    drawing: boolean;
   }
 
-  const { part, position, selected, onselect, onmove }: Props = $props();
+  const {
+    part,
+    position,
+    selected,
+    onselect,
+    onmove,
+    onconnectstart,
+    dropTarget,
+    drawing,
+  }: Props = $props();
+
+  let hovered = $state(false);
+  let focused = $state(false);
+
+  /**
+   * Handles appear on hover and on keyboard focus. They stay hidden while a
+   * connection is being drawn — at that point every other node is a potential
+   * target, and four handles lighting up under the cursor would read as four
+   * things to aim at rather than one.
+   */
+  const showHandles = $derived((hovered || focused) && !drawing);
+
+  /** Cardinal points on the circumference, in the node's own local space. */
+  const HANDLE_POSITIONS: readonly Point[] = [
+    { x: 0, y: -NODE.radius },
+    { x: NODE.radius, y: 0 },
+    { x: 0, y: NODE.radius },
+    { x: -NODE.radius, y: 0 },
+  ];
+
+  function handleConnectStart(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    // Without this the node's own pointerdown also fires and the node starts
+    // following the cursor while the connector is being drawn out of it.
+    event.stopPropagation();
+    onconnectstart(part.id);
+  }
 
   /**
    * How far the pointer must travel before this stops being a click and starts
@@ -170,11 +212,26 @@
   bind:this={element}
   onclick={handleClick}
   onkeydown={handleKey}
+  onpointerenter={() => (hovered = true)}
+  onpointerleave={() => (hovered = false)}
+  onfocus={() => (focused = true)}
+  onblur={() => (focused = false)}
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}
   onpointercancel={handlePointerUp}
 >
+  {#if dropTarget}
+    <!-- Ring marking this node as somewhere the in-flight connector can land. -->
+    <circle
+      r={NODE.radius + HANDLE.dropTargetRadius}
+      fill="none"
+      stroke={tokens.accent}
+      stroke-width={HANDLE.dropTargetWidth}
+      opacity="0.9"
+    />
+  {/if}
+
   {#if selected}
     <!-- DERIVED: the comp has no selected state. A concentric ring in the
          role's own accent marks it without introducing a new colour. -->
@@ -214,6 +271,30 @@
     font-weight="600"
     text-anchor="middle">{meta}</text
   >
+
+  <g class="handles" class:visible={showHandles} aria-hidden="true">
+    {#each HANDLE_POSITIONS as handle, index (index)}
+      <!--
+        Drawing a connection is a pointer-only affordance. The handles are
+        hidden from assistive technology rather than made focusable, because a
+        focusable control that does nothing on Enter is worse than none: there
+        is no keyboard path for drawing a connection, and the plan allows
+        punting gestures of this class. Existing connections stay readable
+        without a pointer — the detail panel lists every one touching a part.
+      -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <circle
+        class="handle"
+        cx={handle.x}
+        cy={handle.y}
+        r={HANDLE.radius}
+        fill={tokens.accent}
+        stroke={tokens.nodeFill}
+        stroke-width="1.5"
+        onpointerdown={handleConnectStart}
+      />
+    {/each}
+  </g>
 </g>
 
 <style>
@@ -231,6 +312,22 @@
 
   .node:focus {
     outline: none;
+  }
+
+  .handles {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  .handles.visible {
+    opacity: 1;
+    /* Only grabbable once visible — an invisible handle is a trap. */
+    pointer-events: auto;
+  }
+
+  .handle {
+    cursor: crosshair;
   }
 
   .node:focus-visible {

@@ -45,9 +45,35 @@
    * except while the modal is open, where the dialog owns Escape and closing
    * the form should not also drop the selection behind it.
    */
+  /**
+   * True when the keystroke belongs to something the user is typing into.
+   * Without this, Backspace while correcting a connection's label would delete
+   * the connection out from under the cursor.
+   */
+  function isTyping(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    );
+  }
+
   function handleWindowKey(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || store.editing) return;
-    store.clearSelection();
+    // The modal owns Escape while it is open; closing the form should not
+    // also drop whatever is selected behind it.
+    if (store.editing) return;
+
+    if (event.key === "Escape") {
+      store.clearSelection();
+      return;
+    }
+
+    if (event.key !== "Delete" && event.key !== "Backspace") return;
+    if (isTyping(event.target)) return;
+    if (store.selectedConnectionId === null) return;
+    // Backspace still navigates back in some browsers when nothing has focus.
+    event.preventDefault();
+    store.deleteConnection(store.selectedConnectionId);
   }
 </script>
 
@@ -92,6 +118,13 @@
           onselect={(id) => store.select(id)}
           onclear={() => store.clearSelection()}
           onmove={(id, point) => store.movePart(id, point)}
+          onconnectcreate={(sourceId, targetId) =>
+            store.addConnection(sourceId, targetId)}
+          selectedConnectionId={store.selectedConnectionId}
+          onconnectselect={(id) => store.selectConnection(id)}
+          onconnectlabel={(id, label) => store.setConnectionLabel(id, label)}
+          onconnectdelete={(id) => store.deleteConnection(id)}
+          onconnectclose={() => store.clearConnectionSelection()}
         />
       </div>
 

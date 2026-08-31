@@ -1,6 +1,13 @@
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
+import { connectionPairKey } from "./layout";
 import { loadState } from "./persistence";
-import type { Connection, Part, PartDraft, Point } from "./types";
+import type {
+  Connection,
+  EndpointId,
+  Part,
+  PartDraft,
+  Point,
+} from "./types";
 
 /**
  * Read once, at import, so the store is already correct on its first render.
@@ -63,10 +70,12 @@ class MapStore {
 
   select(id: string): void {
     this.selectedPartId = id;
+    this.selectedConnectionId = null;
   }
 
   clearSelection(): void {
     this.selectedPartId = null;
+    this.selectedConnectionId = null;
   }
 
   /**
@@ -111,6 +120,77 @@ class MapStore {
       part.id === id ? { ...draft, id } : part,
     );
     this.editing = null;
+  }
+
+  /**
+   * The connection whose label is being edited, or null.
+   *
+   * Selecting a connection and editing its label are the same state here,
+   * because the plan makes them the same gesture: clicking a connector opens
+   * its label editor, and a newly drawn one opens it immediately. A second
+   * field for "selected but not editing" would have no way to be reached.
+   *
+   * The in-progress drag itself is deliberately *not* here — it lives in
+   * `Diagram.svelte`. It is transient interaction state that never persists,
+   * never outlives the gesture, and is read by nothing outside that subtree.
+   */
+  selectedConnectionId = $state<string | null>(null);
+
+  /** True when these two endpoints already hold a connection, either way round. */
+  hasConnectionBetween(a: EndpointId, b: EndpointId): boolean {
+    const key = connectionPairKey(a, b);
+    return this.connections.some(
+      (connection) =>
+        connectionPairKey(connection.sourceId, connection.targetId) === key,
+    );
+  }
+
+  /**
+   * Create a connection and open its label editor, per the plan's flow.
+   *
+   * Refuses a pair that is already connected. The diagram also declines to
+   * offer such a node as a drop target, so this guard should be unreachable
+   * from the canvas — it is here for the paths that don't go through a drag.
+   */
+  addConnection(sourceId: EndpointId, targetId: EndpointId): void {
+    if (sourceId === targetId) return;
+    if (this.hasConnectionBetween(sourceId, targetId)) return;
+    this.showingExample = false;
+    const connection: Connection = {
+      id: crypto.randomUUID(),
+      sourceId,
+      targetId,
+      label: "",
+    };
+    this.connections = [...this.connections, connection];
+    this.selectedConnectionId = connection.id;
+  }
+
+  selectConnection(id: string): void {
+    this.selectedConnectionId = id;
+    // A connector and a part are never both selected: two open editors would
+    // compete for Escape and for the Delete key.
+    this.selectedPartId = null;
+  }
+
+  clearConnectionSelection(): void {
+    this.selectedConnectionId = null;
+  }
+
+  /** Blurring with an empty label is allowed — it stays editable later. */
+  setConnectionLabel(id: string, label: string): void {
+    this.showingExample = false;
+    this.connections = this.connections.map((connection) =>
+      connection.id === id ? { ...connection, label: label.trim() } : connection,
+    );
+  }
+
+  deleteConnection(id: string): void {
+    this.showingExample = false;
+    this.connections = this.connections.filter(
+      (connection) => connection.id !== id,
+    );
+    if (this.selectedConnectionId === id) this.selectedConnectionId = null;
   }
 
   /**

@@ -344,6 +344,12 @@ server." Commit at milestone boundaries, not mid-milestone.
 - Any multi-user, sharing, or account system.
 - Any backend, API, or persistence beyond localStorage.
 - Botanical / Neumorphic theming — explored as alternate comps, not being built now.
+- A keyboard path for *drawing* connections. Decided, not deferred: the handles
+  are a pointer affordance and are hidden from assistive technology rather than
+  made focusable, because a focusable control that does nothing on Enter is
+  worse than none. What stays reachable without a pointer: a part can be
+  selected, read and edited, its connections are listed read-only in the detail
+  panel, and a selected connection can be deleted with the Delete key.
 
 ## Portfolio note
 
