@@ -5,6 +5,7 @@
     CONNECTION,
     CONNECTOR_COLORS,
     BACKGROUND_GRADIENT,
+    FILTER_FADE,
     GLOW_FILTER,
     NODE,
     ROLES,
@@ -19,7 +20,13 @@
     WASH_GEOMETRY,
   } from "../theme";
   import { SELF_ID } from "../types";
-  import type { Connection, EndpointId, Part, Point } from "../types";
+  import type {
+    Connection,
+    EndpointId,
+    Part,
+    Point,
+    SectorRole,
+  } from "../types";
   import ConnectionPath from "./Connection.svelte";
   import PartNode from "./PartNode.svelte";
   import SelfNode from "./SelfNode.svelte";
@@ -37,6 +44,8 @@
     onconnectlabel: (id: string, label: string) => void;
     onconnectdelete: (id: string) => void;
     onconnectclose: () => void;
+    /** The role the legend is filtering to, or null for "All". */
+    activeFilter: SectorRole | null;
   }
 
   const {
@@ -52,6 +61,7 @@
     onconnectlabel,
     onconnectdelete,
     onconnectclose,
+    activeFilter,
   }: Props = $props();
 
   let svg = $state<SVGSVGElement | null>(null);
@@ -217,6 +227,34 @@
     };
   });
 
+  /**
+   * Whether an endpoint survives the current filter.
+   *
+   * Self always does. It carries no `PartRole`, so no role filter can match
+   * it — but it is the fixed centre every connector runs to, and fading it
+   * would leave the map a ring around nothing. A part with role "unknown"
+   * matches no sector, so it fades under any filter, which is correct: it is
+   * not yet a manager, firefighter or exile.
+   */
+  function survives(role: Part["role"] | typeof SELF_ID): boolean {
+    if (activeFilter === null) return true;
+    return role === SELF_ID || role === activeFilter;
+  }
+
+  /**
+   * The fade is applied to a wrapping `<g>` rather than folded into the
+   * node's or connector's own opacity, and that separation is the point.
+   * A connector's opacity already means something specific — dimmed says an
+   * endpoint's role is still "unknown" (`connectionOpacity`) — so writing the
+   * filter into that number would make one channel carry two meanings. Group
+   * opacity composites over the top instead: the connector still states
+   * exactly what it stated, and the whole group is pushed back behind the
+   * filtered-in ones.
+   */
+  function fade(visible: boolean): number {
+    return visible ? 1 : FILTER_FADE;
+  }
+
   /** Drop any connector whose endpoints don't resolve rather than throwing. */
   const drawableConnections = $derived(
     connections
@@ -361,17 +399,22 @@
 
   <!-- connectors first, so nodes sit above them -->
   {#each drawableConnections as entry (entry.connection.id)}
-    <ConnectionPath
-      connection={entry.connection}
-      source={entry.source}
-      target={entry.target}
-      selected={entry.connection.id === selectedConnectionId}
-      reciprocal={reciprocalIds.has(entry.connection.id)}
-      onselect={onconnectselect}
-      onlabelchange={onconnectlabel}
-      ondelete={onconnectdelete}
-      onclose={onconnectclose}
-    />
+    <!-- A connector fades unless both of its endpoints survive the filter:
+         a full-strength line running to a faded node would read as a
+         relationship to something that isn't there. -->
+    <g class="filterable" opacity={fade(survives(entry.source.role) && survives(entry.target.role))}>
+      <ConnectionPath
+        connection={entry.connection}
+        source={entry.source}
+        target={entry.target}
+        selected={entry.connection.id === selectedConnectionId}
+        reciprocal={reciprocalIds.has(entry.connection.id)}
+        onselect={onconnectselect}
+        onlabelchange={onconnectlabel}
+        ondelete={onconnectdelete}
+        onclose={onconnectclose}
+      />
+    </g>
   {/each}
 
   <SelfNode
@@ -399,16 +442,18 @@
   {#each parts as part (part.id)}
     {@const position = positions.get(part.id)}
     {#if position}
-      <PartNode
-        {part}
-        {position}
-        selected={part.id === selectedPartId}
-        dropTarget={dropTargetId === part.id}
-        drawing={drawing !== null}
-        onconnectstart={startConnection}
-        {onselect}
-        {onmove}
-      />
+      <g class="filterable" opacity={fade(survives(part.role))}>
+        <PartNode
+          {part}
+          {position}
+          selected={part.id === selectedPartId}
+          dropTarget={dropTargetId === part.id}
+          drawing={drawing !== null}
+          onconnectstart={startConnection}
+          {onselect}
+          {onmove}
+        />
+      </g>
     {/if}
   {/each}
 </svg>
@@ -428,6 +473,12 @@
 
   .drawing-line {
     pointer-events: none;
+  }
+
+  /* The filter fades rather than cuts, so switching pills reads as the same
+     map being re-weighted instead of a different map being drawn. */
+  .filterable {
+    transition: opacity 200ms ease;
   }
 
   .sector-label {
