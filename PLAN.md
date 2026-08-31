@@ -307,6 +307,12 @@ server." Commit at milestone boundaries, not mid-milestone.
    JSON against the expected shape before trusting it (a hand-edited or stale
    localStorage blob shouldn't crash the app) — a small type guard, not a schema
    library.
+8b. **Fit-to-content framing** — `computeViewBox` in `layout.ts` scales
+    `theme.ts`'s `VIEWBOX` uniformly about its own centre until it contains every
+    node. The design frame stays the minimum, so a small map is composed exactly
+    as drawn; a larger one stands back instead of losing parts off the edge.
+    Needed because sectors overflow onto rings 120 units further out and a fixed
+    frame made those parts invisible in the app, not merely cropped in an export.
 9. **PNG export** — `export.ts`: clone the `<svg>`, ensure all styling is inline SVG
    attributes (not external CSS classes) so the clone is self-contained, serialize via
    `XMLSerializer`, draw to an offscreen canvas at 2x for crispness, `toDataURL` ->
@@ -362,8 +368,18 @@ server." Commit at milestone boundaries, not mid-milestone.
     `preventDefault` or the browser zooms the whole page instead.
   - **Export should almost certainly ignore it.** `export.ts` serializes the live
     `<svg>`, so a zoomed-in view would export as a cropped map. The picture people
-    want is the whole map, so the export likely pins the viewBox back to 100%
-    rather than inheriting whatever the screen is showing.
+    want is the whole map, so the export likely pins the viewBox back to the
+    fit-to-content frame rather than inheriting whatever the screen is showing.
+
+- **Crowding at scale**, which is now the binding limit rather than framing.
+  `computeViewBox` guarantees every part is *visible*; it does not stop parts
+  from sitting too close to read. Measured against `?parts=` fixtures, colliding
+  label pairs go 0 (demo) -> 1 (12 parts) -> 9 (21) -> 17 (40). The cause is
+  `MIN_ARC_SPACING` at 130, derived from the node diameter plus "room for the
+  label beneath" — but a caption like "FIREFIGHTER · UNWITNESSED" runs to about
+  170 units, so neighbours on a ring can be spaced more tightly than their own
+  captions are wide. Raising the spacing pushes parts onto outer rings sooner,
+  trading a larger map for a legible one; that trade is the decision to make.
 
 ## Explicitly out of scope for v1
 

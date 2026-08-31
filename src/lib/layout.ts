@@ -1,4 +1,5 @@
 import { scalePoint } from "d3-scale";
+import { NODE, VIEWBOX } from "./theme";
 import { SELF_ID } from "./types";
 import type {
   ConnectionStyle,
@@ -276,4 +277,87 @@ export function wrapLabel(name: string, maxChars = 12): [string] | [string, stri
   }
 
   return [words.slice(0, bestSplit).join(" "), words.slice(bestSplit).join(" ")];
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Framing                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How far a node's rendering reaches past its own centre.
+ *
+ * `NODE.radius` alone is not the answer: the "ROLE · STATUS" caption hangs
+ * below the circle, and it is wider than the circle is. The side figure is
+ * derived from the caption's own metrics rather than guessed — at
+ * `metaSize` 10.5 and `glyphWidthRatio` 0.5, plus 1.5 of letter-spacing, a
+ * glyph advances about 6.75 units, so a long caption like
+ * "FIREFIGHTER · UNWITNESSED" runs to roughly 170 wide, or 85 either side of
+ * centre. Rounded up to 90 for the descenders on a longer free-text status.
+ */
+const NODE_EXTENT = {
+  /** The circle, plus room for the ring a selected node draws. */
+  up: NODE.radius + 8,
+  /** The caption's baseline, plus its own height. */
+  down: NODE.metaOffset + NODE.metaSize,
+  side: 90,
+} as const;
+
+/**
+ * Growth is quantised to 5% steps so that dragging a node past the edge nudges
+ * the frame outward in small jumps rather than rescaling the whole diagram
+ * continuously under the pointer.
+ */
+const SCALE_STEP = 0.05;
+
+export interface ViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The frame to draw the diagram in: `theme.ts`'s composition, widened only as
+ * far as the content demands.
+ *
+ * `VIEWBOX` is a settled design value and stays the *minimum* frame, so a map
+ * that fits inside it is composed exactly as the design intended — the nebula
+ * washes, sector labels and star field all sit where they were placed. What it
+ * cannot be is a hard limit. The sectors overflow onto rings 120 units further
+ * out (`RING_GAP`), and the manager sector is narrow enough to hold only two
+ * parts on the first ring, so a fourth manager already lands past the fixed
+ * top edge. With a fixed frame that part is not merely cropped in an export —
+ * it is invisible in the app, with nothing to say it exists.
+ *
+ * The frame therefore scales *uniformly about its own centre* rather than
+ * being fitted to a bounding box of the content. Fitting a box would change the
+ * aspect ratio and slide the centre, distorting a composition that is radial
+ * around Self by construction. Scaling keeps every relationship in the design
+ * intact and simply stands further back.
+ */
+export function computeViewBox(positions: Iterable<Point>): ViewBox {
+  const centreX = VIEWBOX.x + VIEWBOX.width / 2;
+  const centreY = VIEWBOX.y + VIEWBOX.height / 2;
+  const halfWidth = VIEWBOX.width / 2;
+  const halfHeight = VIEWBOX.height / 2;
+
+  let scale = 1;
+  for (const { x, y } of positions) {
+    const sideReach = Math.abs(x - centreX) + NODE_EXTENT.side;
+    const verticalReach = Math.max(
+      centreY - (y - NODE_EXTENT.up),
+      y + NODE_EXTENT.down - centreY,
+    );
+    scale = Math.max(scale, sideReach / halfWidth, verticalReach / halfHeight);
+  }
+
+  scale = Math.ceil(scale / SCALE_STEP) * SCALE_STEP;
+
+  return {
+    x: Math.round(centreX - halfWidth * scale),
+    y: Math.round(centreY - halfHeight * scale),
+    width: Math.round(VIEWBOX.width * scale),
+    height: Math.round(VIEWBOX.height * scale),
+  };
 }

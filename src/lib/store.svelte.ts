@@ -1,3 +1,4 @@
+import { fixtureFromQuery } from "./devFixtures";
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
 import { connectionEdgeKey } from "./layout";
 import { loadState } from "./persistence";
@@ -18,6 +19,17 @@ import type {
 const restored = loadState();
 
 /**
+ * A generated map named by `?parts=<n>`, for exercising the layout at sizes the
+ * six-part sample never reaches. Null in a production build, where the whole
+ * module is compiled out.
+ *
+ * It takes precedence over a stored map but never replaces one: `showingExample`
+ * stays true below, so the save effect declines to write and whatever is in
+ * localStorage is still there after the query string is removed.
+ */
+const fixture = fixtureFromQuery();
+
+/**
  * The map's shared reactive state.
  *
  * A class rather than a bare `$state` object so the fields stay reassignable
@@ -28,9 +40,11 @@ const restored = loadState();
  * not anyone's real map — see PLAN.md's portfolio note.
  */
 class MapStore {
-  parts = $state<Part[]>(restored?.parts ?? [...EXAMPLE_PARTS]);
+  parts = $state<Part[]>(
+    fixture?.parts ?? restored?.parts ?? [...EXAMPLE_PARTS],
+  );
   connections = $state<Connection[]>(
-    restored?.connections ?? [...EXAMPLE_CONNECTIONS],
+    fixture?.connections ?? restored?.connections ?? [...EXAMPLE_CONNECTIONS],
   );
 
   /**
@@ -42,7 +56,7 @@ class MapStore {
    * An emptied map stays a real map: absence of a stored blob is what marks
    * the sample, not absence of parts.
    */
-  showingExample = $state(restored === null);
+  showingExample = $state(fixture !== null || restored === null);
 
   /**
    * Whose map this is. Empty until someone starts fresh and says — the sample
