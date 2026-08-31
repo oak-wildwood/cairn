@@ -14,12 +14,13 @@ node, an add/edit form per part, localStorage persistence, PNG export. Styled pe
 **Nocturnal** direction — dark cosmic background, glowing role-colored nodes, soft
 nebula washes marking the three sectors, Cormorant Garamond + Manrope type.
 
-The comp is checked into this repo, not just described in prose:
-`design/nocturnal-comp.svg` (source markup — exact hex colors, gradient stops,
-filter `stdDeviation`s, coordinates; prefer this over eyeballing pixels) and
-`design/nocturnal-comp.png` (flattened reference render, for a quick visual
-gut-check). Milestone 1's "pixel-match" and Milestone 10's polish pass both mean:
-match `nocturnal-comp.svg`'s actual values.
+That direction started as a comp, which was never checked in and is no longer part
+of this project. **`src/lib/theme.ts` now holds the design** — its exact hex colors,
+gradient stops, filter `stdDeviation`s, stroke widths and type — and is the spec.
+There is no artwork to diff against and none to go looking for, so Milestone 1's
+"pixel-match" and Milestone 10's polish pass both mean: match `theme.ts`'s values.
+Nothing in this repo should cite a comp file; see AGENTS.md on what `theme.ts`'s
+DERIVED marker does and doesn't claim.
 
 ## Stack
 
@@ -34,7 +35,7 @@ match `nocturnal-comp.svg`'s actual values.
   before bumping.
 - D3 used only for its math: `d3-shape` (bezier curve helpers) and `d3-scale`. No
   `d3-selection` / DOM joins — Svelte owns the DOM entirely.
-- No component library, no CSS framework — hand-rolled to match the Nocturnal comp
+- No component library, no CSS framework — hand-rolled to the Nocturnal direction
   (SVG filters for glow, radial gradients) exactly.
 - No backend, no auth, no build-time data.
 - `npm run check` (`svelte-check`) must be clean — 0 errors, 0 warnings — before any
@@ -71,12 +72,12 @@ that, not just get milestones green:
   interactions should be operable without a mouse where that's not disproportionate
   effort (filter pills are plain buttons — trivial; full keyboard drag-repositioning
   of nodes is a reasonable thing to explicitly punt on, but say so if punted).
-- Match `design/nocturnal-comp.svg`'s actual values (colors, blur radii, font sizes)
-  rather than approximating "something dark and glowy" — that file is the spec, not
-  a mood board. Its coordinate space (900×1100 viewBox) is illustrative of relative
-  layout only — it's not this app's actual viewport, which is a live diagram at
-  whatever size the browser gives it — but every color, gradient stop, filter value,
-  and font choice in it is exact and should be copied, not approximated.
+- Match `theme.ts`'s actual values (colors, blur radii, font sizes) rather than
+  approximating "something dark and glowy" — that file is the spec, not a mood board.
+  The original artwork's coordinate space (900×1100) was illustrative of relative
+  layout only — it was never this app's viewport, which is a live diagram at whatever
+  size the browser gives it — but every color, gradient stop, filter value and font
+  choice is exact and should be used as written, not approximated.
 - Keep components small and single-purpose per the file structure below; if a
   component grows past doing the one thing its name says, that's a signal to split
   it, not a milestone to rush through.
@@ -112,7 +113,7 @@ export interface Part {
   status: string;           // free text, e.g. "active", "emerging", "witnessed", "unwitnessed"
                              // — free text by design (see rationale above the code
                              // block), but the dashed-circle-stroke rule (PartNode,
-                             // per the comp) keys off this value, so match it
+                             // per the design) keys off this value, so match it
                              // case-insensitively against "emerging"/"unwitnessed"
                              // rather than assuming exact casing
   x: number | null;         // manual override; null = use computed layout position
@@ -238,14 +239,13 @@ Each milestone's definition of done includes `npm run check` passing with 0
 errors/warnings and `npm run build` succeeding — not just "looks right in the dev
 server." Commit at milestone boundaries, not mid-milestone.
 
-1. **Static render** — hardcode the same 6 example parts as `design/nocturnal-comp.svg`
-   (The Fixer, The Analyst, The Avoider, Alarmist, The Kid, The Unseen One — same
-   names, roles, and statuses) typed against `types.ts`, render the full
-   Nocturnal-styled diagram with no interactivity. Goal: pixel-match
-   `design/nocturnal-comp.svg` before any state management exists — background
-   gradient, nebula washes, star field, Self glow, node strokes/fills per role, the
-   dashed-stroke treatment the comp uses for "emerging"/"unwitnessed" statuses, and
-   type all copied from that file's actual values.
+1. **Static render** — hardcode the 6 example parts (The Fixer, The Analyst, The
+   Avoider, Alarmist, The Kid, The Unseen One — the names, roles and statuses now in
+   `exampleData.ts`) typed against `types.ts`, render the full Nocturnal-styled
+   diagram with no interactivity. Goal: match `theme.ts` before any state management
+   exists — background gradient, nebula washes, star field, Self glow, node
+   strokes/fills per role, the dashed-stroke treatment for "emerging"/"unwitnessed"
+   statuses, and type, all from that file's actual values.
 2. **Store + reactive render** — move the hardcoded data into `store.svelte.ts`;
    `Diagram.svelte` renders from the store via `{#each}`.
 3. **Detail panel (read-only)** — `PartDetailPanel.svelte`, a side panel (not a
@@ -311,7 +311,7 @@ server." Commit at milestone boundaries, not mid-milestone.
    attributes (not external CSS classes) so the clone is self-contained, serialize via
    `XMLSerializer`, draw to an offscreen canvas at 2x for crispness, `toDataURL` ->
    trigger download.
-10. **Polish pass** — diff against the Nocturnal comp: glow filter tuning, nebula
+10. **Polish pass** — against `theme.ts`: glow filter tuning, nebula
     wash placement, font loading (self-host or `<link>` Google Fonts with fallback
     stacks), connector curve smoothness.
 
@@ -333,7 +333,7 @@ server." Commit at milestone boundaries, not mid-milestone.
 - Filter pills (All / Managers / Firefighters / Exiles) toggle visibility with live
   counts.
 - "Export" produces a PNG that visually matches the on-screen state.
-- Visual result matches the Nocturnal comp closely enough to be recognizably the same
+- Visual result matches `theme.ts`'s values closely enough to read as the Nocturnal
   design, not just "inspired by."
 
 ## Explicitly out of scope for v1

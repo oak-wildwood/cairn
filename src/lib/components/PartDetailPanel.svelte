@@ -188,8 +188,8 @@
 
 <style>
   /*
-   * DERIVED: the comp has no detail panel, so none of this is copied from it.
-   * The surface is a step above the comp's darkest background stop (#0B0C12)
+   * DERIVED: the original design has no detail panel, so none of this is
+   * inherited. The surface is a step above the darkest background stop (#0B0C12)
    * and below its mid stop (#171A28), which keeps the panel legible against
    * the canvas without introducing a colour the palette doesn't already use.
    */

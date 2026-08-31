@@ -2,13 +2,14 @@ import type { Connection, Part } from "./types";
 import { SELF_ID } from "./types";
 
 /**
- * The six example parts from `design/nocturnal-comp.svg`, with the same names,
- * roles and statuses. Generic placeholder content only — no real personal data
- * belongs in this repo (see PLAN.md's portfolio note).
+ * The six example parts the Nocturnal design was drawn around, with the same
+ * names, roles and statuses. Generic placeholder content only — no real
+ * personal data belongs in this repo (see PLAN.md's portfolio note).
  *
- * Every `x`/`y` is null so `computeLayout` places them: the comp's coordinate
- * space is illustrative of relative arrangement, not the live viewport. Listed
- * in the order that reproduces the comp's arrangement within each sector.
+ * Every `x`/`y` is null so `computeLayout` places them: the original artwork's
+ * coordinate space was illustrative of relative arrangement, not the live
+ * viewport. Listed in the order that reproduces that arrangement within each
+ * sector.
  */
 export const EXAMPLE_PARTS: readonly Part[] = [
   {
@@ -127,9 +128,9 @@ export const EXAMPLE_PARTS: readonly Part[] = [
  * the The Kid -> The Fixer edge is exile pink rather than manager blue — it is
  * the wound reaching the protector, not the other way round.
  *
- * The comp draws five connectors, and these are those five plus the return leg
- * of two of them. The comp is the authority on how a connector *looks*, not on
- * which relationships an IFS map contains — it is one illustrative picture of
+ * The Nocturnal design drew five connectors, and these are those five plus the
+ * return leg of two of them. A design settles how a connector *looks*, not
+ * which relationships an IFS map contains — it was one illustrative picture of
  * six parts, and a protector/exile bond drawn one-way is a half-drawn bond.
  * IFS has the exile activating its protector while that protector works to
  * suppress the exile: both directions, at once, between the same pair. So The

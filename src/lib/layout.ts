@@ -50,7 +50,7 @@ const RING_GAP = 120;
 /**
  * Minimum arc length between adjacent node centres on a ring. A ring holds as
  * many parts as it can at this spacing; the rest spill to the next ring out.
- * Derived from the comp's node diameter (~95) plus room for the label beneath.
+ * Derived from the design's node diameter (~95) plus room for the label beneath.
  */
 const MIN_ARC_SPACING = 130;
 
@@ -249,7 +249,7 @@ export function connectionOpacity(
 }
 
 /**
- * Split a part name across at most two lines, the way the comp wraps "The
+ * Split a part name across at most two lines, the way the design wraps "The
  * Fixer" and "The Unseen One".
  */
 export function wrapLabel(name: string, maxChars = 12): [string] | [string, string] {
@@ -260,7 +260,7 @@ export function wrapLabel(name: string, maxChars = 12): [string] | [string, stri
   if (words.length === 1) return [trimmed];
 
   // Minimise the longest of the two lines, breaking ties toward the earlier
-  // split. That reproduces the comp's own wrapping for both of its wrapped
+  // split. That reproduces the design's own wrapping for both of its wrapped
   // labels: "The / Fixer" and "The / Unseen One".
   let bestSplit = 1;
   let bestLongest = Infinity;

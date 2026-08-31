@@ -9,30 +9,31 @@ covers what `PLAN.md` and the code do not say.
 ## What this project is, and why it constrains you
 
 From the source this reads like a small graph-visualisation app. It isn't. It is a
-fixed-geometry diagram reproducing one specific comp, `design/nocturnal-comp.svg`, at
-10–40 hand-placed nodes: the layout is angular sectors rather than anything
-force-directed, and the colours, gradient stops, filter deviations and type are copied
-from that file rather than chosen. That is why there is no graph library, no CSS
-framework, and why D3 appears only as maths.
+fixed-geometry diagram at 10–40 hand-placed nodes: the layout is angular sectors
+rather than anything force-directed, and the colours, gradient stops, filter
+deviations and type are a settled design rather than choices to make afresh. That is
+why there is no graph library, no CSS framework, and why D3 appears only as maths.
 
-So "match the comp" is a specification, not a mood board. A cleaner-looking
-approximation is a regression, and the comp's own values are the tie-breaker in any
-visual disagreement.
+**`src/lib/theme.ts` is the design spec.** These values began in a "Nocturnal" comp
+that was never checked in and is no longer part of this project, so do not go looking
+for it, and do not write a comment, doc or commit message that points at one — there
+is nothing for anyone else to open. What is in `theme.ts` *is* the design, and it is
+the tie-breaker in any visual disagreement. A cleaner-looking approximation is a
+regression.
 
-But it is a starting point, not a ceiling, and the app has already outgrown it. The
-comp is one still picture of six parts: it has no hover state, no drag, no detail
-panel, no modal, no reciprocal connectors, no arrowheads. Its authority is over the
-values it actually sets — colours, gradient stops, filter deviations, type — and it
-stays the tie-breaker wherever it *does* speak. Where it is silent, its silence is
-not a prohibition: build the thing, derive the value from what the comp establishes
-nearby, and mark it `DERIVED` with the reasoning, per `theme.ts`. What is forbidden
-is quietly restyling something the comp *did* settle.
+That file's DERIVED marker records provenance, not a file you could diff against. An
+unmarked value was settled by the original design: treat it as considered, and change
+it only deliberately, on purpose, with a reason. A DERIVED value was reasoned out
+here for something the original never covered — hover states, drag, the detail panel,
+the modal, reciprocal connectors, arrowheads — and carries that reasoning in its
+comment; those are open to revisit on their merits. Adding an invented value unmarked
+erases the distinction the file exists to preserve.
 
-The comp is also not the authority on domain content — which parts exist, and which
-relationships hold between them. That is IFS, and where the two appear to disagree
-about substance rather than appearance, IFS wins. `exampleData.ts` draws the comp's
-six parts, but its connections answer to the domain: a protector/exile bond drawn
-one-way is a half-drawn bond regardless of how the comp illustrated it.
+Nothing about the visual design was ever the authority on domain content — which
+parts exist, and which relationships hold between them. That is IFS. Where the two
+appear to disagree about substance rather than appearance, IFS wins: `exampleData.ts`
+keeps the original six generic parts, but its connections answer to the domain, and a
+protector/exile bond drawn one-way is a half-drawn bond however it was first drawn.
 
 ## Hard rules
 
@@ -44,8 +45,8 @@ one-way is a half-drawn bond regardless of how the comp illustrated it.
   users that their data never leaves the browser. One `fetch` makes that a lie, and
   the data in question is a person's account of their own mind.
 - **No real parts data in the repo, ever** — not in fixtures, not in a screenshot, not
-  in a commit message. This repo is public. Demo data stays the comp's six generic
-  names.
+  in a commit message. This repo is public. Demo data stays the six generic names
+  already in `exampleData.ts`.
 - **Never hand-edit `public/logo-96.png`, `public/logo-192.png`, or
   `design/cairn-icon-transparent.png`.** `tools/make-logo.py` regenerates all three
   from the master, so an edit here is silently overwritten the next time anyone re-cuts
@@ -70,10 +71,10 @@ one-way is a half-drawn bond regardless of how the comp illustrated it.
   obvious "fix" when two connectors look redundant — leaves the map unable to state
   the thing it exists to state. What the key does forbid is the *same* direction
   twice, which is the failure it was written for.
-- **Arrowheads appear only on reciprocal pairs.** The comp draws none, so a lone
+- **Arrowheads appear only on reciprocal pairs.** The original design drew none, so a lone
   connector has none; the two arcs of a reciprocal pair get one each because
   otherwise nothing on the canvas says which way either runs. Adding them
-  everywhere for consistency is a regression against the comp, and dropping them
+  everywhere for consistency is a regression against the settled design, and dropping them
   from reciprocal pairs makes those two arcs unreadable.
 - **Reciprocal arcs separate because one term skips the `away` flip.** In
   `Connection.svelte`, `perp` and `away` both flip with direction, so they cancel
@@ -104,17 +105,21 @@ one-way is a half-drawn bond regardless of how the comp illustrated it.
   survivable because `scalePoint().padding(0.5)` insets the first and last node by
   half a step, keeping nodes off their sector boundaries. Dropping the padding, or
   moving to `scaleLinear`, puts parts into the overlap.
-- **In `theme.ts`, an unmarked value is a claim that it was copied from the comp.**
-  Anything without a counterpart there is marked `DERIVED` with its reasoning. Adding
-  an invented value unmarked erases the distinction the file exists to preserve.
+- **In `theme.ts`, an unmarked value is a claim that the original design settled
+  it.** Anything reasoned out here instead is marked `DERIVED` with that reasoning.
+  Adding an invented value unmarked erases the distinction the file exists to
+  preserve — and since the original artwork is gone, nobody can recover which was
+  which by inspection.
 
 ## Working in this repo
 
 - `npm run check` must finish at **0 errors and 0 warnings**, and `npm run build` must
   succeed, before a milestone counts as done — not "looks right in the dev server".
-- `design/` is gitignored apart from the three `cairn-icon-*` files, so a new comp
-  dropped in there will not be committed and will not exist for anyone else. If a comp
-  becomes a spec, un-ignore it deliberately.
+- `design/` is gitignored apart from the three `cairn-icon-*` files, so anything
+  dropped in there is local scratch: it will not be committed and will not exist for
+  anyone else. Nothing in it is a spec, and no doc or comment should cite it as one.
+  If something there ever needs to be authoritative, un-ignore it in the same commit
+  that starts relying on it.
 - Regenerate the logos with `python3 tools/make-logo.py` from the repo root; see
   `tools/README.md` for why each step of the keying is what it is.
 

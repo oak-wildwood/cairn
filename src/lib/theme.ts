@@ -1,15 +1,23 @@
 import type { PartRole, SectorRole } from "./types";
 
 /**
- * The Nocturnal palette and type tokens.
+ * The Nocturnal palette and type tokens. **This file is the design spec.**
  *
- * Every value here is copied from `design/nocturnal-comp.svg` rather than
- * approximated. Where a token has no counterpart in the comp it is marked
- * DERIVED with the reasoning, so the two are never confused.
+ * These values came from a Nocturnal comp that was never checked in and is not
+ * part of this project any more, so there is nothing left to diff against and
+ * nothing to go and re-measure: what is written here *is* the design, and it is
+ * the tie-breaker in any visual disagreement.
  *
- * The comp's 900x1100 viewBox is illustrative of relative layout only — the
- * live diagram sizes to the viewport — so coordinates are not copied, but
- * colors, gradient stops, filter deviations, stroke widths and type are.
+ * The DERIVED marker is therefore about provenance, not about a file you could
+ * open. An unmarked value was settled by the original Nocturnal design — treat
+ * it as considered, and change it only deliberately. A DERIVED value was
+ * reasoned out here for something that design never covered, and its comment
+ * carries the reasoning; those are open to revisit on their merits.
+ *
+ * The original artwork was laid out on a 900x1100 page, which was illustrative
+ * of relative layout only — the live diagram sizes to the viewport — so
+ * coordinates were never copied verbatim. Colors, gradient stops, filter
+ * deviations, stroke widths and type were.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -17,10 +25,10 @@ import type { PartRole, SectorRole } from "./types";
 /* -------------------------------------------------------------------------- */
 
 /**
- * radialGradient #bgGrad. The comp declares it in objectBoundingBox units
- * (cx 50%, cy 40%, r 80% of its 900x1100 page); here it is pinned to user
+ * radialGradient #bgGrad. The source artwork declared it in objectBoundingBox
+ * units (cx 50%, cy 40%, r 80% of its 900x1100 page); here it is pinned to user
  * space instead, so the wash keeps the same geometry no matter how wide the
- * viewport makes the backdrop rect. The centre is the comp's (450, 440)
+ * viewport makes the backdrop rect. The centre is that artwork's (450, 440)
  * expressed as an offset from Self.
  */
 export const BACKGROUND_GRADIENT = {
@@ -104,8 +112,8 @@ export const ROLES: Readonly<Record<PartRole, RoleTokens>> = {
   manager: {
     accent: "#8FA3E3",
     pillText: "#B9BEDA",
-    // DERIVED: the comp has no low-definition manager node, so there is no
-    // muted manager accent to copy. Matched to the shift the comp applies for
+    // DERIVED: the source design has no low-definition manager node, so there
+    // is no muted manager accent to inherit. Matched to the shift it applies for
     // firefighter (#E38F6B -> #C1876E) and exile (#D9A0C9 -> #B87BB0).
     accentMuted: "#7C8BC4",
     sectorLabel: "#8A93C4",
@@ -128,7 +136,7 @@ export const ROLES: Readonly<Record<PartRole, RoleTokens>> = {
     nodeFill: "#221B26",
     wash: { color: "#B87BB0", opacity: 0.18 },
   },
-  // DERIVED: the comp shows no "unknown" part. A neutral lavender-grey already
+  // DERIVED: the source design shows no "unknown" part. A neutral lavender-grey already
   // in the palette (the eyebrow tone) reads as "noticed but not yet identified"
   // without claiming one of the three sector hues. See PLAN.md's open question.
   unknown: {
@@ -150,7 +158,7 @@ export const SECTOR_ROLES: readonly SectorRole[] = [
 
 /**
  * The live diagram's coordinate space puts Self at the origin. These are the
- * comp's canvas-region coordinates (its y 230–1000 band, between the two
+ * source artwork's canvas-region coordinates (its y 230–1000 band, between the two
  * hairline rules) re-expressed as offsets from Self at (450, 600).
  */
 export const VIEWBOX = { x: -450, y: -370, width: 900, height: 770 } as const;
@@ -164,7 +172,7 @@ export const WASH_GEOMETRY: Readonly<
   exile: { cx: -20, cy: 240, rx: 270, ry: 195 },
 };
 
-/** The comp's sector captions, in Self-centred diagram space. */
+/** The sector captions, in Self-centred diagram space. */
 export const SECTOR_LABEL_POSITIONS: Readonly<
   Record<SectorRole, { x: number; y: number; anchor: "start" | "middle" | "end" }>
 > = {
@@ -174,7 +182,7 @@ export const SECTOR_LABEL_POSITIONS: Readonly<
 };
 
 /**
- * The comp's star field, restricted to the stars that fall inside the canvas
+ * The star field, restricted to the stars that fall inside the canvas
  * region and re-expressed in Self-centred diagram space.
  */
 export const STARS: readonly {
@@ -199,7 +207,7 @@ export const STARS: readonly {
 
 export const NODE = {
   /**
-   * DERIVED: the comp's node radii vary 42–56 with nothing in the data model to
+   * DERIVED: the source design's node radii vary 42–56 with nothing in the data model to
    * drive the difference (it tracks neither role nor status), so the live
    * diagram uses one radius near their mean.
    */
@@ -222,13 +230,13 @@ export const NODE = {
   /** The "ROLE · STATUS" caption beneath the circle. */
   metaSize: 10.5,
   metaLetterSpacing: 1.5,
-  /** Distance from node centre to the meta caption baseline, in the comp. */
+  /** Distance from node centre to the meta caption baseline. */
   metaOffset: 63,
   lineHeight: 17,
 } as const;
 
 /**
- * Statuses the comp renders as a low-definition node — dashed stroke, no glow,
+ * Statuses that render as a low-definition node — dashed stroke, no glow,
  * dimmed label. Matched case-insensitively because `status` is free text.
  */
 const LOW_DEFINITION_STATUSES: readonly string[] = ["emerging", "unwitnessed"];
@@ -238,9 +246,9 @@ export function isLowDefinition(status: string): boolean {
 }
 
 /**
- * DERIVED: the comp is a static render with no interaction, so it has no
+ * DERIVED: the source design is a static render with no interaction, so it has no
  * connection handles, no drop-target highlight and no connector labels. These
- * are sized against the comp's own node geometry — a handle reads as an
+ * are sized against the node geometry above — a handle reads as an
  * affordance on a 46px node without competing with it.
  */
 export const HANDLE = {
@@ -261,15 +269,15 @@ export const CONNECTION = {
   solidOpacity: 0.85,
   dashedWidth: 1.6,
   dashedOpacity: 0.75,
-  /** The comp's connector dashes are dotted, not the node stroke's "3 4". */
+  /** Connector dashes are dotted, not the node stroke's "3 4". */
   dashArray: "1 6",
   /**
    * How far a connector bows off its chord, as a fraction of chord length.
-   * The comp's quadratic control points sit 0.07–0.17 off the chord; this is
+   * The source design's quadratic control points sit 0.07–0.17 off the chord; this is
    * the middle of that range.
    */
   bowRatio: 0.12,
-  /** DERIVED: the comp draws no connector labels; this matches the node meta. */
+  /** DERIVED: the source design draws no connector labels; this matches the node meta. */
   labelSize: 10.5,
   labelColor: "#C6C9DA",
   /** Padding behind a label so it doesn't sit directly on its own line. */
@@ -289,7 +297,7 @@ export const CONNECTION = {
    */
   reciprocalSpread: 0.09,
   /**
-   * DERIVED: the comp draws no arrowheads, and connectors here don't get one
+   * DERIVED: the source design draws no arrowheads, and connectors here don't get one
    * either — except on a reciprocal pair, where two arcs run between the same
    * nodes and nothing else says which way either runs. Measured in
    * stroke-widths so the head stays proportional to the line it caps.
@@ -351,7 +359,7 @@ export const TYPE_SCALE = {
   countMeta: { size: 13 },
   button: { size: 13, weight: 600 },
   pill: { size: 12.5, weight: 600 },
-  // DERIVED: the comp's sector labels are 12px; bumped a step for legibility.
+  // DERIVED: the source design's sector labels are 12px; bumped a step for legibility.
   sectorLabel: { size: 13, letterSpacing: 3, weight: 600, opacity: 0.75 },
   footer: { size: 16 },
 } as const;

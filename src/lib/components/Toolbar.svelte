@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Milestone 1 is a static render, so these buttons are present and styled to
-   * the comp but not yet wired. They gain behaviour in Milestones 4 and 9.
+   * the design but not yet wired. They gain behaviour in Milestones 4 and 9.
    */
   interface Props {
     onAddPart?: () => void;
