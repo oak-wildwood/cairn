@@ -12,7 +12,6 @@
 </script>
 
 <div class="toolbar">
-  <h2 class="heading">System Map</h2>
   <div class="actions">
     <button type="button" class="button primary" onclick={onAddPart}>
       + Add a part

@@ -95,7 +95,7 @@
           width="44"
           height="44"
         />
-        <h1 class="title">Cairn</h1>
+        <p class="wordmark">Cairn</p>
       </div>
       <div class="counts">
         <p class="count">{store.parts.length} parts</p>
@@ -105,7 +105,10 @@
 
     <hr class="rule" />
 
-    <Toolbar onAddPart={() => store.startAdding()} />
+    <div class="page-heading">
+      <h1 class="title">My Parts Map</h1>
+      <Toolbar onAddPart={() => store.startAdding()} />
+    </div>
 
     <hr class="rule" />
 
@@ -214,15 +217,19 @@
 
   .header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
   }
 
+  /**
+   * The app's only product identity in-page — the comp has no logo, so this is
+   * a deliberate addition beside its header rather than a change to it.
+   */
   .brand {
     display: flex;
     align-items: center;
-    gap: 0.9375rem;
+    gap: 0.75rem;
   }
 
   .mark {
@@ -230,6 +237,22 @@
     flex-shrink: 0;
     width: 44px;
     height: 44px;
+  }
+
+  .wordmark {
+    margin: 0;
+    color: var(--text-bright);
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
   }
 
   .title {
@@ -249,7 +272,7 @@
     margin: 0;
     color: var(--text-bright);
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .count-meta {

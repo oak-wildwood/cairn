@@ -304,6 +304,7 @@
 
   {#each SECTOR_ROLES as role (role)}
     <text
+      class="sector-label"
       x={SECTOR_LABEL_POSITIONS[role].x}
       y={SECTOR_LABEL_POSITIONS[role].y}
       fill={ROLES[role].sectorLabel}
@@ -384,5 +385,9 @@
 
   .drawing-line {
     pointer-events: none;
+  }
+
+  .sector-label {
+    user-select: none;
   }
 </style>
