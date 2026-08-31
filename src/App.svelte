@@ -91,6 +91,7 @@
           selectedPartId={store.selectedPartId}
           onselect={(id) => store.select(id)}
           onclear={() => store.clearSelection()}
+          onmove={(id, point) => store.movePart(id, point)}
         />
       </div>
 

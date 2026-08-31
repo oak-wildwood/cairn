@@ -23,6 +23,9 @@
 
   const style = $derived(connectionStyle(source.id, target.id));
   const fromSelf = $derived(source.id === SELF_ID);
+  const touchesSelf = $derived(
+    source.id === SELF_ID || target.id === SELF_ID,
+  );
 
   /** A connector takes its color from its source; Self's is gold. */
   const stroke = $derived(
@@ -83,7 +86,15 @@
 
     const mid: Point = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
     const perp: Point = { x: uy, y: -ux };
-    const away = mid.x * perp.x + mid.y * perp.y >= 0 ? 1 : -1;
+
+    // When an endpoint is Self, `mid` sits on the origin and is always
+    // collinear with the chord, so the dot product below is exactly zero and
+    // its sign is floating-point noise — flipping every pointer-move mid-drag
+    // reads as the curve flickering between mirror images. Key off which
+    // field holds Self instead; that's fixed for the connection's lifetime.
+    const away = touchesSelf
+      ? source.id === SELF_ID ? 1 : -1
+      : mid.x * perp.x + mid.y * perp.y >= 0 ? 1 : -1;
     const offset = Math.hypot(end.x - start.x, end.y - start.y) *
       CONNECTION.bowRatio * away;
 
