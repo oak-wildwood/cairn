@@ -70,6 +70,12 @@ export interface Part {
   y: number | null;
 }
 
+/**
+ * A part's contents without its identity — what the add/edit form produces.
+ * `x`/`y` ride along so editing preserves a dragged position.
+ */
+export type PartDraft = Omit<Part, "id">;
+
 export interface Connection {
   id: string;
   sourceId: EndpointId;

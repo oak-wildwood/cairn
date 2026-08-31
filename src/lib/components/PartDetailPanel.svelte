@@ -12,10 +12,12 @@
     /** The rest of the map, for naming a connection's other endpoint. */
     parts: readonly Part[];
     onclose: () => void;
+    onedit: (id: string) => void;
     ondelete: (id: string) => void;
   }
 
-  const { part, connections, parts, onclose, ondelete }: Props = $props();
+  const { part, connections, parts, onclose, onedit, ondelete }: Props =
+    $props();
 
   const accent = $derived(ROLES[part.role].accent);
 
@@ -160,6 +162,9 @@
     </section>
 
     <footer class="actions">
+      <button class="primary" type="button" onclick={() => onedit(part.id)}>
+        Edit
+      </button>
       <button
         class="danger"
         class:armed={confirmingDelete}
@@ -366,10 +371,22 @@
     cursor: pointer;
   }
 
+  .primary {
+    border: 1.3px solid var(--button-border);
+    background: none;
+    color: var(--text-bright);
+  }
+
+  .primary:hover {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+  }
+
   .danger {
     border: 1px solid var(--pill-border);
     background: none;
     color: var(--text-muted);
+    margin-left: auto;
   }
 
   .danger:hover,
