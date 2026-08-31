@@ -12,7 +12,30 @@ import type { Connection, Part, PartRole, PersistedState } from "./types";
  * their stored map, not crash the app on load.
  */
 
-const STORAGE_KEY = "cairn.map.v1";
+/**
+ * Previews share an origin with production — GitHub Pages serves
+ * `/cairn/` and `/cairn/pr-preview/pr-<n>/` from `oak-wildwood.github.io` —
+ * and localStorage is scoped to origin, not path. On a single key, testing a
+ * preview writes into the map the live site reads, and two previews overwrite
+ * each other.
+ *
+ * So a preview gets a bucket of its own and production keeps the bare key:
+ * changing the key production has always used would orphan a stored map, and
+ * that map is the whole point of persisting one.
+ *
+ * Read off `location.pathname` rather than `import.meta.env.BASE_URL`, which
+ * cannot tell these apart — `base` is relative in `vite.config.ts`, so
+ * BASE_URL is the literal "./" on every deploy.
+ */
+function storageKey(): string {
+  const base = "cairn.map.v1";
+  // Matches the preview folder itself, so the key doesn't change between
+  // `/pr-preview/pr-9/` and `/pr-preview/pr-9/index.html`.
+  const preview = location.pathname.match(/\/pr-preview\/[^/]+\//);
+  return preview ? `${base}:${preview[0]}` : base;
+}
+
+const STORAGE_KEY = storageKey();
 
 /** How long the map must sit still before a write. */
 const SAVE_DELAY_MS = 400;
