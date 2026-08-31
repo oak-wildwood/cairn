@@ -213,17 +213,26 @@ export function connectionStyle(
 }
 
 /**
- * A single key identifying the pair two endpoints form, regardless of which
- * way round they are given. Two parts hold at most one connection between
- * them, so A->B and B->A are the same edge and collide on this key.
+ * A single key identifying one *directed* edge. A->B and B->A are different
+ * keys, and a pair is allowed to hold both.
  *
- * Direction still means something and is still stored — the detail panel reads
- * it to say "protects ->" versus "<- triggers" — but it does not earn a second
- * line on the canvas. Two connectors between the same pair bow the same way
- * and land on top of each other, labels and all.
+ * That is a domain rule rather than a convenience. IFS treats protection and
+ * triggering as two distinct relations that routinely hold between the same
+ * pair at once, in opposite directions: an exile activates its protector while
+ * that protector works to suppress the exile. Collapsing a pair to one edge
+ * would leave the map unable to state the thing it exists to state — and the
+ * seed data already draws both `protects` and `triggers`. Polarization is the
+ * symmetric case, and a user simply draws that one once.
+ *
+ * What this key still forbids is the same direction twice, which is the actual
+ * failure it was introduced for: two A->B connectors bow identically, sit
+ * exactly on top of each other, and interleave their labels into nonsense.
  */
-export function connectionPairKey(a: EndpointId, b: EndpointId): string {
-  return a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
+export function connectionEdgeKey(
+  sourceId: EndpointId,
+  targetId: EndpointId,
+): string {
+  return `${sourceId}\u0000${targetId}`;
 }
 
 /**

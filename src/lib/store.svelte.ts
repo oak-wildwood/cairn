@@ -1,5 +1,5 @@
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
-import { connectionPairKey } from "./layout";
+import { connectionEdgeKey } from "./layout";
 import { loadState } from "./persistence";
 import type {
   Connection,
@@ -136,25 +136,28 @@ class MapStore {
    */
   selectedConnectionId = $state<string | null>(null);
 
-  /** True when these two endpoints already hold a connection, either way round. */
-  hasConnectionBetween(a: EndpointId, b: EndpointId): boolean {
-    const key = connectionPairKey(a, b);
+  /** True when a connection already runs from `sourceId` to `targetId`. */
+  hasConnection(sourceId: EndpointId, targetId: EndpointId): boolean {
+    const key = connectionEdgeKey(sourceId, targetId);
     return this.connections.some(
       (connection) =>
-        connectionPairKey(connection.sourceId, connection.targetId) === key,
+        connectionEdgeKey(connection.sourceId, connection.targetId) === key,
     );
   }
 
   /**
    * Create a connection and open its label editor, per the plan's flow.
    *
-   * Refuses a pair that is already connected. The diagram also declines to
-   * offer such a node as a drop target, so this guard should be unreachable
-   * from the canvas — it is here for the paths that don't go through a drag.
+   * Refuses a second connection in the same direction. The reverse edge is
+   * deliberately allowed: A->B and B->A are different relations (see
+   * `connectionEdgeKey`). The diagram also declines to offer an
+   * already-connected node as a drop target for that direction, so this guard
+   * should be unreachable from the canvas — it is here for the paths that
+   * don't go through a drag.
    */
   addConnection(sourceId: EndpointId, targetId: EndpointId): void {
     if (sourceId === targetId) return;
-    if (this.hasConnectionBetween(sourceId, targetId)) return;
+    if (this.hasConnection(sourceId, targetId)) return;
     this.showingExample = false;
     const connection: Connection = {
       id: crypto.randomUUID(),

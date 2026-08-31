@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { computeLayout, connectionPairKey } from "../layout";
+  import { computeLayout, connectionEdgeKey } from "../layout";
   import {
     BACKDROP,
     CONNECTION,
+    CONNECTOR_COLORS,
     BACKGROUND_GRADIENT,
     GLOW_FILTER,
     NODE,
@@ -106,16 +107,35 @@
    * otherwise be what the pointer reports hitting.
    */
   /**
-   * Pairs that already hold a connection. Two nodes carry at most one, so an
-   * already-connected node is not offered as a target — no highlight ring, and
-   * releasing over it cancels like empty canvas. Refusing the drop silently
-   * after the fact would look like the gesture had simply failed.
+   * The directed edges that already exist. A node is offered as a drop target
+   * unless the edge being drawn would repeat one of these — so a pair that is
+   * already connected one way is still a valid target for the other way, which
+   * is the whole point of keying this by direction. A node that would repeat an
+   * edge gets no highlight ring, and releasing over it cancels like empty
+   * canvas; refusing the drop silently after the fact would look like the
+   * gesture had simply failed.
    */
-  const connectedPairs = $derived(
+  const connectedEdges = $derived(
     new Set(
       connections.map((connection) =>
-        connectionPairKey(connection.sourceId, connection.targetId),
+        connectionEdgeKey(connection.sourceId, connection.targetId),
       ),
+    ),
+  );
+
+  /**
+   * Connections whose pair also holds the reverse edge. They need to be drawn
+   * apart from each other, and only this component can see both at once.
+   */
+  const reciprocalIds = $derived(
+    new Set(
+      connections
+        .filter((connection) =>
+          connectedEdges.has(
+            connectionEdgeKey(connection.targetId, connection.sourceId),
+          ),
+        )
+        .map((connection) => connection.id),
     ),
   );
 
@@ -125,7 +145,7 @@
 
     const available = (candidate: EndpointId): boolean =>
       candidate !== sourceId &&
-      !connectedPairs.has(connectionPairKey(sourceId, candidate));
+      !connectedEdges.has(connectionEdgeKey(sourceId, candidate));
 
     if (available(SELF_ID) && Math.hypot(point.x, point.y) <= SELF.radius) {
       return SELF_ID;
@@ -241,6 +261,28 @@
       {/each}
     </radialGradient>
 
+    <!--
+      One arrowhead per connector colour. A `<marker>` can't portably inherit
+      the stroke of the line that placed it, so the colour is baked in and
+      Connection.svelte names the marker matching its own. `markerUnits`
+      defaults to "strokeWidth", so each head scales with the line it caps, and
+      `refX` at the tip puts the point on the node's edge where the path ends.
+      Only reciprocal connectors reference these — see Connection.svelte.
+    -->
+    {#each Object.entries(CONNECTOR_COLORS) as [key, color] (key)}
+      <marker
+        id="arrow-{key}"
+        viewBox="0 0 8 8"
+        refX="8"
+        refY="4"
+        markerWidth={CONNECTION.arrowSize}
+        markerHeight={CONNECTION.arrowSize}
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill={color} />
+      </marker>
+    {/each}
+
     <filter
       id="glow"
       x={GLOW_FILTER.region.x}
@@ -324,6 +366,7 @@
       source={entry.source}
       target={entry.target}
       selected={entry.connection.id === selectedConnectionId}
+      reciprocal={reciprocalIds.has(entry.connection.id)}
       onselect={onconnectselect}
       onlabelchange={onconnectlabel}
       ondelete={onconnectdelete}

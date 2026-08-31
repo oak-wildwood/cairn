@@ -19,6 +19,21 @@ So "match the comp" is a specification, not a mood board. A cleaner-looking
 approximation is a regression, and the comp's own values are the tie-breaker in any
 visual disagreement.
 
+But it is a starting point, not a ceiling, and the app has already outgrown it. The
+comp is one still picture of six parts: it has no hover state, no drag, no detail
+panel, no modal, no reciprocal connectors, no arrowheads. Its authority is over the
+values it actually sets — colours, gradient stops, filter deviations, type — and it
+stays the tie-breaker wherever it *does* speak. Where it is silent, its silence is
+not a prohibition: build the thing, derive the value from what the comp establishes
+nearby, and mark it `DERIVED` with the reasoning, per `theme.ts`. What is forbidden
+is quietly restyling something the comp *did* settle.
+
+The comp is also not the authority on domain content — which parts exist, and which
+relationships hold between them. That is IFS, and where the two appear to disagree
+about substance rather than appearance, IFS wins. `exampleData.ts` draws the comp's
+six parts, but its connections answer to the domain: a protector/exile bond drawn
+one-way is a half-drawn bond regardless of how the comp illustrated it.
+
 ## Hard rules
 
 - **Never import `d3-selection`, or any D3 that touches the DOM.** Svelte owns the
@@ -48,6 +63,24 @@ visual disagreement.
   still `unknown`. Each channel is fully spoken for, so overloading one to carry a
   second meaning makes the diagram assert something untrue. `layout.ts` is the
   authority on all three.
+- **Connections are per *direction*, not per pair.** `connectionEdgeKey` is
+  deliberately ordered: A->B and B->A are different relations and a pair may hold
+  both, because IFS routinely has an exile activating its protector while that
+  protector suppresses the exile. Re-sorting that key to collapse a pair — the
+  obvious "fix" when two connectors look redundant — leaves the map unable to state
+  the thing it exists to state. What the key does forbid is the *same* direction
+  twice, which is the failure it was written for.
+- **Arrowheads appear only on reciprocal pairs.** The comp draws none, so a lone
+  connector has none; the two arcs of a reciprocal pair get one each because
+  otherwise nothing on the canvas says which way either runs. Adding them
+  everywhere for consistency is a regression against the comp, and dropping them
+  from reciprocal pairs makes those two arcs unreadable.
+- **Reciprocal arcs separate because one term skips the `away` flip.** In
+  `Connection.svelte`, `perp` and `away` both flip with direction, so they cancel
+  and two opposite connectors would otherwise bow onto the same point. The
+  `reciprocalSpread` term is added *without* `away` on purpose — `perp` alone flips
+  it, and that is what splits the pair. Multiplying it by `away` for symmetry puts
+  the two arcs back on top of each other.
 - **`status` is free text and must be matched case-insensitively.** `theme.ts`'s
   `isLowDefinition` trims and lowercases before comparing. An `=== "emerging"` added
   elsewhere silently drops `"Emerging"`, and the node just renders wrong rather than
