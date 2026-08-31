@@ -28,15 +28,6 @@
     gap: 0.625rem;
   }
 
-  .heading {
-    margin: 0;
-    color: var(--text-bright);
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-style: italic;
-    font-weight: 500;
-  }
-
   .actions {
     display: flex;
     gap: 0.625rem;
