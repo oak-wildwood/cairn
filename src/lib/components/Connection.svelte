@@ -195,11 +195,21 @@
           onblur={commit}
           onkeydown={handleKey}
         />
+        <!--
+          Deletes on pointerdown, not click. On click the sequence is
+          mousedown -> the input blurs -> `commit` writes the label -> Svelte
+          re-renders -> mouseup lands on a replaced element, and no click ever
+          completes, so the button silently does nothing. `preventDefault`
+          stops the blur so the press is the whole interaction.
+        -->
         <button
           class="delete"
           type="button"
           aria-label="Delete connection"
-          onclick={() => ondelete(connection.id)}
+          onpointerdown={(event) => {
+            event.preventDefault();
+            ondelete(connection.id);
+          }}
         >
           &times;
         </button>
