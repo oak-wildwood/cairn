@@ -243,7 +243,7 @@
     margin: 0;
     color: var(--text-bright);
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 26px;
     font-style: italic;
     font-weight: 500;
   }
