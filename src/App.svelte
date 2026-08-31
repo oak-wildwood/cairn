@@ -32,8 +32,8 @@
       <div class="brand">
         <img
           class="mark"
-          src="/logo-96.png"
-          srcset="/logo-96.png 1x, /logo-192.png 2x"
+          src="{import.meta.env.BASE_URL}logo-96.png"
+          srcset="{import.meta.env.BASE_URL}logo-96.png 1x, {import.meta.env.BASE_URL}logo-192.png 2x"
           alt="Cairn"
           width="44"
           height="44"
