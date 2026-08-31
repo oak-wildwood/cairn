@@ -6,10 +6,22 @@ import { SELF_ID } from "./types";
  * names, roles and statuses. Generic placeholder content only — no real
  * personal data belongs in this repo (see PLAN.md's portfolio note).
  *
- * Every `x`/`y` is null so `computeLayout` places them: the original artwork's
+ * Most `x`/`y` are null so `computeLayout` places them: the original artwork's
  * coordinate space was illustrative of relative arrangement, not the live
  * viewport. Listed in the order that reproduces that arrangement within each
  * sector.
+ *
+ * Two carry a hand-placed position instead, because the sector layout alone
+ * collided two connector labels with node captions: "polarized with" ran
+ * through The Analyst's "MANAGER · ACTIVE", and "triggers" sat on top of The
+ * Unseen One's name. Nudging those two apart is cheaper than retuning the
+ * sector maths for every map to fix one arrangement of six parts, and this is
+ * the map every first-time visitor sees.
+ *
+ * Overriding a position does not reshuffle the others: `computeLayout` applies
+ * overrides last, and an overridden part still consumes its slot in the sector
+ * distribution. Rounded to whole units — a drag reports far more precision
+ * than a 900-unit viewBox can show.
  */
 /**
  * Who the sample map belongs to, so its heading reads the same way a real
@@ -53,8 +65,8 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     origins: "Long stretches as a child where no adult was tracking what came next.",
     notes: "Pulls against the part that wants rest — the two rarely agree.",
     status: "active",
-    x: null,
-    y: null,
+    x: -57,
+    y: -198,
   },
   {
     id: "the-avoider",
@@ -125,8 +137,8 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     origins: "Unknown — earlier than The Kid, going by how it feels.",
     notes: "Approach slowly. The protectors get loud when this one gets close.",
     status: "unwitnessed",
-    x: null,
-    y: null,
+    x: -256,
+    y: 192,
   },
 ];
 
