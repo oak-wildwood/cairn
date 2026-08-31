@@ -11,6 +11,10 @@ protective managers, reactive firefighters, and the wounded exiles they're prote
 just journaling about them, is a common practice between sessions; Cairn is a small,
 free tool for doing that mapping yourself.
 
+**[Try it →](https://oak-wildwood.github.io/cairn/)** — the live site runs entirely in
+your browser, with example data loaded so you can explore, clear it, and start your
+own map. Nothing you enter is sent anywhere.
+
 ## Status
 
 Early scaffold. The project structure, dependencies, and full build plan are in

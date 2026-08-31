@@ -1,0 +1,57 @@
+name: Deploy
+
+# Publishes main to the public site at https://oak-wildwood.github.io/cairn/.
+#
+# Pages serves the gh-pages branch, and PR previews live in subfolders of
+# pr-preview/ on that same branch. So production is deployed to the branch
+# root with clean-exclude keeping the previews — a plain clean would delete
+# every open PR's preview on each push to main. For the same reason this
+# repo can't switch Pages to the Actions build type: that would stop serving
+# the branch, and the previews with it.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      # Vite emits no underscore-prefixed paths today, but Jekyll would
+      # silently drop them if a future chunk name gained one.
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - name: Deploy to gh-pages root
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist
+          clean: true
+          clean-exclude: pr-preview/
+          commit-message: "deploy: ${{ github.sha }}"
