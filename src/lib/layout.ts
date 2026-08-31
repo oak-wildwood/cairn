@@ -213,6 +213,20 @@ export function connectionStyle(
 }
 
 /**
+ * A single key identifying the pair two endpoints form, regardless of which
+ * way round they are given. Two parts hold at most one connection between
+ * them, so A->B and B->A are the same edge and collide on this key.
+ *
+ * Direction still means something and is still stored — the detail panel reads
+ * it to say "protects ->" versus "<- triggers" — but it does not earn a second
+ * line on the canvas. Two connectors between the same pair bow the same way
+ * and land on top of each other, labels and all.
+ */
+export function connectionPairKey(a: EndpointId, b: EndpointId): string {
+  return a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
+}
+
+/**
  * Connectors touching a part whose role is still "unknown" are dimmed, since
  * the dash pattern is spoken for. Self is never unknown.
  */

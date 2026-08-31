@@ -3,8 +3,11 @@
   import Diagram from "./lib/components/Diagram.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
+  import PartModal from "./lib/components/PartModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
+  import { saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
+  import { SCHEMA_VERSION } from "./lib/types";
 
   /**
    * The store owns the data; this component reads it and hands the diagram
@@ -16,16 +19,70 @@
       .length,
   );
 
-  /** Escape is the keyboard equivalent of clicking the canvas to deselect. */
+  /**
+   * Write the map back to localStorage whenever it settles.
+   *
+   * `$state.snapshot` does the deep read that registers every part and
+   * connection as a dependency, and hands back plain objects for JSON in the
+   * same step — serialising the reactive proxies directly would be both
+   * untracked and wrong.
+   */
+  $effect(() => {
+    // An untouched sample map is never written. Persisting it would make the
+    // seed indistinguishable from a real map on the next load — the banner
+    // would drop, and `exampleData.ts` would quietly become the user's own.
+    if (store.showingExample) return;
+
+    saveStateDebounced({
+      schemaVersion: SCHEMA_VERSION,
+      parts: $state.snapshot(store.parts),
+      connections: $state.snapshot(store.connections),
+    });
+  });
+
+  /**
+   * Escape is the keyboard equivalent of clicking the canvas to deselect —
+   * except while the modal is open, where the dialog owns Escape and closing
+   * the form should not also drop the selection behind it.
+   */
+  /**
+   * True when the keystroke belongs to something the user is typing into.
+   * Without this, Backspace while correcting a connection's label would delete
+   * the connection out from under the cursor.
+   */
+  function isTyping(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    );
+  }
+
   function handleWindowKey(event: KeyboardEvent): void {
-    if (event.key === "Escape") store.clearSelection();
+    // The modal owns Escape while it is open; closing the form should not
+    // also drop whatever is selected behind it.
+    if (store.editing) return;
+
+    if (event.key === "Escape") {
+      store.clearSelection();
+      return;
+    }
+
+    if (event.key !== "Delete" && event.key !== "Backspace") return;
+    if (isTyping(event.target)) return;
+    if (store.selectedConnectionId === null) return;
+    // Backspace still navigates back in some browsers when nothing has focus.
+    event.preventDefault();
+    store.deleteConnection(store.selectedConnectionId);
   }
 </script>
 
 <svelte:window onkeydown={handleWindowKey} />
 
 <div class="shell">
-  <DemoBanner />
+  {#if store.showingExample}
+    <DemoBanner />
+  {/if}
 
   <main class="app">
     <header class="header">
@@ -38,10 +95,7 @@
           width="44"
           height="44"
         />
-        <div>
-          <p class="eyebrow">YOUR INNER LANDSCAPE</p>
-          <h1 class="title">System Map</h1>
-        </div>
+        <p class="wordmark">Cairn</p>
       </div>
       <div class="counts">
         <p class="count">{store.parts.length} parts</p>
@@ -51,7 +105,10 @@
 
     <hr class="rule" />
 
-    <Toolbar />
+    <div class="page-heading">
+      <h1 class="title">My Parts Map</h1>
+      <Toolbar onAddPart={() => store.startAdding()} />
+    </div>
 
     <hr class="rule" />
 
@@ -63,6 +120,14 @@
           selectedPartId={store.selectedPartId}
           onselect={(id) => store.select(id)}
           onclear={() => store.clearSelection()}
+          onmove={(id, point) => store.movePart(id, point)}
+          onconnectcreate={(sourceId, targetId) =>
+            store.addConnection(sourceId, targetId)}
+          selectedConnectionId={store.selectedConnectionId}
+          onconnectselect={(id) => store.selectConnection(id)}
+          onconnectlabel={(id, label) => store.setConnectionLabel(id, label)}
+          onconnectdelete={(id) => store.deleteConnection(id)}
+          onconnectclose={() => store.clearConnectionSelection()}
         />
       </div>
 
@@ -73,6 +138,7 @@
           connections={store.connectionsFor(selected.id)}
           parts={store.parts}
           onclose={() => store.clearSelection()}
+          onedit={(id) => store.startEditing(id)}
           ondelete={(id) => store.deletePart(id)}
         />
       {/if}
@@ -87,6 +153,22 @@
     </footer>
   </main>
 </div>
+
+{#if store.editing}
+  <!-- Keyed so switching between adding and editing rebuilds the form's local
+       state instead of carrying the previous part's answers across. -->
+  {#key store.editing}
+    <PartModal
+      part={store.editingPart}
+      oncancel={() => store.stopEditing()}
+      onsubmit={(draft) => {
+        const target = store.editing;
+        if (target?.kind === "existing") store.updatePart(target.id, draft);
+        else store.addPart(draft);
+      }}
+    />
+  {/key}
+{/if}
 
 <style>
   :global(:root) {
@@ -135,21 +217,19 @@
 
   .header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
   }
 
   /**
    * The app's only product identity in-page — the comp has no logo, so this is
-   * a deliberate addition beside its header rather than a change to it. The
-   * mark carries the name for screen readers via its alt text, which is why no
-   * visible "Cairn" wordmark is needed next to it.
+   * a deliberate addition beside its header rather than a change to it.
    */
   .brand {
     display: flex;
     align-items: center;
-    gap: 0.9375rem;
+    gap: 0.75rem;
   }
 
   .mark {
@@ -159,12 +239,20 @@
     height: 44px;
   }
 
-  .eyebrow {
-    margin: 0 0 0.5rem;
-    color: var(--text-eyebrow);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 3px;
+  .wordmark {
+    margin: 0;
+    color: var(--text-bright);
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
   }
 
   .title {
@@ -184,7 +272,7 @@
     margin: 0;
     color: var(--text-bright);
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .count-meta {
@@ -236,7 +324,7 @@
   .footer-note {
     color: var(--text-footer);
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 20px;
     font-style: italic;
   }
 
