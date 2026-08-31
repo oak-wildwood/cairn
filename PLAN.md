@@ -189,7 +189,7 @@ src/
                                 // actions for the part itself
       PartModal.svelte         // add/edit form, all worksheet-derived fields
       Legend.svelte            // filter pills, counts via $derived
-      Toolbar.svelte           // "+ Add a part" / "Export" buttons
+      Toolbar.svelte           // "+ Add a part" / "Save image" buttons
 ```
 
 Every `.svelte` file's `<script>` tag is `<script lang="ts">`. Nothing beyond
@@ -313,7 +313,9 @@ server." Commit at milestone boundaries, not mid-milestone.
    trigger download.
 10. **Polish pass** — against `theme.ts`: glow filter tuning, nebula
     wash placement, font loading (self-host or `<link>` Google Fonts with fallback
-    stacks), connector curve smoothness.
+    stacks), connector curve smoothness. Self-hosting is the option that also
+    fixes the PNG export's type: an isolated SVG can embed a same-origin font as
+    a data URI, where it can never reach a Google Fonts `<link>`.
 
 ## Acceptance criteria for v1
 
@@ -332,9 +334,36 @@ server." Commit at milestone boundaries, not mid-milestone.
   connections read-only, for reference.
 - Filter pills (All / Managers / Firefighters / Exiles) toggle visibility with live
   counts.
-- "Export" produces a PNG that visually matches the on-screen state.
+- "Save image" produces a PNG that visually matches the on-screen state, except
+  for type: a serialized SVG is rasterized in isolation, so the webfonts do not
+  reach it and the export falls back to the declared stacks. Self-hosting the
+  fonts (Milestone 10) is what would let the export embed them.
 - Visual result matches `theme.ts`'s values closely enough to read as the Nocturnal
   design, not just "inspired by."
+
+## Planned after v1
+
+- **Zoom and pan.** At 10–40 parts the fixed viewBox stops being enough to read.
+  Wanted: mouse wheel and trackpad scroll to zoom, and a control that returns the
+  view to 100%.
+
+  Three things to settle before building it:
+
+  - **It has to be hand-rolled.** `d3-zoom` is not an option — it works through
+    `d3-selection`, which this repo forbids on purpose (see AGENTS.md). Zoom state
+    belongs in Svelte, applied as a transform on a wrapper `<g>` or by deriving a
+    runtime viewBox from `theme.ts`'s fixed one, which stays the authority on the
+    diagram's own coordinate space.
+  - **It collides with the gestures already on the canvas.** Pointer-down on a node
+    means drag-to-reposition, and on a handle it means draw-a-connection. Wheel
+    zoom is free of both, but drag-to-pan is not — panning would need a modifier,
+    a spacebar hold, or empty-canvas-only, and empty canvas is currently
+    clear-the-selection. Pinch arrives as a ctrl-key wheel event and needs
+    `preventDefault` or the browser zooms the whole page instead.
+  - **Export should almost certainly ignore it.** `export.ts` serializes the live
+    `<svg>`, so a zoomed-in view would export as a cropped map. The picture people
+    want is the whole map, so the export likely pins the viewBox back to 100%
+    rather than inheriting whatever the screen is showing.
 
 ## Explicitly out of scope for v1
 
@@ -367,8 +396,10 @@ above); no real personal data goes in this repo.
   placed", without inventing a fourth sector), and `theme.ts` gives them a neutral
   lavender-grey marked `DERIVED` rather than one of the three sector hues. Both are
   reversible once "not fully surfaced" has a fuller definition.
-- Deploy target for a live demo, if any (static host, or just local dev) — not
-  required for v1, worth deciding before adding export/share features.
+- ~~Deploy target for a live demo~~ — settled: GitHub Pages off the `gh-pages`
+  branch, with `main` published to the root and each PR previewed in a subfolder.
+  Both are served from one origin, which is why `persistence.ts` keys a preview's
+  stored map separately from production's.
 - CI currently only checks PR titles (from `gh repo-init`). Worth adding a workflow
   that runs `npm run check` and `npm run build` on PRs once there's real code to
   break — not needed while the repo is just the scaffold.
