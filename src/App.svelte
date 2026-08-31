@@ -3,18 +3,16 @@
   import Diagram from "./lib/components/Diagram.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
-  import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./lib/exampleData";
+  import { store } from "./lib/store.svelte";
 
   /**
-   * Milestone 1: a static render of the Nocturnal comp. The example data is
-   * still hardcoded here — Milestone 2 moves it into `store.svelte.ts` and this
-   * component starts reading from the store instead.
+   * The store owns the data; this component reads it and hands the diagram
+   * plain props, so `Diagram.svelte` stays a pure function of its inputs
+   * rather than reaching into module state of its own.
    */
-  const parts = EXAMPLE_PARTS;
-  const connections = EXAMPLE_CONNECTIONS;
-
   const activeCount = $derived(
-    parts.filter((part) => part.status.trim().toLowerCase() === "active").length,
+    store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
+      .length,
   );
 </script>
 
@@ -38,7 +36,7 @@
         </div>
       </div>
       <div class="counts">
-        <p class="count">{parts.length} parts</p>
+        <p class="count">{store.parts.length} parts</p>
         <p class="count-meta">{activeCount} active this week</p>
       </div>
     </header>
@@ -50,14 +48,14 @@
     <hr class="rule" />
 
     <section class="canvas">
-      <Diagram {parts} {connections} />
+      <Diagram parts={store.parts} connections={store.connections} />
     </section>
 
     <hr class="rule" />
 
     <footer class="footer">
       <p class="footer-note">Mark the way through.</p>
-      <Legend {parts} />
+      <Legend parts={store.parts} />
       <div class="footer-spacer" aria-hidden="true"></div>
     </footer>
   </main>
