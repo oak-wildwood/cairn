@@ -70,7 +70,10 @@ function isPersistedState(value: unknown): value is PersistedState {
     Array.isArray(state.parts) &&
     state.parts.every(isPart) &&
     Array.isArray(state.connections) &&
-    state.connections.every(isConnection)
+    state.connections.every(isConnection) &&
+    // Absent is valid — see the field's note in types.ts. Only a present-but-
+    // wrong-typed value makes the blob unusable.
+    (state.ownerName === undefined || isString(state.ownerName))
   );
 }
 
@@ -104,6 +107,25 @@ function withResolvableConnections(state: PersistedState): PersistedState {
       return true;
     }),
   };
+}
+
+/**
+ * Parse a map out of JSON text, or null when it isn't one.
+ *
+ * A file the user picked off disk is exactly as untrusted as a hand-edited
+ * localStorage blob — more so, since it may have been written by an older
+ * build or by hand — so it goes through the same field-by-field checks and the
+ * same tidy-up rather than a looser path of its own.
+ */
+export function parseMap(text: string): PersistedState | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isPersistedState(parsed)) return null;
+  return withResolvableConnections(parsed);
 }
 
 /**

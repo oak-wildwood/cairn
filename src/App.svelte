@@ -1,19 +1,38 @@
 <script lang="ts">
   import DemoBanner from "./lib/components/DemoBanner.svelte";
+  import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
   import PartModal from "./lib/components/PartModal.svelte";
+  import StartFreshModal from "./lib/components/StartFreshModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
-  import { saveStateDebounced } from "./lib/persistence";
+  import { downloadMap } from "./lib/backup";
+  import { parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
   import { SCHEMA_VERSION } from "./lib/types";
+  import type { PersistedState } from "./lib/types";
 
   /**
    * The store owns the data; this component reads it and hands the diagram
    * plain props, so `Diagram.svelte` stays a pure function of its inputs
    * rather than reaching into module state of its own.
    */
+  /**
+   * The heading claims the map for whoever it belongs to, the sample included —
+   * it reads "Parts Map for Demo User" rather than switching to a different
+   * phrasing only the sample uses, so the shape of the title never changes
+   * under someone as they take the map over.
+   *
+   * Owner is read off `showingExample` rather than seeded into the store, so
+   * there is one source of truth for "is this the sample" and no demo name to
+   * clear later. The generic title survives for the one case with no name at
+   * all: a map started fresh by someone who left the field blank. "Parts Map
+   * for" with nothing after it would be worse than not having asked.
+   */
+  const owner = $derived(
+    store.showingExample ? EXAMPLE_OWNER_NAME : store.ownerName,
+  );
   const activeCount = $derived(
     store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
       .length,
@@ -27,18 +46,93 @@
    * same step — serialising the reactive proxies directly would be both
    * untracked and wrong.
    */
+  function snapshotState(): PersistedState {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      parts: $state.snapshot(store.parts),
+      connections: $state.snapshot(store.connections),
+      ownerName: store.ownerName,
+    };
+  }
+
   $effect(() => {
     // An untouched sample map is never written. Persisting it would make the
     // seed indistinguishable from a real map on the next load — the banner
     // would drop, and `exampleData.ts` would quietly become the user's own.
     if (store.showingExample) return;
 
-    saveStateDebounced({
-      schemaVersion: SCHEMA_VERSION,
-      parts: $state.snapshot(store.parts),
-      connections: $state.snapshot(store.connections),
-    });
+    saveStateDebounced(snapshotState());
   });
+
+  /**
+   * What the last map-file action did, shown beside the toolbar and cleared on
+   * the next one. A restore that quietly does nothing is indistinguishable
+   * from a restore that worked on an empty map, and a rejected file needs to
+   * say so — there is no other signal that the pick went nowhere.
+   */
+  let fileNotice = $state<{ tone: "ok" | "bad"; text: string } | null>(null);
+
+  function handleBackUp(): void {
+    downloadMap(snapshotState());
+    fileNotice = { tone: "ok", text: "Saved a copy to your downloads." };
+  }
+
+  async function handleRestore(file: File): Promise<void> {
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      fileNotice = { tone: "bad", text: `Couldn't read ${file.name}.` };
+      return;
+    }
+
+    const restoredMap = parseMap(text);
+    if (!restoredMap) {
+      // Deliberately does not touch the store: a map already on screen is
+      // worth more than a file that failed to parse, so a bad pick is a no-op
+      // rather than a wipe.
+      fileNotice = {
+        tone: "bad",
+        text: `${file.name} isn't a Cairn map file. Nothing was changed.`,
+      };
+      return;
+    }
+
+    store.replaceAll(
+      restoredMap.parts,
+      restoredMap.connections,
+      restoredMap.ownerName ?? "",
+    );
+    saveState(snapshotState());
+    const count = restoredMap.parts.length;
+    fileNotice = {
+      tone: "ok",
+      text: `Restored ${count} ${count === 1 ? "part" : "parts"} from ${file.name}.`,
+    };
+  }
+
+  let startingFresh = $state(false);
+
+  function handleStartFresh(ownerName: string): void {
+    store.startFresh(ownerName);
+    /**
+     * Written now rather than left to the debounced `$effect`. Replacing the
+     * whole map is a single deliberate act, not the tail of a stream of edits,
+     * and someone who clears the sample and immediately reloads would
+     * otherwise be met by the sample again — the write never fired, so the
+     * blob is still absent and `showingExample` comes back true. Restoring a
+     * backup has the same shape and does the same.
+     */
+    saveState(snapshotState());
+    startingFresh = false;
+    fileNotice = {
+      tone: "ok",
+      text:
+        ownerName.trim() === ""
+          ? "Cleared. This map is yours now."
+          : `Cleared. This map is yours now, ${ownerName.trim()}.`,
+    };
+  }
 
   /**
    * Escape is the keyboard equivalent of clicking the canvas to deselect —
@@ -98,7 +192,10 @@
         <p class="wordmark">Cairn</p>
       </div>
       <div class="counts">
-        <p class="count">{store.parts.length} parts</p>
+        <p class="count">
+          {store.parts.length}
+          {store.parts.length === 1 ? "part" : "parts"}
+        </p>
         <p class="count-meta">{activeCount} active this week</p>
       </div>
     </header>
@@ -106,9 +203,26 @@
     <hr class="rule" />
 
     <div class="page-heading">
-      <h1 class="title">My Parts Map</h1>
-      <Toolbar onAddPart={() => store.startAdding()} />
+      <h1 class="title">
+        {#if owner === ""}
+          My Parts Map
+        {:else}
+          Parts Map for <span class="owner">{owner}</span>
+        {/if}
+      </h1>
+      <Toolbar
+        onAddPart={() => store.startAdding()}
+        onBackUp={handleBackUp}
+        onRestore={handleRestore}
+        onStartFresh={() => (startingFresh = true)}
+      />
     </div>
+
+    {#if fileNotice}
+      <p class="file-notice" class:bad={fileNotice.tone === "bad"} role="status">
+        {fileNotice.text}
+      </p>
+    {/if}
 
     <hr class="rule" />
 
@@ -153,6 +267,20 @@
     </footer>
   </main>
 </div>
+
+{#if startingFresh}
+  <!--
+    The sample map is nobody's work, so clearing it loses nothing and the
+    dialog shouldn't say otherwise — only a map they own earns the
+    can't-be-undone warning.
+  -->
+  <StartFreshModal
+    hasContent={!store.showingExample &&
+      (store.parts.length > 0 || store.connections.length > 0)}
+    onsubmit={handleStartFresh}
+    oncancel={() => (startingFresh = false)}
+  />
+{/if}
 
 {#if store.editing}
   <!-- Keyed so switching between adding and editing rebuilds the form's local
@@ -256,6 +384,16 @@
     gap: 1.5rem;
   }
 
+  .file-notice {
+    margin: 0.75rem 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .file-notice.bad {
+    color: #e38f6b;
+  }
+
   .title {
     margin: 0;
     font-family: var(--font-display);
@@ -263,6 +401,18 @@
     font-style: italic;
     font-weight: 500;
     line-height: 1;
+  }
+
+  /**
+   * The one part of the heading that is somebody's own words, so it is set
+   * apart from the fixed label around it: upright against the italic, and in
+   * Self's gold rather than the body's off-white. Both changes point the same
+   * way — this slot is filled in, not printed — and the gold is already the
+   * colour this app uses for the centre of a person's own map.
+   */
+  .owner {
+    color: #e8c98c;
+    font-style: normal;
   }
 
   .counts {
