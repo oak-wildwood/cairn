@@ -28,10 +28,17 @@
     selectedPartId: string | null;
     onselect: (id: string) => void;
     onclear: () => void;
+    onmove: (id: string, point: Point) => void;
   }
 
-  const { parts, connections, selectedPartId, onselect, onclear }: Props =
-    $props();
+  const {
+    parts,
+    connections,
+    selectedPartId,
+    onselect,
+    onclear,
+    onmove,
+  }: Props = $props();
 
   const positions = $derived(computeLayout(parts));
   const partsById = $derived(new Map(parts.map((part) => [part.id, part])));
@@ -191,6 +198,7 @@
         {position}
         selected={part.id === selectedPartId}
         {onselect}
+        {onmove}
       />
     {/if}
   {/each}

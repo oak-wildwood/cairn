@@ -1,6 +1,6 @@
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
 import { loadState } from "./persistence";
-import type { Connection, Part, PartDraft } from "./types";
+import type { Connection, Part, PartDraft, Point } from "./types";
 
 /**
  * Read once, at import, so the store is already correct on its first render.
@@ -111,6 +111,19 @@ class MapStore {
       part.id === id ? { ...draft, id } : part,
     );
     this.editing = null;
+  }
+
+  /**
+   * Write a dragged position as a manual override. `computeLayout` consults it
+   * verbatim from here on and stops placing this part in its sector — the part
+   * still consumes its slot there, so its untouched siblings don't reshuffle
+   * underneath it.
+   */
+  movePart(id: string, { x, y }: Point): void {
+    this.showingExample = false;
+    this.parts = this.parts.map((part) =>
+      part.id === id ? { ...part, x, y } : part,
+    );
   }
 
   /** Every connection touching a part, in either direction. */
