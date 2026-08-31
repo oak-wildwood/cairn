@@ -237,6 +237,21 @@ export function isLowDefinition(status: string): boolean {
   return LOW_DEFINITION_STATUSES.includes(status.trim().toLowerCase());
 }
 
+/**
+ * DERIVED: the comp is a static render with no interaction, so it has no
+ * connection handles, no drop-target highlight and no connector labels. These
+ * are sized against the comp's own node geometry — a handle reads as an
+ * affordance on a 46px node without competing with it.
+ */
+export const HANDLE = {
+  radius: 5.5,
+  /** Ring drawn around a node the pointer could drop a connection onto. */
+  dropTargetRadius: 9,
+  dropTargetWidth: 1.6,
+  /** Handles fade rather than pop, so hovering across a node isn't strobing. */
+  fadeMs: 120,
+} as const;
+
 /* -------------------------------------------------------------------------- */
 /* Connections                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -254,6 +269,12 @@ export const CONNECTION = {
    * the middle of that range.
    */
   bowRatio: 0.12,
+  /** DERIVED: the comp draws no connector labels; this matches the node meta. */
+  labelSize: 10.5,
+  labelColor: "#C6C9DA",
+  /** Padding behind a label so it doesn't sit directly on its own line. */
+  labelPadX: 5,
+  labelPadY: 3,
   /** A connector with Self as its source takes Self's gold. */
   selfColor: "#E8C98C",
   selfWidth: 2,
