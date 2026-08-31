@@ -1,14 +1,26 @@
 <script lang="ts">
+  import MapMenu from "./MapMenu.svelte";
+
   /**
-   * Milestone 1 is a static render, so these buttons are present and styled to
-   * the design but not yet wired. They gain behaviour in Milestones 4 and 9.
+   * "Export" is Milestone 9's PNG and is still unwired. The map-file actions
+   * live behind `MapMenu` beside it rather than as buttons of their own —
+   * they are infrequent, and three more pills crowded out the primary action.
    */
   interface Props {
     onAddPart?: () => void;
     onExport?: () => void;
+    onBackUp: () => void;
+    onRestore: (file: File) => void;
+    onStartFresh: () => void;
   }
 
-  const { onAddPart, onExport }: Props = $props();
+  const {
+    onAddPart,
+    onExport,
+    onBackUp,
+    onRestore,
+    onStartFresh,
+  }: Props = $props();
 </script>
 
 <div class="toolbar">
@@ -17,6 +29,7 @@
       + Add a part
     </button>
     <button type="button" class="button" onclick={onExport}>Export</button>
+    <MapMenu {onBackUp} {onRestore} {onStartFresh} />
   </div>
 </div>
 
@@ -30,6 +43,7 @@
 
   .actions {
     display: flex;
+    align-items: center;
     gap: 0.625rem;
   }
 

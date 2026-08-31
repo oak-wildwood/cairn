@@ -11,6 +11,13 @@ import { SELF_ID } from "./types";
  * viewport. Listed in the order that reproduces that arrangement within each
  * sector.
  */
+/**
+ * Who the sample map belongs to, so its heading reads the same way a real
+ * one does — "Parts Map for Demo User" rather than a second, generic phrasing
+ * that only the sample ever uses. Generic by design, like the parts.
+ */
+export const EXAMPLE_OWNER_NAME = "Demo User";
+
 export const EXAMPLE_PARTS: readonly Part[] = [
   {
     id: "the-fixer",

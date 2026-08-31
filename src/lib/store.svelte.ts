@@ -43,6 +43,12 @@ class MapStore {
    */
   showingExample = $state(restored === null);
 
+  /**
+   * Whose map this is. Empty until someone starts fresh and says — the sample
+   * map belongs to nobody, so the heading stays generic while it is on screen.
+   */
+  ownerName = $state(restored?.ownerName ?? "");
+
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
 
@@ -91,6 +97,44 @@ class MapStore {
         connection.sourceId !== id && connection.targetId !== id,
     );
     if (this.selectedPartId === id) this.selectedPartId = null;
+  }
+
+  /**
+   * Empty the map and keep it emptied.
+   *
+   * `showingExample` goes false even though nothing is on screen, which is the
+   * whole point: the flag means "this is the untouched sample", not "this is
+   * empty". Left true, the `$effect` in App would decline to persist, and the
+   * next load would find no blob and seed the six demo parts straight back —
+   * which is exactly the thing someone clicking this is trying to get rid of.
+   */
+  startFresh(ownerName: string): void {
+    this.showingExample = false;
+    this.ownerName = ownerName.trim();
+    this.parts = [];
+    this.connections = [];
+    this.selectedPartId = null;
+    this.selectedConnectionId = null;
+    this.editing = null;
+  }
+
+  /**
+   * Swap in a whole map, as restoring a backup does. The caller is expected to
+   * have validated it — `parseMap` is the one way in — since everything
+   * downstream of here trusts the store.
+   */
+  replaceAll(
+    parts: Part[],
+    connections: Connection[],
+    ownerName: string,
+  ): void {
+    this.showingExample = false;
+    this.ownerName = ownerName;
+    this.parts = parts;
+    this.connections = connections;
+    this.selectedPartId = null;
+    this.selectedConnectionId = null;
+    this.editing = null;
   }
 
   startAdding(): void {

@@ -93,6 +93,17 @@ export interface PersistedState {
   schemaVersion: 1;
   parts: Part[];
   connections: Connection[];
+  /**
+   * Whose map this is, collected when they start fresh, and shown in the page
+   * heading. Optional, and absent on every blob written before it existed.
+   *
+   * That is why it does not bump `schemaVersion`. The version guards against a
+   * blob an older build would *misread*; an added optional field is not that —
+   * an old build ignores it, and a new build treats its absence as "not asked
+   * yet", which is exactly what an old blob means. Bumping would strand real
+   * maps behind a migration for no benefit.
+   */
+  ownerName?: string;
 }
 
 export const SCHEMA_VERSION = 1 satisfies PersistedState["schemaVersion"];
