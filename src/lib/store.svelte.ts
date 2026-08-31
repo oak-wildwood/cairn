@@ -1,5 +1,13 @@
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
+import { loadState } from "./persistence";
 import type { Connection, Part, PartDraft } from "./types";
+
+/**
+ * Read once, at import, so the store is already correct on its first render.
+ * Loading inside an effect instead would let the debounced save fire against
+ * the seed data first and overwrite a real map before it was ever restored.
+ */
+const restored = loadState();
 
 /**
  * The map's shared reactive state.
@@ -12,8 +20,21 @@ import type { Connection, Part, PartDraft } from "./types";
  * not anyone's real map — see PLAN.md's portfolio note.
  */
 class MapStore {
-  parts = $state<Part[]>([...EXAMPLE_PARTS]);
-  connections = $state<Connection[]>([...EXAMPLE_CONNECTIONS]);
+  parts = $state<Part[]>(restored?.parts ?? [...EXAMPLE_PARTS]);
+  connections = $state<Connection[]>(
+    restored?.connections ?? [...EXAMPLE_CONNECTIONS],
+  );
+
+  /**
+   * Whether what's on screen is still the untouched sample map. A stored map
+   * is the user's own by definition, and so is one they have edited — telling
+   * someone their own parts are "for demonstration only" would be a lie in
+   * exactly the place the app is asking them to be honest.
+   *
+   * An emptied map stays a real map: absence of a stored blob is what marks
+   * the sample, not absence of parts.
+   */
+  showingExample = $state(restored === null);
 
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
@@ -54,6 +75,7 @@ class MapStore {
    * localStorage — that resolves to nothing.
    */
   deletePart(id: string): void {
+    this.showingExample = false;
     this.parts = this.parts.filter((part) => part.id !== id);
     this.connections = this.connections.filter(
       (connection) =>
@@ -76,6 +98,7 @@ class MapStore {
 
   /** Add a part and select it, so the map shows what was just created. */
   addPart(draft: PartDraft): void {
+    this.showingExample = false;
     const part: Part = { id: crypto.randomUUID(), ...draft };
     this.parts = [...this.parts, part];
     this.selectedPartId = part.id;
@@ -83,6 +106,7 @@ class MapStore {
   }
 
   updatePart(id: string, draft: PartDraft): void {
+    this.showingExample = false;
     this.parts = this.parts.map((part) =>
       part.id === id ? { ...draft, id } : part,
     );

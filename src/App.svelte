@@ -5,7 +5,9 @@
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
   import PartModal from "./lib/components/PartModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
+  import { saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
+  import { SCHEMA_VERSION } from "./lib/types";
 
   /**
    * The store owns the data; this component reads it and hands the diagram
@@ -16,6 +18,27 @@
     store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
       .length,
   );
+
+  /**
+   * Write the map back to localStorage whenever it settles.
+   *
+   * `$state.snapshot` does the deep read that registers every part and
+   * connection as a dependency, and hands back plain objects for JSON in the
+   * same step — serialising the reactive proxies directly would be both
+   * untracked and wrong.
+   */
+  $effect(() => {
+    // An untouched sample map is never written. Persisting it would make the
+    // seed indistinguishable from a real map on the next load — the banner
+    // would drop, and `exampleData.ts` would quietly become the user's own.
+    if (store.showingExample) return;
+
+    saveStateDebounced({
+      schemaVersion: SCHEMA_VERSION,
+      parts: $state.snapshot(store.parts),
+      connections: $state.snapshot(store.connections),
+    });
+  });
 
   /**
    * Escape is the keyboard equivalent of clicking the canvas to deselect —
@@ -31,7 +54,9 @@
 <svelte:window onkeydown={handleWindowKey} />
 
 <div class="shell">
-  <DemoBanner />
+  {#if store.showingExample}
+    <DemoBanner />
+  {/if}
 
   <main class="app">
     <header class="header">
