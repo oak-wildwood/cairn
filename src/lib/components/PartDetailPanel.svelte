@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { cubicOut } from "svelte/easing";
+  import type { TransitionConfig } from "svelte/transition";
   import { ROLES } from "../theme";
   import { SELF_ID } from "../types";
   import type { Connection, EndpointId, Part } from "../types";
@@ -51,6 +53,35 @@
   );
 
   /**
+   * Open and close by growing the panel's own axis, rather than sliding an
+   * already-full-size panel into place.
+   *
+   * Animating the size is what keeps the diagram still: the canvas is this
+   * element's flex sibling, so as the panel grows the SVG rescales smoothly
+   * through its own `preserveAspectRatio` instead of snapping to a new width
+   * the instant the panel mounts. The map jumping was the jarring half.
+   *
+   * The translate is a small settle on top of that, and the fade stops the
+   * text arriving before there is room for it.
+   */
+  function reveal(node: HTMLElement): TransitionConfig {
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Matches the stylesheet's breakpoint: a sidebar grows sideways, a panel
+    // docked underneath grows upward.
+    const sideways = matchMedia("(min-width: 901px)").matches;
+    const extent = sideways ? node.offsetWidth : node.offsetHeight;
+
+    return {
+      duration: reduceMotion ? 0 : 260,
+      easing: cubicOut,
+      css: (t, u) =>
+        sideways
+          ? `width: ${t * extent}px; opacity: ${t}; transform: translateX(${u * 18}px);`
+          : `height: ${t * extent}px; opacity: ${t}; transform: translateY(${u * 14}px);`,
+    };
+  }
+
+  /**
    * Delete is a two-step press rather than a native `confirm()`. The data here
    * is somebody's account of their own mind and there is no undo yet, so a
    * single stray click should not be able to destroy a part — but a blocking
@@ -74,78 +105,80 @@
   });
 </script>
 
-<aside class="panel" aria-label="Part details">
-  <header class="head">
-    <div>
-      <p class="meta" style:color={accent}>
-        {part.role.toUpperCase()} · {part.status.toUpperCase()}
-      </p>
-      <h2 class="name">{part.name}</h2>
-    </div>
-    <button class="close" type="button" onclick={onclose} aria-label="Close">
-      &times;
-    </button>
-  </header>
+<aside class="panel" aria-label="Part details" transition:reveal>
+  <div class="inner">
+    <header class="head">
+      <div>
+        <p class="meta" style:color={accent}>
+          {part.role.toUpperCase()} · {part.status.toUpperCase()}
+        </p>
+        <h2 class="name">{part.name}</h2>
+      </div>
+      <button class="close" type="button" onclick={onclose} aria-label="Close">
+        &times;
+      </button>
+    </header>
 
-  {#if part.feelings.length > 0}
-    <ul class="feelings">
-      {#each part.feelings as feeling (feeling)}
-        <li class="feeling" style:border-color={accent} style:color={accent}>
-          {feeling}
-        </li>
-      {/each}
-    </ul>
-  {/if}
-
-  <dl class="fields">
-    {#each fields as field (field.label)}
-      <dt>{field.label}</dt>
-      <dd class:empty={field.value.trim() === ""}>
-        {field.value.trim() === "" ? "Not recorded yet" : field.value}
-      </dd>
-    {/each}
-  </dl>
-
-  <section class="relations">
-    <h3 class="section-title">Connections</h3>
-    {#if relations.length === 0}
-      <p class="empty">No connections yet.</p>
-    {:else}
-      <ul class="relation-list">
-        {#each relations as relation (relation.id)}
-          <li class="relation">
-            <span class="relation-label" class:empty={relation.label === ""}>
-              {relation.label === "" ? "Unlabelled" : relation.label}
-            </span>
-            <span class="arrow" aria-hidden="true">
-              {relation.outgoing ? "→" : "←"}
-            </span>
-            <span class="relation-other">{relation.other}</span>
+    {#if part.feelings.length > 0}
+      <ul class="feelings">
+        {#each part.feelings as feeling (feeling)}
+          <li class="feeling" style:border-color={accent} style:color={accent}>
+            {feeling}
           </li>
         {/each}
       </ul>
     {/if}
-  </section>
 
-  <footer class="actions">
-    <button
-      class="danger"
-      class:armed={confirmingDelete}
-      type="button"
-      onclick={handleDelete}
-    >
-      {confirmingDelete ? "Confirm delete" : "Delete part"}
-    </button>
-    {#if confirmingDelete}
+    <dl class="fields">
+      {#each fields as field (field.label)}
+        <dt>{field.label}</dt>
+        <dd class:empty={field.value.trim() === ""}>
+          {field.value.trim() === "" ? "Not recorded yet" : field.value}
+        </dd>
+      {/each}
+    </dl>
+
+    <section class="relations">
+      <h3 class="section-title">Connections</h3>
+      {#if relations.length === 0}
+        <p class="empty">No connections yet.</p>
+      {:else}
+        <ul class="relation-list">
+          {#each relations as relation (relation.id)}
+            <li class="relation">
+              <span class="relation-label" class:empty={relation.label === ""}>
+                {relation.label === "" ? "Unlabelled" : relation.label}
+              </span>
+              <span class="arrow" aria-hidden="true">
+                {relation.outgoing ? "→" : "←"}
+              </span>
+              <span class="relation-other">{relation.other}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <footer class="actions">
       <button
-        class="quiet"
+        class="danger"
+        class:armed={confirmingDelete}
         type="button"
-        onclick={() => (confirmingDelete = false)}
+        onclick={handleDelete}
       >
-        Cancel
+        {confirmingDelete ? "Confirm delete" : "Delete part"}
       </button>
-    {/if}
-  </footer>
+      {#if confirmingDelete}
+        <button
+          class="quiet"
+          type="button"
+          onclick={() => (confirmingDelete = false)}
+        >
+          Cancel
+        </button>
+      {/if}
+    </footer>
+  </div>
 </aside>
 
 <style>
@@ -157,6 +190,22 @@
    */
   .panel {
     display: flex;
+    width: 22rem;
+    flex-shrink: 0;
+    /* Clips the inner wrapper while the panel is still growing — without it
+       the content spills over the canvas for the length of the transition. */
+    overflow: hidden;
+    border-left: 1px solid var(--rule);
+    background: #12141f;
+    color: var(--text-primary);
+  }
+
+  /*
+   * Holds the content at full size throughout, so the copy is revealed rather
+   * than reflowed. Text rewrapping mid-animation is the part that reads cheap.
+   */
+  .inner {
+    display: flex;
     flex-direction: column;
     gap: 1.25rem;
     width: 22rem;
@@ -164,9 +213,6 @@
     box-sizing: border-box;
     padding: 1.5rem;
     overflow-y: auto;
-    border-left: 1px solid var(--rule);
-    background: #12141f;
-    color: var(--text-primary);
   }
 
   .head {
@@ -342,7 +388,7 @@
     color: var(--text-bright);
   }
 
-  .panel :global(button:focus-visible),
+  .inner :global(button:focus-visible),
   .close:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
@@ -356,6 +402,10 @@
       max-height: 45vh;
       border-left: none;
       border-top: 1px solid var(--rule);
+    }
+
+    .inner {
+      width: 100%;
     }
   }
 </style>
