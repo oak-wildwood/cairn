@@ -242,6 +242,7 @@
           onconnectlabel={(id, label) => store.setConnectionLabel(id, label)}
           onconnectdelete={(id) => store.deleteConnection(id)}
           onconnectclose={() => store.clearConnectionSelection()}
+          activeFilter={store.activeFilter}
         />
       </div>
 
@@ -262,7 +263,11 @@
 
     <footer class="footer">
       <p class="footer-note">Mark the way through.</p>
-      <Legend parts={store.parts} />
+      <Legend
+        parts={store.parts}
+        activeFilter={store.activeFilter}
+        onFilter={(filter) => store.setFilter(filter)}
+      />
       <div class="footer-spacer" aria-hidden="true"></div>
     </footer>
   </main>

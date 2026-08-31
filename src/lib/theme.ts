@@ -363,3 +363,25 @@ export const TYPE_SCALE = {
   sectorLabel: { size: 13, letterSpacing: 3, weight: 600, opacity: 0.75 },
   footer: { size: 16 },
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* Filter legend                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * DERIVED: how far a part fades when the legend filters it out. The source
+ * design is a static render with no filter control, so it says nothing about
+ * a filtered-out node.
+ *
+ * 0.18 is chosen to stay clear of the *other* dimming this diagram already
+ * does. `connectionOpacity` multiplies an unsurfaced connector by 0.6, landing
+ * it near 0.45–0.51 — a legible line that reads as "this endpoint's role is
+ * still unknown". A filter fade has to be unmistakably a different register or
+ * it would assert that meaning by accident. At 0.18 a node reads as pushed
+ * behind the diagram rather than merely muted.
+ *
+ * Not zero, because the plan calls for opacity rather than removal: a
+ * filtered-out part keeps its slot, so the sectors don't reflow under the
+ * filter and nothing appears to move when it clears.
+ */
+export const FILTER_FADE = 0.18;

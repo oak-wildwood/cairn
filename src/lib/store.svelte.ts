@@ -7,6 +7,7 @@ import type {
   Part,
   PartDraft,
   Point,
+  SectorRole,
 } from "./types";
 
 /**
@@ -48,6 +49,20 @@ class MapStore {
    * map belongs to nobody, so the heading stays generic while it is on screen.
    */
   ownerName = $state(restored?.ownerName ?? "");
+
+  /**
+   * The role the legend is filtering to, or null for "All".
+   *
+   * View state, not map data: it is deliberately absent from `PersistedState`,
+   * so reloading comes back to the whole map rather than to whichever slice
+   * was on screen when the tab closed. A filter is a way of looking at a map,
+   * not a fact about one.
+   */
+  activeFilter = $state<SectorRole | null>(null);
+
+  setFilter(filter: SectorRole | null): void {
+    this.activeFilter = filter;
+  }
 
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
@@ -116,6 +131,9 @@ class MapStore {
     this.selectedPartId = null;
     this.selectedConnectionId = null;
     this.editing = null;
+    // A filter left over from the previous map would hide most of the new
+    // one, and nothing on screen would connect the emptiness to the pill.
+    this.activeFilter = null;
   }
 
   /**
@@ -135,6 +153,9 @@ class MapStore {
     this.selectedPartId = null;
     this.selectedConnectionId = null;
     this.editing = null;
+    // A filter left over from the previous map would hide most of the new
+    // one, and nothing on screen would connect the emptiness to the pill.
+    this.activeFilter = null;
   }
 
   startAdding(): void {
