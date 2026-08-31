@@ -1,7 +1,7 @@
 <script lang="ts">
   import { curveNatural, line } from "d3-shape";
   import { connectionOpacity, connectionStyle } from "../layout";
-  import { CONNECTION, ROLES } from "../theme";
+  import { CONNECTION, CONNECTOR_COLORS } from "../theme";
   import { SELF_ID } from "../types";
   import type { Connection, EndpointId, EndpointRole, Point } from "../types";
 
@@ -19,6 +19,11 @@
     target: Endpoint;
     /** Selected means "its label editor is open" — the two are one state. */
     selected: boolean;
+    /**
+     * True when the same pair also holds the reverse edge. Decided by the
+     * diagram, which is the only place that can see both connections.
+     */
+    reciprocal: boolean;
     onselect: (id: string) => void;
     onlabelchange: (id: string, label: string) => void;
     ondelete: (id: string) => void;
@@ -30,6 +35,7 @@
     source,
     target,
     selected,
+    reciprocal,
     onselect,
     onlabelchange,
     ondelete,
@@ -43,10 +49,19 @@
   );
 
   /** A connector takes its color from its source; Self's is gold. */
-  const stroke = $derived(
-    fromSelf || source.role === SELF_ID
-      ? CONNECTION.selfColor
-      : ROLES[source.role].accent,
+  const colorKey = $derived(
+    fromSelf || source.role === SELF_ID ? "self" : source.role,
+  );
+  const stroke = $derived(CONNECTOR_COLORS[colorKey]);
+
+  /**
+   * An arrowhead only where direction is otherwise unreadable. A lone
+   * connector between two nodes needs none — there is nothing to confuse it
+   * with, and the comp draws none — but the two arcs of a reciprocal pair look
+   * identical apart from their labels, so each names which end it points at.
+   */
+  const markerEnd = $derived(
+    reciprocal ? `url(#arrow-${colorKey})` : undefined,
   );
 
   const strokeWidth = $derived(
@@ -114,8 +129,16 @@
     const away = touchesSelf
       ? source.id === SELF_ID ? 1 : -1
       : mid.x * perp.x + mid.y * perp.y >= 0 ? 1 : -1;
-    const offset = Math.hypot(end.x - start.x, end.y - start.y) *
-      CONNECTION.bowRatio * away;
+    // A reciprocal pair would otherwise draw one arc twice. `perp` flips with
+    // direction and so does `away`, so the two flips cancel and both bows land
+    // on exactly the same point — which is what made a second connection
+    // useless before. A term that does *not* carry `away` breaks the symmetry,
+    // because `perp` alone still flips it: the two arcs then split evenly
+    // either side of the single bow they used to share, and the shared one
+    // stays where it was for every non-reciprocal connector.
+    const chord = Math.hypot(end.x - start.x, end.y - start.y);
+    const spread = reciprocal ? CONNECTION.reciprocalSpread : 0;
+    const offset = chord * (CONNECTION.bowRatio * away + spread);
 
     const bow: Point = {
       x: mid.x + perp.x * offset,
@@ -157,6 +180,7 @@
     stroke-width={strokeWidth}
     stroke-dasharray={style === "dashed" ? CONNECTION.dashArray : undefined}
     stroke-linecap="round"
+    marker-end={markerEnd}
     opacity={selected ? 1 : opacity}
     filter="url(#glow)"
     aria-label={connection.label}

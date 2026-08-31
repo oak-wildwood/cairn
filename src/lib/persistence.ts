@@ -1,4 +1,4 @@
-import { connectionPairKey } from "./layout";
+import { connectionEdgeKey } from "./layout";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
 import type { Connection, Part, PartRole, PersistedState } from "./types";
 
@@ -83,10 +83,12 @@ function isPersistedState(value: unknown): value is PersistedState {
 function withResolvableConnections(state: PersistedState): PersistedState {
   const ids = new Set(state.parts.map((part) => part.id));
   const resolves = (id: string): boolean => id === SELF_ID || ids.has(id);
-  // Two endpoints hold at most one connection. A blob written before that rule
-  // existed, or edited by hand, can still carry duplicates — and a duplicate
-  // is unusable rather than merely untidy, since the two connectors bow the
-  // same way and sit exactly on top of each other. The first one wins.
+  // A pair may hold one connection per direction, so this dedupes on the
+  // directed key and leaves a legitimate reverse edge alone. Only an exact
+  // repeat of the same direction is dropped — a hand-edited blob, or one
+  // written under the older unordered rule, can still carry those, and a
+  // repeat is unusable rather than merely untidy since the two connectors bow
+  // identically and sit on top of each other. The first one wins.
   const seen = new Set<string>();
 
   return {
@@ -96,7 +98,7 @@ function withResolvableConnections(state: PersistedState): PersistedState {
         return false;
       }
       if (connection.sourceId === connection.targetId) return false;
-      const key = connectionPairKey(connection.sourceId, connection.targetId);
+      const key = connectionEdgeKey(connection.sourceId, connection.targetId);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

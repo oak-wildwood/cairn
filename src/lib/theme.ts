@@ -279,7 +279,39 @@ export const CONNECTION = {
   selfColor: "#E8C98C",
   selfWidth: 2,
   selfOpacity: 0.9,
+  /**
+   * DERIVED: extra bow, as a fraction of chord, applied to a connector whose
+   * pair also holds the reverse edge. Without it the two draw as one arc — see
+   * the derivation in Connection.svelte. 0.09 against a `bowRatio` of 0.12
+   * splits them roughly 0.21/0.03 off the chord: far enough apart that neither
+   * label touches the other, while the inner arc still reads as a curve rather
+   * than a straight line.
+   */
+  reciprocalSpread: 0.09,
+  /**
+   * DERIVED: the comp draws no arrowheads, and connectors here don't get one
+   * either — except on a reciprocal pair, where two arcs run between the same
+   * nodes and nothing else says which way either runs. Measured in
+   * stroke-widths so the head stays proportional to the line it caps.
+   */
+  arrowSize: 6,
 } as const;
+
+/**
+ * Every colour a connector can take, keyed so a connector and its arrowhead
+ * `<marker>` can name the same one. Markers can't inherit their line's stroke
+ * portably, so each colour gets its own marker and connectors pick theirs by
+ * key rather than by hex.
+ */
+export const CONNECTOR_COLORS = {
+  self: CONNECTION.selfColor,
+  manager: ROLES.manager.accent,
+  firefighter: ROLES.firefighter.accent,
+  exile: ROLES.exile.accent,
+  unknown: ROLES.unknown.accent,
+} as const;
+
+export type ConnectorColorKey = keyof typeof CONNECTOR_COLORS;
 
 /* -------------------------------------------------------------------------- */
 /* Text and chrome                                                             */
