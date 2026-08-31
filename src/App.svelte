@@ -3,6 +3,7 @@
   import Diagram from "./lib/components/Diagram.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
+  import PartModal from "./lib/components/PartModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import { store } from "./lib/store.svelte";
 
@@ -16,9 +17,14 @@
       .length,
   );
 
-  /** Escape is the keyboard equivalent of clicking the canvas to deselect. */
+  /**
+   * Escape is the keyboard equivalent of clicking the canvas to deselect —
+   * except while the modal is open, where the dialog owns Escape and closing
+   * the form should not also drop the selection behind it.
+   */
   function handleWindowKey(event: KeyboardEvent): void {
-    if (event.key === "Escape") store.clearSelection();
+    if (event.key !== "Escape" || store.editing) return;
+    store.clearSelection();
   }
 </script>
 
@@ -51,7 +57,7 @@
 
     <hr class="rule" />
 
-    <Toolbar />
+    <Toolbar onAddPart={() => store.startAdding()} />
 
     <hr class="rule" />
 
@@ -73,6 +79,7 @@
           connections={store.connectionsFor(selected.id)}
           parts={store.parts}
           onclose={() => store.clearSelection()}
+          onedit={(id) => store.startEditing(id)}
           ondelete={(id) => store.deletePart(id)}
         />
       {/if}
@@ -87,6 +94,22 @@
     </footer>
   </main>
 </div>
+
+{#if store.editing}
+  <!-- Keyed so switching between adding and editing rebuilds the form's local
+       state instead of carrying the previous part's answers across. -->
+  {#key store.editing}
+    <PartModal
+      part={store.editingPart}
+      oncancel={() => store.stopEditing()}
+      onsubmit={(draft) => {
+        const target = store.editing;
+        if (target?.kind === "existing") store.updatePart(target.id, draft);
+        else store.addPart(draft);
+      }}
+    />
+  {/key}
+{/if}
 
 <style>
   :global(:root) {
