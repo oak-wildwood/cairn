@@ -9,3 +9,11 @@ npm-debug.log*
 # checked in. Per-machine settings are not.
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Design comps — reference only, deliberately not tracked.
+# Their exact values live in src/lib/theme.ts. The icon files are the exception:
+# tools/make-logo.py needs them as input. See tools/README.md.
+design/*
+!design/cairn-icon-source.jpeg
+!design/cairn-icon-master.png
+!design/cairn-icon-transparent.png
