@@ -57,7 +57,7 @@
   /**
    * An arrowhead only where direction is otherwise unreadable. A lone
    * connector between two nodes needs none — there is nothing to confuse it
-   * with, and the comp draws none — but the two arcs of a reciprocal pair look
+   * with, and the original design drew none — but the two arcs of a reciprocal pair look
    * identical apart from their labels, so each names which end it points at.
    */
   const markerEnd = $derived(

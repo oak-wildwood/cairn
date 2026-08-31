@@ -19,7 +19,7 @@
   .demo-banner {
     margin: 0;
     padding: 8px 12px;
-    /* The comp's ember, the palette's own attention tone, against the deepest
+    /* The palette's ember, its own attention tone, against the deepest
        background color so the bar reads as system chrome rather than as part
        of the map. */
     background: #e38f6b;

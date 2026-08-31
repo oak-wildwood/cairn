@@ -223,8 +223,9 @@
   }
 
   /**
-   * The app's only product identity in-page — the comp has no logo, so this is
-   * a deliberate addition beside its header rather than a change to it.
+   * The app's only product identity in-page — the original design had no logo,
+   * so this is a deliberate addition beside the header rather than a change to
+   * it.
    */
   .brand {
     display: flex;

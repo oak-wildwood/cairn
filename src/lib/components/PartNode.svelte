@@ -173,7 +173,7 @@
   const tokens = $derived(ROLES[part.role]);
 
   /**
-   * "emerging" / "unwitnessed" parts are drawn as the comp draws them: a
+   * "emerging" / "unwitnessed" parts are drawn low-definition: a
    * thinner dashed circle with no glow and a dimmed label. This is driven by
    * status, and is a different thing from a connector's dash, which encodes
    * whether the edge touches Self.
@@ -184,7 +184,7 @@
 
   /**
    * Shrink the label when the longest line would otherwise run past the
-   * circle's edge — the comp does the same, setting "Alarmist" a point
+   * circle's edge — the original design does the same, setting "Alarmist" a point
    * smaller than "The Analyst".
    */
   const labelSize = $derived.by(() => {
@@ -233,7 +233,7 @@
   {/if}
 
   {#if selected}
-    <!-- DERIVED: the comp has no selected state. A concentric ring in the
+    <!-- DERIVED: the original design has no selected state. A concentric ring in the
          role's own accent marks it without introducing a new colour. -->
     <circle
       r={NODE.radius + 9}

@@ -80,7 +80,7 @@ export interface Connection {
   id: string;
   sourceId: EndpointId;
   /**
-   * Self is a valid endpoint at either end — the comp draws both a
+   * Self is a valid endpoint at either end — the original design drew both a
    * Fixer -> Self edge and a Self -> Kid edge.
    */
   targetId: EndpointId;

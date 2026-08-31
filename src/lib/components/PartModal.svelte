@@ -204,7 +204,7 @@
 
 <style>
   /*
-   * DERIVED: the comp has no modal. The surface matches the detail panel's,
+   * DERIVED: the original design has no modal. The surface matches the detail panel's,
    * and the controls reuse the toolbar's pill geometry so the form reads as
    * part of the same chrome rather than a browser default dropped on top.
    */
