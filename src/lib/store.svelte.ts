@@ -1,4 +1,5 @@
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
+import { connectionPairKey } from "./layout";
 import { loadState } from "./persistence";
 import type {
   Connection,
@@ -135,8 +136,25 @@ class MapStore {
    */
   selectedConnectionId = $state<string | null>(null);
 
-  /** Create a connection and open its label editor, per the plan's flow. */
+  /** True when these two endpoints already hold a connection, either way round. */
+  hasConnectionBetween(a: EndpointId, b: EndpointId): boolean {
+    const key = connectionPairKey(a, b);
+    return this.connections.some(
+      (connection) =>
+        connectionPairKey(connection.sourceId, connection.targetId) === key,
+    );
+  }
+
+  /**
+   * Create a connection and open its label editor, per the plan's flow.
+   *
+   * Refuses a pair that is already connected. The diagram also declines to
+   * offer such a node as a drop target, so this guard should be unreachable
+   * from the canvas — it is here for the paths that don't go through a drag.
+   */
   addConnection(sourceId: EndpointId, targetId: EndpointId): void {
+    if (sourceId === targetId) return;
+    if (this.hasConnectionBetween(sourceId, targetId)) return;
     this.showingExample = false;
     const connection: Connection = {
       id: crypto.randomUUID(),

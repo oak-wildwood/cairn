@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { computeLayout } from "../layout";
+  import { computeLayout, connectionPairKey } from "../layout";
   import {
     BACKDROP,
     CONNECTION,
@@ -105,19 +105,34 @@
    * because the connector's own live line sits under the cursor and would
    * otherwise be what the pointer reports hitting.
    */
+  /**
+   * Pairs that already hold a connection. Two nodes carry at most one, so an
+   * already-connected node is not offered as a target — no highlight ring, and
+   * releasing over it cancels like empty canvas. Refusing the drop silently
+   * after the fact would look like the gesture had simply failed.
+   */
+  const connectedPairs = $derived(
+    new Set(
+      connections.map((connection) =>
+        connectionPairKey(connection.sourceId, connection.targetId),
+      ),
+    ),
+  );
+
   const dropTargetId = $derived.by((): EndpointId | null => {
     if (!drawing) return null;
     const { point, sourceId } = drawing;
 
-    if (
-      sourceId !== SELF_ID &&
-      Math.hypot(point.x, point.y) <= SELF.radius
-    ) {
+    const available = (candidate: EndpointId): boolean =>
+      candidate !== sourceId &&
+      !connectedPairs.has(connectionPairKey(sourceId, candidate));
+
+    if (available(SELF_ID) && Math.hypot(point.x, point.y) <= SELF.radius) {
       return SELF_ID;
     }
 
     for (const part of parts) {
-      if (part.id === sourceId) continue;
+      if (!available(part.id)) continue;
       const at = positions.get(part.id);
       if (!at) continue;
       if (Math.hypot(point.x - at.x, point.y - at.y) <= NODE.radius) {
@@ -134,9 +149,14 @@
   $effect(() => {
     if (!drawing) return;
 
+    // Mutates `point` rather than replacing `drawing`. Replacing it would
+    // change the value this effect read to decide a drag was in progress, so
+    // the effect would re-run and tear down and re-register these three
+    // listeners on every pointermove — hundreds of times across one drag, for
+    // no behavioural difference.
     const move = (event: PointerEvent): void => {
       const point = toDiagramSpace(event);
-      if (point && drawing) drawing = { ...drawing, point };
+      if (point && drawing) drawing.point = point;
     };
 
     const up = (): void => {
