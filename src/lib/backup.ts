@@ -14,15 +14,17 @@ import type { PersistedState } from "./types";
  * `parseMap` can validate a file with the checks already written for storage.
  */
 
-/** `cairn-map-2026-08-31.json` — sorts chronologically in a file listing. */
-export function backupFileName(now: Date): string {
+/** `2026-08-31` — sorts chronologically in a file listing. */
+export function fileStamp(now: Date): string {
   const pad = (value: number): string => String(value).padStart(2, "0");
-  const stamp = [
-    now.getFullYear(),
-    pad(now.getMonth() + 1),
-    pad(now.getDate()),
-  ].join("-");
-  return `cairn-map-${stamp}.json`;
+  return [now.getFullYear(), pad(now.getMonth() + 1), pad(now.getDate())].join(
+    "-",
+  );
+}
+
+/** `cairn-map-2026-08-31.json`. Shares its stem with the PNG export. */
+export function backupFileName(now: Date): string {
+  return `cairn-map-${fileStamp(now)}.json`;
 }
 
 /**

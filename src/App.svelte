@@ -8,6 +8,7 @@
   import StartFreshModal from "./lib/components/StartFreshModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import { downloadMap } from "./lib/backup";
+  import { exportMapPng } from "./lib/export";
   import { parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
   import { SCHEMA_VERSION } from "./lib/types";
@@ -71,6 +72,21 @@
    * say so — there is no other signal that the pick went nowhere.
    */
   let fileNotice = $state<{ tone: "ok" | "bad"; text: string } | null>(null);
+
+  /** The diagram's live `<svg>`, bound out of `Diagram` so it can be exported. */
+  let diagramSvg = $state<SVGSVGElement | null>(null);
+
+  async function handleExport(): Promise<void> {
+    if (!diagramSvg) return;
+    try {
+      await exportMapPng(diagramSvg);
+      fileNotice = { tone: "ok", text: "Saved a PNG to your downloads." };
+    } catch {
+      // Rasterising is the browser's to do and can fail for reasons this app
+      // can't see. Saying so beats a click that appears to do nothing.
+      fileNotice = { tone: "bad", text: "Couldn't render the map as a PNG." };
+    }
+  }
 
   function handleBackUp(): void {
     downloadMap(snapshotState());
@@ -212,6 +228,7 @@
       </h1>
       <Toolbar
         onAddPart={() => store.startAdding()}
+        onExport={handleExport}
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
@@ -229,6 +246,7 @@
     <section class="workspace">
       <div class="canvas">
         <Diagram
+          bind:element={diagramSvg}
           parts={store.parts}
           connections={store.connections}
           selectedPartId={store.selectedPartId}

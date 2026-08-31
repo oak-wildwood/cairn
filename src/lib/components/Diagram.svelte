@@ -46,9 +46,16 @@
     onconnectclose: () => void;
     /** The role the legend is filtering to, or null for "All". */
     activeFilter: SectorRole | null;
+    /**
+     * The live `<svg>`, bound out so the toolbar can render it to a PNG.
+     * Exposed rather than exporting from in here: this component owns the
+     * element, and handing out a reference keeps the export logic in one
+     * module instead of splitting it across the diagram.
+     */
+    element?: SVGSVGElement | null;
   }
 
-  const {
+  let {
     parts,
     connections,
     selectedPartId,
@@ -62,9 +69,8 @@
     onconnectdelete,
     onconnectclose,
     activeFilter,
+    element = $bindable(null),
   }: Props = $props();
-
-  let svg = $state<SVGSVGElement | null>(null);
 
   /**
    * The in-flight connector. Local rather than in the store: it never
@@ -80,7 +86,7 @@
   const ORIGIN: Point = { x: 0, y: 0 };
 
   function toDiagramSpace(event: PointerEvent): Point | null {
-    const screenToLocal = svg?.getScreenCTM()?.inverse();
+    const screenToLocal = element?.getScreenCTM()?.inverse();
     if (!screenToLocal) return null;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
       screenToLocal,
@@ -268,7 +274,7 @@
 </script>
 
 <svg
-  bind:this={svg}
+  bind:this={element}
   class="diagram"
   class:drawing={drawing !== null}
   viewBox="{VIEWBOX.x} {VIEWBOX.y} {VIEWBOX.width} {VIEWBOX.height}"

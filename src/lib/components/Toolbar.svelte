@@ -2,13 +2,16 @@
   import MapMenu from "./MapMenu.svelte";
 
   /**
-   * "Export" is Milestone 9's PNG and is still unwired, so it says so and is
-   * disabled rather than sitting there as a live control that does nothing —
-   * a button that no-ops on click reads as a bug, not as work in progress.
+   * "Save image" rather than "Export": the menu beside it also hands back a
+   * file, and only one of the two can be loaded again. Someone trying to keep
+   * their map safe should not have to guess which. Naming the thing you get —
+   * an image, against the menu's "Back up to a file" — is what separates them,
+   * and "image" beats "PNG" for an audience who did not come here for file
+   * formats.
    *
-   * The map-file actions live behind `MapMenu` beside it rather than as
-   * buttons of their own — they are infrequent, and three more pills crowded
-   * out the primary action.
+   * The map-file actions live behind `MapMenu` rather than as buttons of their
+   * own — they are infrequent, and three more pills crowded out the primary
+   * action.
    */
   interface Props {
     onAddPart?: () => void;
@@ -32,15 +35,7 @@
     <button type="button" class="button primary" onclick={onAddPart}>
       + Add a part
     </button>
-    <button
-      type="button"
-      class="button"
-      onclick={onExport}
-      disabled
-      title="PNG export isn't built yet"
-    >
-      Export <span class="tbd">TBD</span>
-    </button>
+    <button type="button" class="button" onclick={onExport}>Save image</button>
     <MapMenu {onBackUp} {onRestore} {onStartFresh} />
   </div>
 </div>
@@ -77,31 +72,6 @@
 
   .button.primary {
     color: var(--text-bright);
-  }
-
-  .button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
-
-  /* Hover is an affordance, and there is nothing here to afford yet. */
-  .button:disabled:hover {
-    color: var(--text-muted);
-    border-color: var(--button-border);
-  }
-
-  /* Set apart from the label so "Export TBD" doesn't read as the name of the
-     thing. Small caps rather than a filled badge: the toolbar has one primary
-     action and a pill here would out-shout it. */
-  .tbd {
-    margin-left: 0.375rem;
-    padding: 0.0625rem 0.3125rem;
-    border: 1px solid currentColor;
-    border-radius: 3px;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    vertical-align: 1px;
   }
 
   .button:hover {
