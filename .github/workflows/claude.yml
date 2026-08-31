@@ -30,6 +30,15 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Node must be on the runner, with npm's cache warmed from
+      # package-lock.json, before Claude can usefully run npm install,
+      # npm run check (svelte-check), or npm run build itself.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -46,5 +55,9 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          #
+          # AGENTS.md requires `npm run check` at 0 errors/warnings and a
+          # passing `npm run build` before a milestone counts as done, so
+          # Claude needs to be able to install and run them itself.
+          claude_args: '--allowed-tools "Bash(npm install),Bash(npm ci),Bash(npm run check),Bash(npm run build)"'
 
