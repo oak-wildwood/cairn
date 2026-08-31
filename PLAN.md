@@ -14,6 +14,13 @@ node, an add/edit form per part, localStorage persistence, PNG export. Styled pe
 **Nocturnal** direction — dark cosmic background, glowing role-colored nodes, soft
 nebula washes marking the three sectors, Cormorant Garamond + Manrope type.
 
+The comp is checked into this repo, not just described in prose:
+`design/nocturnal-comp.svg` (source markup — exact hex colors, gradient stops,
+filter `stdDeviation`s, coordinates; prefer this over eyeballing pixels) and
+`design/nocturnal-comp.png` (flattened reference render, for a quick visual
+gut-check). Milestone 1's "pixel-match" and Milestone 10's polish pass both mean:
+match `nocturnal-comp.svg`'s actual values.
+
 ## Stack
 
 - Vite + Svelte 5 (runes), **TypeScript**, `strict: true`. This project is meant to
@@ -64,8 +71,12 @@ that, not just get milestones green:
   interactions should be operable without a mouse where that's not disproportionate
   effort (filter pills are plain buttons — trivial; full keyboard drag-repositioning
   of nodes is a reasonable thing to explicitly punt on, but say so if punted).
-- Match the Nocturnal comp's actual values (colors, blur radii, font sizes) rather
-  than approximating "something dark and glowy" — the comp is the spec.
+- Match `design/nocturnal-comp.svg`'s actual values (colors, blur radii, font sizes)
+  rather than approximating "something dark and glowy" — that file is the spec, not
+  a mood board. Its coordinate space (900×1100 viewBox) is illustrative of relative
+  layout only — it's not this app's actual viewport, which is a live diagram at
+  whatever size the browser gives it — but every color, gradient stop, filter value,
+  and font choice in it is exact and should be copied, not approximated.
 - Keep components small and single-purpose per the file structure below; if a
   component grows past doing the one thing its name says, that's a signal to split
   it, not a milestone to rush through.
@@ -99,6 +110,11 @@ export interface Part {
   origins: string;
   notes: string;
   status: string;           // free text, e.g. "active", "emerging", "witnessed", "unwitnessed"
+                             // — free text by design (see rationale above the code
+                             // block), but the dashed-circle-stroke rule (PartNode,
+                             // per the comp) keys off this value, so match it
+                             // case-insensitively against "emerging"/"unwitnessed"
+                             // rather than assuming exact casing
   x: number | null;         // manual override; null = use computed layout position
   y: number | null;
 }
@@ -141,7 +157,11 @@ src/
                                // in-progress drag-to-connect), selectedConnectionId
     layout.ts                 // pure fns: zone -> angle range, index -> position;
                                // connectionStyle(sourceRole, targetRole) -> "dashed"
-                               // if either is "unknown", else "solid"
+                               // if either is "unknown", else "solid" (line dashing,
+                               // role-driven — distinct from PartNode's own dashed
+                               // circle stroke, which is status-driven, e.g. status
+                               // "emerging"/"unwitnessed" per the comp: two separate
+                               // dashed treatments, don't conflate them)
     theme.ts                  // Nocturnal palette + type tokens as constants
     persistence.ts            // localStorage load/save, debounced, versioned
     export.ts                 // SVG -> canvas -> PNG download
@@ -149,10 +169,14 @@ src/
       Diagram.svelte           // the <svg>, owns filters/defs, iterates connections then parts
       SelfNode.svelte          // fixed, centered; hover shows connection handles
                                 // (no drag-to-reposition, no detail panel)
-      PartNode.svelte          // circle + glow filter + labels; hover shows connection
-                                // handles; pointer gestures disambiguate click (open
-                                // detail panel) vs body-drag (reposition) vs
-                                // handle-drag (draw connection)
+      PartNode.svelte          // circle + glow filter + labels; dashed circle stroke
+                                // when status is "emerging"/"unwitnessed" per the
+                                // comp (status-driven, distinct from connection
+                                // dashing, which is role-driven — see layout.ts);
+                                // hover shows connection handles; pointer gestures
+                                // disambiguate click (open detail panel) vs
+                                // body-drag (reposition) vs handle-drag (draw
+                                // connection)
       Connection.svelte        // one bezier path; solid/dashed via layout.ts's
                                 // connectionStyle(), not a stored field; selectable;
                                 // renders the inline label editor (foreignObject/
@@ -193,10 +217,14 @@ Each milestone's definition of done includes `npm run check` passing with 0
 errors/warnings and `npm run build` succeeding — not just "looks right in the dev
 server." Commit at milestone boundaries, not mid-milestone.
 
-1. **Static render** — hardcode 6 example parts (Inner Critic, The Planner, The
-   Scroller, Catastrophizer, Little One, The Forgotten One) typed against `types.ts`,
-   render the full Nocturnal-styled diagram with no interactivity. Goal: pixel-match
-   the comp before any state management exists.
+1. **Static render** — hardcode the same 6 example parts as `design/nocturnal-comp.svg`
+   (The Fixer, The Analyst, The Avoider, Alarmist, The Kid, The Unseen One — same
+   names, roles, and statuses) typed against `types.ts`, render the full
+   Nocturnal-styled diagram with no interactivity. Goal: pixel-match
+   `design/nocturnal-comp.svg` before any state management exists — background
+   gradient, nebula washes, star field, Self glow, node strokes/fills per role, the
+   dashed-stroke treatment the comp uses for "emerging"/"unwitnessed" statuses, and
+   type all copied from that file's actual values.
 2. **Store + reactive render** — move the hardcoded data into `store.svelte.ts`;
    `Diagram.svelte` renders from the store via `{#each}`.
 3. **Detail panel (read-only)** — `PartDetailPanel.svelte`, a side panel (not a

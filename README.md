@@ -59,10 +59,23 @@ were ruled out, in [`PLAN.md`](./PLAN.md).
 
 Everything runs client-side; there's no backend. Data is stored in the browser's
 `localStorage` only — nothing is sent anywhere. Any example data in this repo (part
-names like "Inner Critic" or "Little One") is generic placeholder content for
+names like "The Fixer" or "The Kid") is generic placeholder content for
 development and demos, not anyone's real information.
 
 ## Roadmap
 
 See [`PLAN.md`](./PLAN.md) for the full milestone list, data model, and acceptance
 criteria for v1.
+
+## Design & inspiration
+
+The general idea of drawing IFS parts around a central Self node, with click-through
+detail and labeled relationship lines, is a common practice in the IFS community and
+isn't unique to any one tool. Some interaction and layout ideas here were inspired by
+existing IFS parts-mapping apps. Cairn is an independent, unaffiliated implementation
+built as a personal Svelte learning exercise, not a commercial product, and isn't
+endorsed by or connected to any other app in this space.
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
