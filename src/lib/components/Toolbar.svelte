@@ -12,16 +12,34 @@
 </script>
 
 <div class="toolbar">
-  <button type="button" class="button primary" onclick={onAddPart}>
-    + Add a part
-  </button>
-  <button type="button" class="button" onclick={onExport}>Export</button>
+  <h2 class="heading">System Map</h2>
+  <div class="actions">
+    <button type="button" class="button primary" onclick={onAddPart}>
+      + Add a part
+    </button>
+    <button type="button" class="button" onclick={onExport}>Export</button>
+  </div>
 </div>
 
 <style>
   .toolbar {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625rem;
+  }
+
+  .heading {
+    margin: 0;
+    color: var(--text-bright);
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .actions {
+    display: flex;
     gap: 0.625rem;
   }
 

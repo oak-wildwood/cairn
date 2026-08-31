@@ -69,10 +69,7 @@
           width="44"
           height="44"
         />
-        <div>
-          <p class="eyebrow">YOUR INNER LANDSCAPE</p>
-          <h1 class="title">System Map</h1>
-        </div>
+        <h1 class="title">Cairn</h1>
       </div>
       <div class="counts">
         <p class="count">{store.parts.length} parts</p>
@@ -188,12 +185,6 @@
     gap: 1.5rem;
   }
 
-  /**
-   * The app's only product identity in-page — the comp has no logo, so this is
-   * a deliberate addition beside its header rather than a change to it. The
-   * mark carries the name for screen readers via its alt text, which is why no
-   * visible "Cairn" wordmark is needed next to it.
-   */
   .brand {
     display: flex;
     align-items: center;
@@ -205,14 +196,6 @@
     flex-shrink: 0;
     width: 44px;
     height: 44px;
-  }
-
-  .eyebrow {
-    margin: 0 0 0.5rem;
-    color: var(--text-eyebrow);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 3px;
   }
 
   .title {
@@ -284,7 +267,7 @@
   .footer-note {
     color: var(--text-footer);
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 20px;
     font-style: italic;
   }
 
