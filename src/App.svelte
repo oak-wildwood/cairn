@@ -9,7 +9,7 @@
   import Toolbar from "./lib/components/Toolbar.svelte";
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
-  import { parseMap, saveState, saveStateDebounced } from "./lib/persistence";
+  import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
   import { SCHEMA_VERSION } from "./lib/types";
   import type { PersistedState } from "./lib/types";
@@ -34,6 +34,18 @@
   const owner = $derived(
     store.showingExample ? EXAMPLE_OWNER_NAME : store.ownerName,
   );
+
+  /**
+   * `demo/index.html` builds to `dist/demo/index.html` (see
+   * `vite.config.ts`), one directory deeper than the root entry it shares
+   * this bundle with. `import.meta.env.BASE_URL` is the literal "./" on
+   * every deploy (see `persistence.ts`), so using it unadjusted here points
+   * the logo at `/demo/logo-96.png`, which doesn't exist — the real files
+   * sit one level up, alongside the root `index.html`.
+   */
+  const logoBase = isDemoRoute()
+    ? `${import.meta.env.BASE_URL}../`
+    : import.meta.env.BASE_URL;
   const activeCount = $derived(
     store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
       .length,
@@ -199,8 +211,8 @@
       <div class="brand">
         <img
           class="mark"
-          src="{import.meta.env.BASE_URL}logo-96.png"
-          srcset="{import.meta.env.BASE_URL}logo-96.png 1x, {import.meta.env.BASE_URL}logo-192.png 2x"
+          src="{logoBase}logo-96.png"
+          srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
           alt="Cairn"
           width="44"
           height="44"

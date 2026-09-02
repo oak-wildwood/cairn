@@ -48,7 +48,7 @@ const SAVE_DELAY_MS = 400;
  * must never read or write the real map's storage key: doing either would
  * let the two tabs fight over the same blob.
  */
-function isDemoRoute(): boolean {
+export function isDemoRoute(): boolean {
   return /\/demo\/?$/.test(location.pathname);
 }
 
