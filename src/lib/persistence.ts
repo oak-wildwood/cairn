@@ -40,6 +40,18 @@ const STORAGE_KEY = storageKey();
 /** How long the map must sit still before a write. */
 const SAVE_DELAY_MS = 400;
 
+/**
+ * The demo page (`demo/index.html`, served at `/demo/` — see
+ * `vite.config.ts`) is a second static entry alongside the real app, not a
+ * mode the main app can be switched into. It exists so someone can look at
+ * the seed map in one tab while their own map stays open in another, so it
+ * must never read or write the real map's storage key: doing either would
+ * let the two tabs fight over the same blob.
+ */
+function isDemoRoute(): boolean {
+  return /\/demo\/?$/.test(location.pathname);
+}
+
 const ROLES: readonly PartRole[] = [
   "manager",
   "firefighter",
@@ -160,6 +172,8 @@ export function parseMap(text: string): PersistedState | null {
  * is the same.
  */
 export function loadState(): PersistedState | null {
+  if (isDemoRoute()) return null;
+
   let raw: string | null;
   try {
     raw = localStorage.getItem(STORAGE_KEY);
@@ -181,6 +195,8 @@ export function loadState(): PersistedState | null {
 }
 
 export function saveState(state: PersistedState): void {
+  if (isDemoRoute()) return;
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
@@ -196,6 +212,8 @@ let pending: ReturnType<typeof setTimeout> | undefined;
  * the store, but dragging will (Milestone 5), and that fires continuously.
  */
 export function saveStateDebounced(state: PersistedState): void {
+  if (isDemoRoute()) return;
+
   clearTimeout(pending);
   pending = setTimeout(() => saveState(state), SAVE_DELAY_MS);
 }
