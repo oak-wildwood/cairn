@@ -5,7 +5,8 @@ work — a fixed **Self** node at the center, with **parts** (managers, firefigh
 exiles) placed around it in role-based sectors and connected by lines that show how
 they relate.
 
-<img width="2770" height="2292" alt="2026-09-02 at 2 02 AM" src="https://github.com/user-attachments/assets/8f6b3c98-e3a0-40bb-84c6-438e20db2f79" />
+<img width="2034" height="1783" alt="2026-09-02 at 2 08 AM" src="https://github.com/user-attachments/assets/3e1c53e3-1c9e-491b-a6a4-9d7ed6010d0e" />
+
 
 
 IFS is a therapy model that treats the mind as made up of distinct "parts" —
