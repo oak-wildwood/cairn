@@ -19,16 +19,6 @@
   ];
 
   /**
-   * Suggestions for how well this part is known, not a fixed list: `status`
-   * is free text by design, and "emerging"/"unwitnessed" only change how a
-   * node is drawn — they don't constrain what can be typed. "Active" isn't
-   * offered here — it's a separate flag now (see `active`, below), since it
-   * describes whether a part is currently showing up rather than how well
-   * it's known.
-   */
-  const STATUS_SUGGESTIONS = ["emerging", "witnessed", "unwitnessed"];
-
-  /**
    * The form is a snapshot, not a live view: it seeds from the part once and
    * only writes back on submit, so a cancelled edit leaves the store alone.
    * `untrack` says that explicitly — without it Svelte reasonably warns that
@@ -41,6 +31,23 @@
   let role = $state<PartRole | "">(initial?.role ?? "");
   let status = $state(initial?.status ?? "");
   let active = $state(initial?.active ?? true);
+
+  /**
+   * Suggestions for how well this part is known, not a fixed list: `status`
+   * is free text by design, and "emerging"/"unwitnessed" only change how a
+   * node is drawn — they don't constrain what can be typed. "Active" isn't
+   * offered here — it's a separate flag now, since it describes whether a
+   * part is currently showing up rather than how well it's known.
+   *
+   * "Witnessed"/"unwitnessed" name a specific step in IFS exile-retrieval
+   * work — Self coming to know an exile's story — so they're only suggested
+   * for that role. "Emerging" describes a part not yet fully known or
+   * differentiated, which can be true before a role is even settled, so
+   * every role gets it.
+   */
+  const statusSuggestions = $derived(
+    role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
+  );
   let feelings = $state(initial?.feelings.join(", ") ?? "");
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
@@ -144,7 +151,7 @@
             autocomplete="off"
           />
           <datalist id="part-status-options">
-            {#each STATUS_SUGGESTIONS as suggestion (suggestion)}
+            {#each statusSuggestions as suggestion (suggestion)}
               <option value={suggestion}></option>
             {/each}
           </datalist>
