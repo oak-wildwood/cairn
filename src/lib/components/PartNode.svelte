@@ -53,9 +53,12 @@
 
   /**
    * A diagonal bearing rather than a cardinal one, so this never lands on top
-   * of one of the four connection handles above.
+   * of one of the four connection handles above. South-east rather than
+   * north-east: the "active" word it toggles lives in the caption below the
+   * node, and this keeps the badge on the same corner as that caption
+   * instead of the far side of the circle.
    */
-  const ACTIVE_TOGGLE_POSITION = polarToPoint(45, NODE.radius);
+  const ACTIVE_TOGGLE_POSITION = polarToPoint(135, NODE.radius);
 
   function handleConnectStart(event: PointerEvent): void {
     if (event.button !== 0) return;
