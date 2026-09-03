@@ -120,6 +120,9 @@
             bind:value={name}
             required
             autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore="true"
             placeholder="e.g., The Anxious Part, Inner Critic"
           />
         </p>
@@ -150,6 +153,9 @@
             bind:value={status}
             list="part-status-options"
             autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore="true"
           />
           <datalist id="part-status-options">
             {#each statusSuggestions as suggestion (suggestion)}
@@ -165,6 +171,9 @@
             bind:value={feelings}
             placeholder="exhausted, sad, forgotten"
             autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore="true"
           />
           <span class="hint">Separate with commas.</span>
         </p>
@@ -176,6 +185,10 @@
           id="part-description"
           rows="3"
           bind:value={description}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="How does this part show up for you?"
         ></textarea>
       </p>
@@ -186,6 +199,9 @@
           id="part-body"
           bind:value={bodyLocation}
           autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="Where do you feel it? (chest, throat, stomach…)"
         />
       </p>
@@ -196,6 +212,10 @@
           id="part-trigger"
           rows="2"
           bind:value={trigger}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="What sets this part off? (a situation, a memory, a tone of voice…)"
         ></textarea>
       </p>
@@ -206,6 +226,10 @@
           id="part-intention"
           rows="2"
           bind:value={positiveIntention}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="What is this part trying to achieve or protect?"
         ></textarea>
       </p>
@@ -216,6 +240,10 @@
           id="part-fears"
           rows="2"
           bind:value={fears}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="What is it afraid would happen if it stopped?"
         ></textarea>
       </p>
@@ -226,6 +254,10 @@
           id="part-origins"
           rows="2"
           bind:value={origins}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="When or how did this part form?"
         ></textarea>
       </p>
@@ -236,6 +268,10 @@
           id="part-notes"
           rows="2"
           bind:value={notes}
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
           placeholder="Any additional notes…"
         ></textarea>
       </p>
