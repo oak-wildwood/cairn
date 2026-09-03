@@ -21,6 +21,7 @@
     STARS,
     TYPE_SCALE,
     WASH_GEOMETRY,
+    ZOOM,
   } from "../theme";
   import { SELF_ID } from "../types";
   import type {
@@ -96,6 +97,42 @@
    */
   const viewBox = $derived(computeViewBox(positions.values()));
   const partsById = $derived(new Map(parts.map((part) => [part.id, part])));
+
+  /**
+   * User-driven zoom, local like `drawing` above: it's a way of looking at
+   * the map, not a fact about one, so it stays out of the store and never
+   * persists. 1 means "no zoom" — the frame `computeViewBox` already fits.
+   */
+  let zoom = $state(1);
+
+  /**
+   * Zoom shrinks or grows the *viewBox* around its own centre rather than
+   * scaling a wrapping `<g>`. A `<g transform>` would move rendered nodes
+   * away from the coordinates `toDiagramSpace` and the drag/connect hit
+   * tests still use, breaking those gestures at any zoom but 1. Resizing the
+   * viewBox instead changes what the SVG's own user space *is*, so
+   * `getScreenCTM()` keeps mapping the cursor to the same part coordinates
+   * regardless of zoom.
+   */
+  const scaledViewBox = $derived.by(() => {
+    const cx = viewBox.x + viewBox.width / 2;
+    const cy = viewBox.y + viewBox.height / 2;
+    const width = viewBox.width / zoom;
+    const height = viewBox.height / zoom;
+    return { x: cx - width / 2, y: cy - height / 2, width, height };
+  });
+
+  function zoomIn(): void {
+    zoom = Math.min(ZOOM.max, zoom * ZOOM.step);
+  }
+
+  function zoomOut(): void {
+    zoom = Math.max(ZOOM.min, zoom / ZOOM.step);
+  }
+
+  function resetZoom(): void {
+    zoom = 1;
+  }
 
   const ORIGIN: Point = { x: 0, y: 0 };
 
@@ -296,11 +333,12 @@
   );
 </script>
 
+<div class="diagram-wrap">
 <svg
   bind:this={element}
   class="diagram"
   class:drawing={drawing !== null}
-  viewBox="{viewBox.x} {viewBox.y} {viewBox.width} {viewBox.height}"
+  viewBox="{scaledViewBox.x} {scaledViewBox.y} {scaledViewBox.width} {scaledViewBox.height}"
   preserveAspectRatio="xMidYMid meet"
   role="img"
   aria-label="Radial map of parts around Self"
@@ -494,7 +532,47 @@
   {/each}
 </svg>
 
+  <div class="zoom-controls" role="group" aria-label="Zoom">
+    <button
+      type="button"
+      class="zoom-button"
+      onclick={zoomOut}
+      disabled={zoom <= ZOOM.min}
+      aria-label="Zoom out"
+    >
+      −
+    </button>
+    <button
+      type="button"
+      class="zoom-button reset"
+      onclick={resetZoom}
+      disabled={zoom === 1}
+      aria-label="Reset zoom"
+    >
+      Reset
+    </button>
+    <button
+      type="button"
+      class="zoom-button"
+      onclick={zoomIn}
+      disabled={zoom >= ZOOM.max}
+      aria-label="Zoom in"
+    >
+      +
+    </button>
+  </div>
+</div>
+
 <style>
+  .diagram-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
   .diagram {
     display: block;
     width: 100%;
@@ -509,6 +587,59 @@
 
   .drawing-line {
     pointer-events: none;
+  }
+
+  /* Floated over the canvas's bottom-right corner rather than living in the
+     toolbar: zoom is a way of looking at the map, so it reads as part of the
+     diagram itself rather than a top-level action alongside "Add a part". */
+  .zoom-controls {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3125rem;
+    background: rgba(11, 12, 18, 0.72);
+    border: 1.3px solid var(--button-border);
+    border-radius: 19px;
+  }
+
+  .zoom-button {
+    height: 32px;
+    min-width: 32px;
+    padding: 0 0.75rem;
+    border: 1.3px solid var(--button-border);
+    border-radius: 16px;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .zoom-button.reset {
+    min-width: unset;
+  }
+
+  .zoom-button:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  .zoom-button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .zoom-button:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 
   /* The filter fades rather than cuts, so switching pills reads as the same
