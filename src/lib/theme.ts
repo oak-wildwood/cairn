@@ -176,6 +176,18 @@ export const VIEWBOX = { x: -450, y: -370, width: 900, height: 770 } as const;
  */
 export const ZOOM = { min: 0.5, max: 2.5, step: 1.25 } as const;
 
+/**
+ * DERIVED: how much one wheel/trackpad tick moves the zoom. `ZOOM.step`
+ * above is sized for a discrete button click; a wheel or trackpad instead
+ * reports a continuous `deltaY` whose scale depends on the input device and
+ * the browser's `deltaMode` — a mouse notch is typically ±100, a trackpad's
+ * two-finger scroll or pinch is much finer-grained. These multipliers (one
+ * per `deltaMode`) convert that raw delta into the same felt zoom speed as a
+ * button press, rather than leaping across the whole range on one tick or
+ * barely moving at all.
+ */
+export const WHEEL_ZOOM = { pixel: 0.002, line: 0.05, page: 1 } as const;
+
 /** Nebula wash marking each sector, in Self-centred diagram space. */
 export const WASH_GEOMETRY: Readonly<
   Record<SectorRole, { cx: number; cy: number; rx: number; ry: number }>
