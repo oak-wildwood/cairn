@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { computeLayout, connectionEdgeKey } from "../layout";
+  import {
+    computeLayout,
+    computeViewBox,
+    connectionEdgeKey,
+  } from "../layout";
   import {
     BACKDROP,
     CONNECTION,
@@ -16,7 +20,6 @@
     STAR_COLOR,
     STARS,
     TYPE_SCALE,
-    VIEWBOX,
     WASH_GEOMETRY,
   } from "../theme";
   import { SELF_ID } from "../types";
@@ -81,6 +84,12 @@
   let drawing = $state<{ sourceId: EndpointId; point: Point } | null>(null);
 
   const positions = $derived(computeLayout(parts));
+  /**
+   * The frame grows with the map. `theme.ts`'s `VIEWBOX` is the minimum, so a
+   * map that fits is composed exactly as designed; a larger one stands back
+   * rather than losing parts off the edge.
+   */
+  const viewBox = $derived(computeViewBox(positions.values()));
   const partsById = $derived(new Map(parts.map((part) => [part.id, part])));
 
   const ORIGIN: Point = { x: 0, y: 0 };
@@ -277,7 +286,7 @@
   bind:this={element}
   class="diagram"
   class:drawing={drawing !== null}
-  viewBox="{VIEWBOX.x} {VIEWBOX.y} {VIEWBOX.width} {VIEWBOX.height}"
+  viewBox="{viewBox.x} {viewBox.y} {viewBox.width} {viewBox.height}"
   preserveAspectRatio="xMidYMid meet"
   role="img"
   aria-label="Radial map of parts around Self"
