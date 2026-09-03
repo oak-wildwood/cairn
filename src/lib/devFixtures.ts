@@ -35,15 +35,23 @@ const ROLE_CYCLE: readonly PartRole[] = [
 
 /** Cycled so every fixture exercises the dashed low-definition treatments. */
 const STATUS_CYCLE: readonly string[] = [
-  "active",
-  "active",
+  "",
+  "",
   "emerging",
   "witnessed",
-  "active",
+  "",
   "unwitnessed",
 ];
 
-function makePart(index: number, role: PartRole, status: string): Part {
+/** Cycled independently of status so active and low-definition both vary. */
+const ACTIVE_CYCLE: readonly boolean[] = [true, false, true, false, true, false];
+
+function makePart(
+  index: number,
+  role: PartRole,
+  status: string,
+  active: boolean,
+): Part {
   const ordinal = index + 1;
   return {
     id: `fixture-${ordinal}`,
@@ -58,6 +66,7 @@ function makePart(index: number, role: PartRole, status: string): Part {
     origins: "—",
     notes: "Generated for layout testing.",
     status,
+    active,
     x: null,
     y: null,
   };
@@ -75,7 +84,14 @@ export function makeFixtureMap(count: number): {
   const parts: Part[] = [];
   for (let index = 0; index < count; index += 1) {
     const role = index % 6 === 5 ? "unknown" : ROLE_CYCLE[index % ROLE_CYCLE.length];
-    parts.push(makePart(index, role, STATUS_CYCLE[index % STATUS_CYCLE.length]));
+    parts.push(
+      makePart(
+        index,
+        role,
+        STATUS_CYCLE[index % STATUS_CYCLE.length],
+        ACTIVE_CYCLE[index % ACTIVE_CYCLE.length],
+      ),
+    );
   }
 
   // Enough connectors to crowd the canvas the way a real map does, without

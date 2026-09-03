@@ -63,8 +63,25 @@ export interface Part {
   fears: string;
   origins: string;
   notes: string;
-  /** Free text, e.g. "active", "emerging", "witnessed", "unwitnessed". */
+  /**
+   * Free text, e.g. "emerging", "witnessed", "unwitnessed" — how well this
+   * part is known/differentiated, not whether it's currently showing up
+   * (that's `active`, below). Canonically an exile-work term (witnessing is
+   * the step where Self gets to know an exile's story) but left open rather
+   * than role-locked: a protector can just as easily be "emerging" before
+   * it's understood, and there's no clean word for a well-known protector's
+   * equivalent, so an empty string is a legitimate "nothing to report here"
+   * for a part this axis doesn't have much to say about.
+   */
   status: string;
+  /**
+   * Whether this part is currently active/blended — showing up this week —
+   * independent of role or how well it's known. A manager can be active
+   * today, an exile can be active today; a fully "witnessed" exile can be
+   * quiet for months. Orthogonal to `status` on purpose: cramming both into
+   * one free-text field couldn't express "active and witnessed" at once.
+   */
+  active: boolean;
   /** Manual drag override; null means "use the computed layout position". */
   x: number | null;
   y: number | null;
@@ -90,7 +107,7 @@ export interface Connection {
 
 /** The persisted localStorage blob. */
 export interface PersistedState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   parts: Part[];
   connections: Connection[];
   /**
@@ -106,4 +123,4 @@ export interface PersistedState {
   ownerName?: string;
 }
 
-export const SCHEMA_VERSION = 1 satisfies PersistedState["schemaVersion"];
+export const SCHEMA_VERSION = 2 satisfies PersistedState["schemaVersion"];

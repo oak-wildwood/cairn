@@ -1,6 +1,7 @@
 <script lang="ts">
   import { cubicOut } from "svelte/easing";
   import type { TransitionConfig } from "svelte/transition";
+  import { partCaption } from "../layout";
   import { ROLES } from "../theme";
   import { SELF_ID } from "../types";
   import type { Connection, EndpointId, Part } from "../types";
@@ -112,7 +113,7 @@
     <header class="head">
       <div>
         <p class="meta" style:color={accent}>
-          {part.role.toUpperCase()} · {part.status.toUpperCase()}
+          {partCaption(part).toUpperCase()}
         </p>
         <h2 class="name">{part.name}</h2>
       </div>
