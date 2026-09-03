@@ -22,10 +22,10 @@
   } as const;
 
   const ROLE_OPTIONS: readonly { value: PartRole; label: string }[] = [
+    { value: "unknown", label: "Unknown — noticed, not yet identified" },
     { value: "manager", label: "Manager — keeps things under control" },
     { value: "firefighter", label: "Firefighter — reacts when pain breaks through" },
     { value: "exile", label: "Exile — carries the hurt being protected" },
-    { value: "unknown", label: "Unknown — noticed, not yet identified" },
   ];
 
   /**
@@ -38,7 +38,7 @@
   const initial = untrack(() => part);
 
   let name = $state(initial?.name ?? "");
-  let role = $state<PartRole | "">(initial?.role ?? "");
+  let role = $state<PartRole | "">(initial?.role ?? "unknown");
   let status = $state(initial?.status ?? "");
   let active = $state(initial?.active ?? true);
 
