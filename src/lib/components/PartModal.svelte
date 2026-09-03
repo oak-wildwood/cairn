@@ -192,7 +192,12 @@
 
       <p class="field">
         <label for="part-trigger">Trigger</label>
-        <textarea id="part-trigger" rows="2" bind:value={trigger}></textarea>
+        <textarea
+          id="part-trigger"
+          rows="2"
+          bind:value={trigger}
+          placeholder="What sets this part off? (a situation, a memory, a tone of voice…)"
+        ></textarea>
       </p>
 
       <p class="field">
