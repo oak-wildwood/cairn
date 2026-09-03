@@ -120,6 +120,7 @@
             bind:value={name}
             required
             autocomplete="off"
+            placeholder="e.g., The Anxious Part, Inner Critic"
           />
         </p>
 
@@ -171,39 +172,72 @@
 
       <p class="field">
         <label for="part-description">Description</label>
-        <textarea id="part-description" rows="3" bind:value={description}
+        <textarea
+          id="part-description"
+          rows="3"
+          bind:value={description}
+          placeholder="How does this part show up for you?"
         ></textarea>
       </p>
 
       <p class="field">
         <label for="part-body">Body location</label>
-        <input id="part-body" bind:value={bodyLocation} autocomplete="off" />
+        <input
+          id="part-body"
+          bind:value={bodyLocation}
+          autocomplete="off"
+          placeholder="Where do you feel it? (chest, throat, stomach…)"
+        />
       </p>
 
       <p class="field">
         <label for="part-trigger">Trigger</label>
-        <textarea id="part-trigger" rows="2" bind:value={trigger}></textarea>
+        <textarea
+          id="part-trigger"
+          rows="2"
+          bind:value={trigger}
+          placeholder="What sets this part off? (a situation, a memory, a tone of voice…)"
+        ></textarea>
       </p>
 
       <p class="field">
         <label for="part-intention">Positive intention</label>
-        <textarea id="part-intention" rows="2" bind:value={positiveIntention}
+        <textarea
+          id="part-intention"
+          rows="2"
+          bind:value={positiveIntention}
+          placeholder="What is this part trying to achieve or protect?"
         ></textarea>
       </p>
 
       <p class="field">
         <label for="part-fears">Fears</label>
-        <textarea id="part-fears" rows="2" bind:value={fears}></textarea>
+        <textarea
+          id="part-fears"
+          rows="2"
+          bind:value={fears}
+          placeholder="What is it afraid would happen if it stopped?"
+        ></textarea>
       </p>
 
       <p class="field">
         <label for="part-origins">Origins</label>
-        <textarea id="part-origins" rows="2" bind:value={origins}></textarea>
+        <textarea
+          id="part-origins"
+          rows="2"
+          bind:value={origins}
+          placeholder="When or how did this part form?"
+        ></textarea>
       </p>
 
       <p class="field">
         <label for="part-notes">Notes</label>
-        <textarea id="part-notes" rows="2" bind:value={notes}></textarea>
+        <textarea
+          id="part-notes"
+          rows="2"
+          bind:value={notes}
+          placeholder="Any additional notes…"
+        ></textarea>
       </p>
     </div>
 
