@@ -110,12 +110,24 @@ export interface Part {
   fears: string;
   origins: string;
   notes: string;
-  status: string;           // free text, e.g. "active", "emerging", "witnessed", "unwitnessed"
-                             // — free text by design (see rationale above the code
-                             // block), but the dashed-circle-stroke rule (PartNode,
-                             // per the design) keys off this value, so match it
-                             // case-insensitively against "emerging"/"unwitnessed"
-                             // rather than assuming exact casing
+  status: string;           // free text, e.g. "emerging", "witnessed", "unwitnessed" —
+                             // how well this part is known/differentiated, not whether
+                             // it's currently showing up (that's `active`, below).
+                             // Free text by design (see rationale above the code
+                             // block): witnessing is canonically exile work, but a
+                             // protector can be "emerging" too, and there's no
+                             // settled word for a well-known protector's equivalent,
+                             // so "" is a legitimate value. The dashed-circle-stroke
+                             // rule (PartNode, per the design) keys off this value,
+                             // so match it case-insensitively against
+                             // "emerging"/"unwitnessed" rather than assuming exact
+                             // casing
+  active: boolean;          // currently active/blended — showing up this week —
+                             // independent of role and of `status`: any role can be
+                             // active, and a fully "witnessed" exile can go quiet for
+                             // months. Split out from `status` (schemaVersion 2)
+                             // because the two are orthogonal and a single free-text
+                             // field couldn't express "active and witnessed" at once
   x: number | null;         // manual override; null = use computed layout position
   y: number | null;
 }
@@ -132,7 +144,9 @@ export interface Connection {
 
 // Persisted blob (localStorage)
 export interface PersistedState {
-  schemaVersion: 1;
+  schemaVersion: 2;          // bumped from 1 when `status` split into `status` +
+                              // `active`; persistence.ts migrates a schema-1 blob
+                              // on load rather than rejecting it
   parts: Part[];
   connections: Connection[];
 }

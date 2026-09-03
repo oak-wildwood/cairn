@@ -47,8 +47,7 @@
     ? `${import.meta.env.BASE_URL}../`
     : import.meta.env.BASE_URL;
   const activeCount = $derived(
-    store.parts.filter((part) => part.status.trim().toLowerCase() === "active")
-      .length,
+    store.parts.filter((part) => part.active).length,
   );
 
   /**

@@ -19,16 +19,14 @@
   ];
 
   /**
-   * Statuses the diagram reacts to, offered as suggestions rather than a fixed
-   * list: `status` is free text by design, and "emerging"/"unwitnessed" only
-   * change how a node is drawn — they don't constrain what can be typed.
+   * Suggestions for how well this part is known, not a fixed list: `status`
+   * is free text by design, and "emerging"/"unwitnessed" only change how a
+   * node is drawn — they don't constrain what can be typed. "Active" isn't
+   * offered here — it's a separate flag now (see `active`, below), since it
+   * describes whether a part is currently showing up rather than how well
+   * it's known.
    */
-  const STATUS_SUGGESTIONS = [
-    "active",
-    "emerging",
-    "witnessed",
-    "unwitnessed",
-  ];
+  const STATUS_SUGGESTIONS = ["emerging", "witnessed", "unwitnessed"];
 
   /**
    * The form is a snapshot, not a live view: it seeds from the part once and
@@ -41,7 +39,8 @@
 
   let name = $state(initial?.name ?? "");
   let role = $state<PartRole | "">(initial?.role ?? "");
-  let status = $state(initial?.status ?? "active");
+  let status = $state(initial?.status ?? "");
+  let active = $state(initial?.active ?? true);
   let feelings = $state(initial?.feelings.join(", ") ?? "");
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
@@ -78,6 +77,7 @@
       name: name.trim(),
       role,
       status: status.trim(),
+      active,
       feelings: feelings
         .split(",")
         .map((feeling) => feeling.trim())
@@ -126,6 +126,13 @@
           </select>
         </p>
       </div>
+
+      <p class="field checkbox-field">
+        <label class="checkbox-label" for="part-active">
+          <input type="checkbox" id="part-active" bind:checked={active} />
+          Active this week
+        </label>
+      </p>
 
       <div class="row">
         <p class="field">
@@ -272,6 +279,32 @@
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
+  }
+
+  .checkbox-field {
+    flex-direction: row;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    cursor: pointer;
+  }
+
+  .checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid var(--pill-border);
+    border-radius: 4px;
+    background: #0e1019;
+    accent-color: currentColor;
   }
 
   input,

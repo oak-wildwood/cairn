@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { wrapLabel } from "../layout";
+  import { partCaption, wrapLabel } from "../layout";
   import { HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
 
@@ -192,7 +192,10 @@
     const fitted = NODE.labelWidth / (longest * NODE.glyphWidthRatio);
     return Math.max(NODE.minLabelSize, Math.min(NODE.labelSize, fitted));
   });
-  const meta = $derived(`${part.role} · ${part.status}`.toUpperCase());
+  const meta = $derived(partCaption(part).toUpperCase());
+  const ariaLabel = $derived(
+    `${part.name}, ${partCaption(part)}`.replaceAll(" · ", ", "),
+  );
 
   /** Centre a one- or two-line label on the node's midline. */
   const firstLineY = $derived(
@@ -207,7 +210,7 @@
   transform="translate({position.x}, {position.y})"
   role="button"
   tabindex="0"
-  aria-label="{part.name}, {part.role}, {part.status}"
+  aria-label={ariaLabel}
   aria-pressed={selected}
   bind:this={element}
   onclick={handleClick}

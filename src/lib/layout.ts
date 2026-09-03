@@ -250,6 +250,20 @@ export function connectionOpacity(
 }
 
 /**
+ * The compact "role · status · active" caption shown on a node and echoed in
+ * its detail panel — one place for the join so the two don't drift apart.
+ * `status` and `active` are independent (see `types.ts`), and either can be
+ * empty/false, so segments are only included when they have something to
+ * say — a blank `status` must not leave a dangling "· ·" behind.
+ */
+export function partCaption(part: Pick<Part, "role" | "status" | "active">): string {
+  const segments: string[] = [part.role];
+  if (part.status.trim() !== "") segments.push(part.status.trim());
+  if (part.active) segments.push("active");
+  return segments.join(" · ");
+}
+
+/**
  * Split a part name across at most two lines, the way the design wraps "The
  * Fixer" and "The Unseen One".
  */

@@ -85,7 +85,11 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
 - **`status` is free text and must be matched case-insensitively.** `theme.ts`'s
   `isLowDefinition` trims and lowercases before comparing. An `=== "emerging"` added
   elsewhere silently drops `"Emerging"`, and the node just renders wrong rather than
-  failing.
+  failing. `active: boolean` is a separate field, not one more value of `status` —
+  it's whether a part is currently showing up, orthogonal to how well it's known, so
+  a part can be active and witnessed at once. Loading an older map with `status:
+  "active"` and no `active` field goes through `persistence.ts`'s schema-1 migration
+  rather than being read literally.
 - **`x`/`y` are `null` when unset, never `0`.** `(0, 0)` is Self's own position, so a
   zero-default pins the part to the centre of the diagram. `computeLayout` applies
   manual overrides last, and an overridden part still consumes its slot in the sector

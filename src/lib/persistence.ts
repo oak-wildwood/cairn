@@ -63,9 +63,8 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-function isPart(value: unknown): value is Part {
-  if (typeof value !== "object" || value === null) return false;
-  const part = value as Record<string, unknown>;
+/** Every `Part` field except `active`, shared with the schema-1 shape below. */
+function isPartShapeWithoutActive(part: Record<string, unknown>): boolean {
   return (
     isString(part.id) &&
     isString(part.name) &&
@@ -84,6 +83,20 @@ function isPart(value: unknown): value is Part {
     (part.x === null || typeof part.x === "number") &&
     (part.y === null || typeof part.y === "number")
   );
+}
+
+function isPart(value: unknown): value is Part {
+  if (typeof value !== "object" || value === null) return false;
+  const part = value as Record<string, unknown>;
+  return isPartShapeWithoutActive(part) && typeof part.active === "boolean";
+}
+
+/** Schema 1's `Part`, from before `status` split into `status` + `active`. */
+type LegacyPart = Omit<Part, "active">;
+
+function isLegacyPart(value: unknown): value is LegacyPart {
+  if (typeof value !== "object" || value === null) return false;
+  return isPartShapeWithoutActive(value as Record<string, unknown>);
 }
 
 function isConnection(value: unknown): value is Connection {
@@ -110,6 +123,60 @@ function isPersistedState(value: unknown): value is PersistedState {
     // wrong-typed value makes the blob unusable.
     (state.ownerName === undefined || isString(state.ownerName))
   );
+}
+
+/** Schema 1's `PersistedState`, before `Part.active` existed. */
+const LEGACY_SCHEMA_VERSION = 1;
+
+interface LegacyPersistedState {
+  schemaVersion: 1;
+  parts: LegacyPart[];
+  connections: Connection[];
+  ownerName?: string;
+}
+
+function isLegacyPersistedState(value: unknown): value is LegacyPersistedState {
+  if (typeof value !== "object" || value === null) return false;
+  const state = value as Record<string, unknown>;
+  return (
+    state.schemaVersion === LEGACY_SCHEMA_VERSION &&
+    Array.isArray(state.parts) &&
+    state.parts.every(isLegacyPart) &&
+    Array.isArray(state.connections) &&
+    state.connections.every(isConnection) &&
+    (state.ownerName === undefined || isString(state.ownerName))
+  );
+}
+
+/**
+ * A schema-1 part only ever set `status` to "active" to mean what `active`
+ * now means, so that's the one value this can recover losslessly: `active`
+ * becomes `true` and `status` falls back to "" rather than carrying "active"
+ * forward as a status — "active" was never a real point on the
+ * emerging/witnessed/unwitnessed differentiation arc (see `types.ts`), and ""
+ * renders identically to the old "active" (neither is in `theme.ts`'s
+ * low-definition set), so a migrated part looks exactly as it did before.
+ * Same fallback `exampleData.ts` uses for its own previously-"active" parts.
+ * Every other value — custom text included — was never "active" under the
+ * old exact-match check (`App.svelte`'s `activeCount`), so it carries over
+ * untouched and `active` comes back `false`.
+ */
+function migratePart(part: LegacyPart): Part {
+  const trimmed = part.status.trim();
+  const wasActive = trimmed.toLowerCase() === "active";
+  return {
+    ...part,
+    status: wasActive ? "" : trimmed,
+    active: wasActive,
+  };
+}
+
+function migrateState(state: LegacyPersistedState): PersistedState {
+  return {
+    ...state,
+    schemaVersion: SCHEMA_VERSION,
+    parts: state.parts.map(migratePart),
+  };
 }
 
 /**
@@ -159,8 +226,20 @@ export function parseMap(text: string): PersistedState | null {
   } catch {
     return null;
   }
-  if (!isPersistedState(parsed)) return null;
-  return withResolvableConnections(parsed);
+  return readPersistedState(parsed);
+}
+
+/**
+ * Accepts either the current shape or schema 1 (migrated on the way in), and
+ * rejects anything else. Shared by `parseMap` and `loadState` so a restored
+ * file and a loaded blob go through the exact same checks.
+ */
+function readPersistedState(parsed: unknown): PersistedState | null {
+  if (isPersistedState(parsed)) return withResolvableConnections(parsed);
+  if (isLegacyPersistedState(parsed)) {
+    return withResolvableConnections(migrateState(parsed));
+  }
+  return null;
 }
 
 /**
@@ -191,7 +270,7 @@ export function loadState(): PersistedState | null {
     return null;
   }
 
-  return isPersistedState(parsed) ? withResolvableConnections(parsed) : null;
+  return readPersistedState(parsed);
 }
 
 export function saveState(state: PersistedState): void {
