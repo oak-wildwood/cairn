@@ -11,6 +11,16 @@
 
   const { part, onsubmit, oncancel }: Props = $props();
 
+  /**
+   * Spread onto every free-text field: password managers and form fillers
+   * otherwise mistake fields like "Name" or "Status" for login credentials.
+   */
+  const NO_AUTOFILL = {
+    "data-1p-ignore": true,
+    "data-lpignore": "true",
+    "data-bwignore": "true",
+  } as const;
+
   const ROLE_OPTIONS: readonly { value: PartRole; label: string }[] = [
     { value: "manager", label: "Manager — keeps things under control" },
     { value: "firefighter", label: "Firefighter — reacts when pain breaks through" },
@@ -120,9 +130,7 @@
             bind:value={name}
             required
             autocomplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore="true"
+            {...NO_AUTOFILL}
             placeholder="e.g., The Anxious Part, Inner Critic"
           />
         </p>
@@ -153,9 +161,7 @@
             bind:value={status}
             list="part-status-options"
             autocomplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore="true"
+            {...NO_AUTOFILL}
           />
           <datalist id="part-status-options">
             {#each statusSuggestions as suggestion (suggestion)}
@@ -171,9 +177,7 @@
             bind:value={feelings}
             placeholder="exhausted, sad, forgotten"
             autocomplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore="true"
+            {...NO_AUTOFILL}
           />
           <span class="hint">Separate with commas.</span>
         </p>
@@ -186,9 +190,7 @@
           rows="3"
           bind:value={description}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="How does this part show up for you?"
         ></textarea>
       </p>
@@ -199,9 +201,7 @@
           id="part-body"
           bind:value={bodyLocation}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="Where do you feel it? (chest, throat, stomach…)"
         />
       </p>
@@ -213,9 +213,7 @@
           rows="2"
           bind:value={trigger}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="What sets this part off? (a situation, a memory, a tone of voice…)"
         ></textarea>
       </p>
@@ -227,9 +225,7 @@
           rows="2"
           bind:value={positiveIntention}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="What is this part trying to achieve or protect?"
         ></textarea>
       </p>
@@ -241,9 +237,7 @@
           rows="2"
           bind:value={fears}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="What is it afraid would happen if it stopped?"
         ></textarea>
       </p>
@@ -255,9 +249,7 @@
           rows="2"
           bind:value={origins}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="When or how did this part form?"
         ></textarea>
       </p>
@@ -269,9 +261,7 @@
           rows="2"
           bind:value={notes}
           autocomplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-bwignore="true"
+          {...NO_AUTOFILL}
           placeholder="Any additional notes…"
         ></textarea>
       </p>
