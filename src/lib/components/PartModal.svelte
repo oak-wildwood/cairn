@@ -11,6 +11,16 @@
 
   const { part, onsubmit, oncancel }: Props = $props();
 
+  /**
+   * Spread onto every free-text field: password managers and form fillers
+   * otherwise mistake fields like "Name" or "Status" for login credentials.
+   */
+  const NO_AUTOFILL = {
+    "data-1p-ignore": true,
+    "data-lpignore": "true",
+    "data-bwignore": "true",
+  } as const;
+
   const ROLE_OPTIONS: readonly { value: PartRole; label: string }[] = [
     { value: "manager", label: "Manager — keeps things under control" },
     { value: "firefighter", label: "Firefighter — reacts when pain breaks through" },
@@ -120,6 +130,7 @@
             bind:value={name}
             required
             autocomplete="off"
+            {...NO_AUTOFILL}
             placeholder="e.g., The Anxious Part, Inner Critic"
           />
         </p>
@@ -150,6 +161,7 @@
             bind:value={status}
             list="part-status-options"
             autocomplete="off"
+            {...NO_AUTOFILL}
           />
           <datalist id="part-status-options">
             {#each statusSuggestions as suggestion (suggestion)}
@@ -165,6 +177,7 @@
             bind:value={feelings}
             placeholder="exhausted, sad, forgotten"
             autocomplete="off"
+            {...NO_AUTOFILL}
           />
           <span class="hint">Separate with commas.</span>
         </p>
@@ -176,6 +189,8 @@
           id="part-description"
           rows="3"
           bind:value={description}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="How does this part show up for you?"
         ></textarea>
       </p>
@@ -186,6 +201,7 @@
           id="part-body"
           bind:value={bodyLocation}
           autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="Where do you feel it? (chest, throat, stomach…)"
         />
       </p>
@@ -196,6 +212,8 @@
           id="part-trigger"
           rows="2"
           bind:value={trigger}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="What sets this part off? (a situation, a memory, a tone of voice…)"
         ></textarea>
       </p>
@@ -206,6 +224,8 @@
           id="part-intention"
           rows="2"
           bind:value={positiveIntention}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="What is this part trying to achieve or protect?"
         ></textarea>
       </p>
@@ -216,6 +236,8 @@
           id="part-fears"
           rows="2"
           bind:value={fears}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="What is it afraid would happen if it stopped?"
         ></textarea>
       </p>
@@ -226,6 +248,8 @@
           id="part-origins"
           rows="2"
           bind:value={origins}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="When or how did this part form?"
         ></textarea>
       </p>
@@ -236,6 +260,8 @@
           id="part-notes"
           rows="2"
           bind:value={notes}
+          autocomplete="off"
+          {...NO_AUTOFILL}
           placeholder="Any additional notes…"
         ></textarea>
       </p>
