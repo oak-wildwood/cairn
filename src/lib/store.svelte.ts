@@ -78,6 +78,19 @@ class MapStore {
     this.activeFilter = filter;
   }
 
+  /**
+   * Whether the legend's "Active only" toggle is on. Independent of
+   * `activeFilter` — a role filter and this can combine, e.g. "active
+   * managers" — so it's its own field rather than a fifth `activeFilter`
+   * value. View state, not map data, for the same reason `activeFilter` is:
+   * a filter is a way of looking at a map, not a fact about one.
+   */
+  activeOnlyFilter = $state(false);
+
+  toggleActiveOnlyFilter(): void {
+    this.activeOnlyFilter = !this.activeOnlyFilter;
+  }
+
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
 
@@ -148,6 +161,7 @@ class MapStore {
     // A filter left over from the previous map would hide most of the new
     // one, and nothing on screen would connect the emptiness to the pill.
     this.activeFilter = null;
+    this.activeOnlyFilter = false;
   }
 
   /**
@@ -170,6 +184,7 @@ class MapStore {
     // A filter left over from the previous map would hide most of the new
     // one, and nothing on screen would connect the emptiness to the pill.
     this.activeFilter = null;
+    this.activeOnlyFilter = false;
   }
 
   startAdding(): void {
@@ -285,6 +300,18 @@ class MapStore {
     this.showingExample = false;
     this.parts = this.parts.map((part) =>
       part.id === id ? { ...part, x, y } : part,
+    );
+  }
+
+  /**
+   * Flip a part's active flag directly from the canvas, bypassing the edit
+   * modal — the whole point of having `active` as its own field rather than
+   * a value buried in free-text `status`.
+   */
+  toggleActive(id: string): void {
+    this.showingExample = false;
+    this.parts = this.parts.map((part) =>
+      part.id === id ? { ...part, active: !part.active } : part,
     );
   }
 
