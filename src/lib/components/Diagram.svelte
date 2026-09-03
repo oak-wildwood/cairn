@@ -21,6 +21,8 @@
     STARS,
     TYPE_SCALE,
     WASH_GEOMETRY,
+    WHEEL_ZOOM,
+    ZOOM,
   } from "../theme";
   import { SELF_ID } from "../types";
   import type {
@@ -97,15 +99,219 @@
   const viewBox = $derived(computeViewBox(positions.values()));
   const partsById = $derived(new Map(parts.map((part) => [part.id, part])));
 
+  /**
+   * User-driven zoom and pan, local like `drawing` above: they're a way of
+   * looking at the map, not a fact about one, so they stay out of the store
+   * and never persist. zoom 1 / pan (0, 0) means "no zoom, no pan" — the
+   * frame `computeViewBox` already fits.
+   */
+  let zoom = $state(1);
+  let pan = $state<Point>({ x: 0, y: 0 });
+
+  /** The un-zoomed, un-panned frame's own centre. */
+  const viewCenter = $derived({
+    x: viewBox.x + viewBox.width / 2,
+    y: viewBox.y + viewBox.height / 2,
+  });
+
+  /**
+   * Zoom and pan shrink, grow and shift the *viewBox* around `viewCenter`
+   * rather than scaling or translating a wrapping `<g>`. A `<g transform>`
+   * would move rendered nodes away from the coordinates `toDiagramSpace` and
+   * the drag/connect hit tests still use, breaking those gestures at any
+   * zoom or pan but the identity one. Resizing and offsetting the viewBox
+   * instead changes what the SVG's own user space *is*, so `getScreenCTM()`
+   * keeps mapping the cursor to the same part coordinates regardless of
+   * either.
+   */
+  const scaledViewBox = $derived.by(() => {
+    const width = viewBox.width / zoom;
+    const height = viewBox.height / zoom;
+    return {
+      x: viewCenter.x + pan.x - width / 2,
+      y: viewCenter.y + pan.y - height / 2,
+      width,
+      height,
+    };
+  });
+
+  /**
+   * Change zoom while keeping `pivot` (a diagram-space point) fixed under
+   * wherever it already is on screen. A button click passes the current
+   * view centre as `pivot`, which leaves `pan` untouched — the same
+   * "zoom around the middle" behaviour this had before pan existed.
+   */
+  function setZoom(nextZoom: number, pivot: Point): void {
+    const clamped = Math.min(ZOOM.max, Math.max(ZOOM.min, nextZoom));
+    if (clamped === zoom) return;
+    const factor = zoom / clamped;
+    const center = { x: viewCenter.x + pan.x, y: viewCenter.y + pan.y };
+    pan = {
+      x: pivot.x - (pivot.x - center.x) * factor - viewCenter.x,
+      y: pivot.y - (pivot.y - center.y) * factor - viewCenter.y,
+    };
+    zoom = clamped;
+  }
+
+  function currentCenter(): Point {
+    return { x: viewCenter.x + pan.x, y: viewCenter.y + pan.y };
+  }
+
+  function zoomIn(): void {
+    setZoom(zoom * ZOOM.step, currentCenter());
+  }
+
+  function zoomOut(): void {
+    setZoom(zoom / ZOOM.step, currentCenter());
+  }
+
+  function resetView(): void {
+    zoom = 1;
+    pan = { x: 0, y: 0 };
+  }
+
+  /**
+   * Turn a wheel/trackpad tick into a zoom multiplier. `deltaMode` says what
+   * unit `deltaY` is in — almost always pixels, but some mice report lines
+   * and paging devices report pages — so each gets its own `WHEEL_ZOOM`
+   * scale before the exponent turns it into a smooth multiplicative step.
+   */
+  function wheelZoomFactor(event: WheelEvent): number {
+    const scale =
+      event.deltaMode === 1
+        ? WHEEL_ZOOM.line
+        : event.deltaMode === 2
+          ? WHEEL_ZOOM.page
+          : WHEEL_ZOOM.pixel;
+    return Math.pow(2, -event.deltaY * scale);
+  }
+
+  /**
+   * Both plain wheel rotation and trackpad two-finger scroll zoom — per
+   * PLAN.md's "mouse wheel and trackpad scroll to zoom" — and a trackpad
+   * pinch arrives as a ctrl-key wheel event, so it falls through the same
+   * path. `preventDefault` is required in both cases or the browser scrolls
+   * the page (plain wheel) or zooms it (ctrl+wheel) instead.
+   */
+  function handleWheel(event: WheelEvent): void {
+    event.preventDefault();
+    if (event.deltaY === 0) return;
+    const pivot = toDiagramSpace(event);
+    if (!pivot) return;
+    setZoom(zoom * wheelZoomFactor(event), pivot);
+  }
+
   const ORIGIN: Point = { x: 0, y: 0 };
 
-  function toDiagramSpace(event: PointerEvent): Point | null {
+  /**
+   * Client pixels to diagram space, for anything that resolves a pointer or
+   * wheel position against the live viewBox. `WheelEvent` and `PointerEvent`
+   * both carry `clientX`/`clientY`, so either can be passed here.
+   */
+  function toDiagramSpace(event: {
+    clientX: number;
+    clientY: number;
+  }): Point | null {
     const screenToLocal = element?.getScreenCTM()?.inverse();
     if (!screenToLocal) return null;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
       screenToLocal,
     );
     return { x: point.x, y: point.y };
+  }
+
+  /**
+   * How far the pointer must travel before a backdrop press stops being a
+   * click-to-clear-selection and starts being a pan. Mirrors `PartNode`'s own
+   * `DRAG_THRESHOLD_PX`: small enough that a deliberate drag registers, large
+   * enough to absorb the few pixels a hand moves during an ordinary click.
+   */
+  const PAN_THRESHOLD_PX = 4;
+
+  interface PanGesture {
+    pointerId: number;
+    originX: number;
+    originY: number;
+    /** Frozen at gesture start: converting both endpoints through the same
+     * matrix gives an accurate diagram-space delta without feedback from the
+     * viewBox this gesture is itself rewriting every move. */
+    ctm: DOMMatrix;
+    startPan: Point;
+    dragging: boolean;
+  }
+
+  let panGesture: PanGesture | null = null;
+
+  /**
+   * A drag that passed the threshold has to swallow the `click` that follows
+   * it, or releasing the pan would also clear the selection.
+   */
+  let suppressBackdropClick = false;
+
+  function handleBackdropPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const ctm = element?.getScreenCTM();
+    if (!ctm) return;
+    (event.currentTarget as SVGRectElement).setPointerCapture(
+      event.pointerId,
+    );
+    panGesture = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      ctm,
+      startPan: { ...pan },
+      dragging: false,
+    };
+  }
+
+  function handleBackdropPointerMove(event: PointerEvent): void {
+    if (!panGesture || event.pointerId !== panGesture.pointerId) return;
+
+    if (!panGesture.dragging) {
+      const travelled = Math.hypot(
+        event.clientX - panGesture.originX,
+        event.clientY - panGesture.originY,
+      );
+      if (travelled < PAN_THRESHOLD_PX) return;
+      panGesture.dragging = true;
+    }
+
+    const inverse = panGesture.ctm.inverse();
+    const start = new DOMPoint(
+      panGesture.originX,
+      panGesture.originY,
+    ).matrixTransform(inverse);
+    const current = new DOMPoint(
+      event.clientX,
+      event.clientY,
+    ).matrixTransform(inverse);
+    pan = {
+      x: panGesture.startPan.x - (current.x - start.x),
+      y: panGesture.startPan.y - (current.y - start.y),
+    };
+  }
+
+  function handleBackdropPointerUp(event: PointerEvent): void {
+    if (!panGesture || event.pointerId !== panGesture.pointerId) return;
+    (event.currentTarget as SVGRectElement).releasePointerCapture(
+      event.pointerId,
+    );
+    suppressBackdropClick = panGesture.dragging;
+    panGesture = null;
+  }
+
+  /**
+   * Kept as a `click` handler rather than folded into `pointerup`, matching
+   * `PartNode`: assistive technology activates a control by dispatching
+   * `click` with no pointer events at all.
+   */
+  function handleBackdropClick(): void {
+    if (suppressBackdropClick) {
+      suppressBackdropClick = false;
+      return;
+    }
+    onclear();
   }
 
   interface ResolvedEndpoint {
@@ -296,12 +502,15 @@
   );
 </script>
 
+<div class="diagram-wrap">
 <svg
   bind:this={element}
   class="diagram"
   class:drawing={drawing !== null}
-  viewBox="{viewBox.x} {viewBox.y} {viewBox.width} {viewBox.height}"
+  viewBox="{scaledViewBox.x} {scaledViewBox.y} {scaledViewBox.width} {scaledViewBox.height}"
+  data-fit-viewbox="{viewBox.x} {viewBox.y} {viewBox.width} {viewBox.height}"
   preserveAspectRatio="xMidYMid meet"
+  onwheel={handleWheel}
   role="img"
   aria-label="Radial map of parts around Self"
 >
@@ -376,23 +585,30 @@
   </defs>
 
   <!--
-    Clicking the backdrop clears the selection. This is a pointer convenience
-    with two keyboard equivalents already in place — the panel's close button
-    and Escape — so the element deliberately stays out of the tab order rather
-    than becoming a focusable control that reads as "background".
+    Clicking the backdrop clears the selection; dragging it pans the canvas.
+    The click is a pointer convenience with two keyboard equivalents already
+    in place — the panel's close button and Escape — so the element
+    deliberately stays out of the tab order rather than becoming a focusable
+    control that reads as "background".
   -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <rect
+    class="backdrop"
     x={BACKDROP.x}
     y={BACKDROP.y}
     width={BACKDROP.size}
     height={BACKDROP.size}
     fill="url(#bgGrad)"
-    onclick={onclear}
+    onpointerdown={handleBackdropPointerDown}
+    onpointermove={handleBackdropPointerMove}
+    onpointerup={handleBackdropPointerUp}
+    onclick={handleBackdropClick}
   />
 
-  <!-- nebula washes marking the three sectors -->
+  <!-- nebula washes marking the three sectors. Decorative, so pointer-events
+       is off — left on, their filled ellipses would sit over the backdrop
+       and swallow the click-to-clear and drag-to-pan gestures meant for it. -->
   {#each SECTOR_ROLES as role (role)}
     <ellipse
       cx={WASH_GEOMETRY[role].cx}
@@ -402,10 +618,11 @@
       fill={ROLES[role].wash.color}
       opacity={ROLES[role].wash.opacity}
       filter="url(#softBlur)"
+      pointer-events="none"
     />
   {/each}
 
-  <g fill={STAR_COLOR}>
+  <g fill={STAR_COLOR} pointer-events="none">
     {#each STARS as star, index (index)}
       <circle cx={star.x} cy={star.y} r={star.r} opacity={star.opacity} />
     {/each}
@@ -494,7 +711,47 @@
   {/each}
 </svg>
 
+  <div class="zoom-controls" role="group" aria-label="Zoom">
+    <button
+      type="button"
+      class="zoom-button"
+      onclick={zoomOut}
+      disabled={zoom <= ZOOM.min}
+      aria-label="Zoom out"
+    >
+      −
+    </button>
+    <button
+      type="button"
+      class="zoom-button reset"
+      onclick={resetView}
+      disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
+      aria-label="Reset zoom and pan"
+    >
+      Reset
+    </button>
+    <button
+      type="button"
+      class="zoom-button"
+      onclick={zoomIn}
+      disabled={zoom >= ZOOM.max}
+      aria-label="Zoom in"
+    >
+      +
+    </button>
+  </div>
+</div>
+
 <style>
+  .diagram-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
   .diagram {
     display: block;
     width: 100%;
@@ -511,13 +768,87 @@
     pointer-events: none;
   }
 
+  .backdrop {
+    touch-action: none;
+  }
+
+  /* Grab affordance for panning, matching the grab/grabbing pair PartNode
+     uses for dragging a part. Scoped to "not drawing" so a connector in
+     progress keeps the crosshair over empty canvas — an explicit cursor
+     here would otherwise win over the inherited one from .diagram.drawing
+     below, since inheritance only applies where nothing is set directly. */
+  .diagram:not(.drawing) .backdrop {
+    cursor: grab;
+  }
+
+  .diagram:not(.drawing) .backdrop:active {
+    cursor: grabbing;
+  }
+
+  /* Floated over the canvas's bottom-right corner rather than living in the
+     toolbar: zoom is a way of looking at the map, so it reads as part of the
+     diagram itself rather than a top-level action alongside "Add a part".
+     No background or border of its own — each button already carries its
+     own, so the group reads as three quiet marks on the canvas rather than
+     a panel sitting on top of it. */
+  .zoom-controls {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3125rem;
+  }
+
+  .zoom-button {
+    height: 32px;
+    min-width: 32px;
+    padding: 0 0.75rem;
+    border: 1.3px solid var(--button-border);
+    border-radius: 16px;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .zoom-button.reset {
+    min-width: unset;
+  }
+
+  .zoom-button:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  .zoom-button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .zoom-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
   /* The filter fades rather than cuts, so switching pills reads as the same
      map being re-weighted instead of a different map being drawn. */
   .filterable {
     transition: opacity 200ms ease;
   }
 
+  /* Decorative, like the washes and stars above: left hit-testable, it would
+     shadow the backdrop's click-to-clear and drag-to-pan wherever a caption
+     sits. */
   .sector-label {
     user-select: none;
+    pointer-events: none;
   }
 </style>

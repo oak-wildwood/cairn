@@ -57,7 +57,16 @@
   onpointerenter={() => (hovered = true)}
   onpointerleave={() => (hovered = false)}
 >
-  <circle r={SELF.radius * SELF.glowRadiusRatio} fill="url(#selfGlow)" />
+  <!--
+    Pointer-events off: this circle is well past Self's actual body, purely
+    a glow. Left hit-testable, it would swallow the backdrop's click-to-clear
+    and drag-to-pan for a wide ring around the centre of the canvas.
+  -->
+  <circle
+    r={SELF.radius * SELF.glowRadiusRatio}
+    fill="url(#selfGlow)"
+    pointer-events="none"
+  />
 
   {#if dropTarget}
     <circle

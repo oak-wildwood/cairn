@@ -120,7 +120,14 @@ export async function exportMapPng(
   svg: SVGSVGElement,
   now: Date = new Date(),
 ): Promise<void> {
-  const { width, height } = svg.viewBox.baseVal;
+  // The live viewBox tracks the user's zoom and pan, so it's cropped or
+  // off-centre exactly when the view is. `Diagram.svelte` also stamps the
+  // un-zoomed, un-panned frame onto `data-fit-viewbox`, and that — not
+  // whatever the screen happens to be showing — is the picture people want
+  // when they save an image of the whole map.
+  const [x, y, width, height] = (svg.dataset.fitViewbox ?? "")
+    .split(" ")
+    .map(Number);
 
   const clone = svg.cloneNode(true) as SVGSVGElement;
   inlineComputedStyle(svg, clone);
@@ -129,6 +136,7 @@ export async function exportMapPng(
   // The serialised copy is its own document, so it needs the namespace and a
   // concrete size — it has no parent element to be sized by.
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("viewBox", `${x} ${y} ${width} ${height}`);
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
 
