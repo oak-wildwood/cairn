@@ -365,6 +365,47 @@ server." Commit at milestone boundaries, not mid-milestone.
     want is the whole map, so the export likely pins the viewBox back to 100%
     rather than inheriting whatever the screen is showing.
 
+- **Secure share link** (spiked in [#32](https://github.com/oak-wildwood/cairn/issues/32),
+  not built). Asked for as a way to hand a map to an IFS practitioner for review in
+  session, without the size limit and missing worksheet detail of the PNG export.
+  This runs straight into the line at the top of this file — no backend, no
+  persistence beyond localStorage — and into the README's direct promise that
+  nothing entered is sent anywhere. That promise exists specifically for content
+  like this, so loosening it isn't a call this spike makes; it's a product decision
+  for whoever owns that promise. Three shapes, in order of how much trust they cost:
+
+  - **PDF export.** Not really part of the spike — it's the actual fix for the
+    complaint (PNG carries no worksheet fields), needs nothing new architecturally,
+    and stays entirely client-side like `export.ts` today. Worth scheduling on its
+    own regardless of what happens with a share link.
+  - **No-backend share link/QR.** Serialize `PersistedState`, compress it, and put
+    it in the URL *fragment* (`#...`), which browsers never transmit to a server —
+    so the data only leaves the browser if the link itself is pasted somewhere.
+    Passphrase-encrypting it first with Web Crypto's AES-GCM means the link alone
+    isn't enough even then. Every hard rule stays intact: no request is ever made,
+    no server ever sees a part's name. The cost is a long, unwieldy URL and zero
+    protection once that URL leaks (chat history, email, a browser's own history).
+    Rendered as a QR code instead of a pasted link, this fits "review with my
+    therapist in session" well, since both people are already in the same room and
+    the payload never has to survive being forwarded.
+  - **Hosted share link (Firebase or similar).** What the issue asks about
+    directly — upload the map, hand back a short link. Done as safely as this
+    pattern allows — encrypt client-side so the host only ever stores ciphertext,
+    derive the key from a passphrase that's never transmitted, expire the record
+    after a fixed time or after first read — it still means a server holding a
+    blob of someone's IFS work, a cloud vendor added to the trust chain, an
+    ongoing bill, and a breach/subpoena surface that doesn't exist today.
+    Encryption-at-rest and expiry reduce that exposure; they don't remove the
+    architectural change of having a backend at all. Not disqualifying, but a
+    decision with real stakes given what this data is, and one that should be
+    made deliberately — updating "Explicitly out of scope" below in the same PR
+    that starts building it — rather than defaulted into.
+
+  Recommendation: build PDF export next on its own merits; prototype the
+  no-backend encrypted link/QR path as the session-sharing answer, since it needs
+  no new trust decision; leave the hosted option written down here until there's
+  an explicit call to spend the trust budget on it.
+
 ## Explicitly out of scope for v1
 
 - "Open conversation" / guided-dialogue or journaling feature with a part (seen in
