@@ -264,6 +264,7 @@
           onselect={(id) => store.select(id)}
           onclear={() => store.clearSelection()}
           onmove={(id, point) => store.movePart(id, point)}
+          ontoggleactive={(id) => store.toggleActive(id)}
           onconnectcreate={(sourceId, targetId) =>
             store.addConnection(sourceId, targetId)}
           selectedConnectionId={store.selectedConnectionId}
@@ -272,6 +273,7 @@
           onconnectdelete={(id) => store.deleteConnection(id)}
           onconnectclose={() => store.clearConnectionSelection()}
           activeFilter={store.activeFilter}
+          activeOnlyFilter={store.activeOnlyFilter}
         />
       </div>
 
@@ -296,6 +298,8 @@
         parts={store.parts}
         activeFilter={store.activeFilter}
         onFilter={(filter) => store.setFilter(filter)}
+        activeOnlyFilter={store.activeOnlyFilter}
+        onToggleActiveOnly={() => store.toggleActiveOnlyFilter()}
       />
       <div class="footer-spacer" aria-hidden="true"></div>
     </footer>

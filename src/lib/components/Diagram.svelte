@@ -41,6 +41,7 @@
     onselect: (id: string) => void;
     onclear: () => void;
     onmove: (id: string, point: Point) => void;
+    ontoggleactive: (id: string) => void;
     onconnectcreate: (sourceId: EndpointId, targetId: EndpointId) => void;
     selectedConnectionId: string | null;
     onconnectselect: (id: string) => void;
@@ -49,6 +50,8 @@
     onconnectclose: () => void;
     /** The role the legend is filtering to, or null for "All". */
     activeFilter: SectorRole | null;
+    /** Whether the legend's "Active only" toggle is on. */
+    activeOnlyFilter: boolean;
     /**
      * The live `<svg>`, bound out so the toolbar can render it to a PNG.
      * Exposed rather than exporting from in here: this component owns the
@@ -65,6 +68,7 @@
     onselect,
     onclear,
     onmove,
+    ontoggleactive,
     onconnectcreate,
     selectedConnectionId,
     onconnectselect,
@@ -72,6 +76,7 @@
     onconnectdelete,
     onconnectclose,
     activeFilter,
+    activeOnlyFilter,
     element = $bindable(null),
   }: Props = $props();
 
@@ -108,16 +113,18 @@
     point: Point;
     radius: number;
     role: Part["role"] | typeof SELF_ID;
+    /** Self has no `active` field and always counts as active for filtering. */
+    active: boolean;
   }
 
   function resolve(id: EndpointId): ResolvedEndpoint | null {
     if (id === SELF_ID) {
-      return { id, point: ORIGIN, radius: SELF.radius, role: SELF_ID };
+      return { id, point: ORIGIN, radius: SELF.radius, role: SELF_ID, active: true };
     }
     const part = partsById.get(id);
     const point = positions.get(id);
     if (!part || !point) return null;
-    return { id, point, radius: NODE.radius, role: part.role };
+    return { id, point, radius: NODE.radius, role: part.role, active: part.active };
   }
 
   function startConnection(sourceId: EndpointId): void {
@@ -243,17 +250,24 @@
   });
 
   /**
-   * Whether an endpoint survives the current filter.
+   * Whether an endpoint survives the current filters.
    *
-   * Self always does. It carries no `PartRole`, so no role filter can match
-   * it — but it is the fixed centre every connector runs to, and fading it
-   * would leave the map a ring around nothing. A part with role "unknown"
-   * matches no sector, so it fades under any filter, which is correct: it is
-   * not yet a manager, firefighter or exile.
+   * Self always does, for both filters. It carries no `PartRole` and no
+   * `active` field — but it is the fixed centre every connector runs to, and
+   * fading it would leave the map a ring around nothing. A part with role
+   * "unknown" matches no sector, so it fades under a role filter, which is
+   * correct: it is not yet a manager, firefighter or exile. The two filters
+   * are independent — "active" managers and "all" managers are both valid
+   * combinations — so both have to pass.
    */
-  function survives(role: Part["role"] | typeof SELF_ID): boolean {
-    if (activeFilter === null) return true;
-    return role === SELF_ID || role === activeFilter;
+  function survives(
+    role: Part["role"] | typeof SELF_ID,
+    active: boolean,
+  ): boolean {
+    const survivesRole =
+      activeFilter === null || role === SELF_ID || role === activeFilter;
+    const survivesActive = !activeOnlyFilter || role === SELF_ID || active;
+    return survivesRole && survivesActive;
   }
 
   /**
@@ -417,7 +431,13 @@
     <!-- A connector fades unless both of its endpoints survive the filter:
          a full-strength line running to a faded node would read as a
          relationship to something that isn't there. -->
-    <g class="filterable" opacity={fade(survives(entry.source.role) && survives(entry.target.role))}>
+    <g
+      class="filterable"
+      opacity={fade(
+        survives(entry.source.role, entry.source.active) &&
+          survives(entry.target.role, entry.target.active),
+      )}
+    >
       <ConnectionPath
         connection={entry.connection}
         source={entry.source}
@@ -457,7 +477,7 @@
   {#each parts as part (part.id)}
     {@const position = positions.get(part.id)}
     {#if position}
-      <g class="filterable" opacity={fade(survives(part.role))}>
+      <g class="filterable" opacity={fade(survives(part.role, part.active))}>
         <PartNode
           {part}
           {position}
@@ -467,6 +487,7 @@
           onconnectstart={startConnection}
           {onselect}
           {onmove}
+          {ontoggleactive}
         />
       </g>
     {/if}

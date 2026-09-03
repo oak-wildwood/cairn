@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { partCaption, wrapLabel } from "../layout";
-  import { HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
+  import { partCaption, polarToPoint, wrapLabel } from "../layout";
+  import { ACTIVE_TOGGLE, HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
 
   interface Props {
@@ -12,6 +12,8 @@
     onmove: (id: string, point: Point) => void;
     /** Begin drawing a connection out of this node. */
     onconnectstart: (id: string) => void;
+    /** Flip this part's `active` flag, without opening the edit modal. */
+    ontoggleactive: (id: string) => void;
     /** True while a connection is being drawn and could land here. */
     dropTarget: boolean;
     /** True while any connection is being drawn, from any node. */
@@ -25,6 +27,7 @@
     onselect,
     onmove,
     onconnectstart,
+    ontoggleactive,
     dropTarget,
     drawing,
   }: Props = $props();
@@ -48,12 +51,30 @@
     { x: -NODE.radius, y: 0 },
   ];
 
+  /**
+   * A diagonal bearing rather than a cardinal one, so this never lands on top
+   * of one of the four connection handles above.
+   */
+  const ACTIVE_TOGGLE_POSITION = polarToPoint(45, NODE.radius);
+
   function handleConnectStart(event: PointerEvent): void {
     if (event.button !== 0) return;
     // Without this the node's own pointerdown also fires and the node starts
     // following the cursor while the connector is being drawn out of it.
     event.stopPropagation();
     onconnectstart(part.id);
+  }
+
+  /**
+   * A click-based toggle rather than pointerdown: unlike drawing a
+   * connection, there's no drag to beat to the punch, so the ordinary click
+   * gesture is the right one. Still stops propagation on both events —
+   * pointerdown so the node's own drag-gesture tracking never engages, click
+   * so the node's body-click handler doesn't also open the detail panel.
+   */
+  function handleToggleActive(event: MouseEvent): void {
+    event.stopPropagation();
+    ontoggleactive(part.id);
   }
 
   /**
@@ -298,6 +319,44 @@
       />
     {/each}
   </g>
+
+  <!--
+    Unlike the connection handles above, this stays visible at rest — it is
+    the part's active/inactive state, not just a way to change it, so hiding
+    it behind hover would defeat the point. Pointer-only for the same reason
+    as the handles: a nested focusable control inside this node's own
+    role="button" would be invalid structure, and the Edit modal's "Active
+    this week" checkbox already gives keyboard users the same action.
+  -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <g
+    class="active-toggle"
+    transform="translate({ACTIVE_TOGGLE_POSITION.x}, {ACTIVE_TOGGLE_POSITION.y})"
+    aria-hidden="true"
+    onpointerdown={(event) => event.stopPropagation()}
+    onclick={handleToggleActive}
+  >
+    <title>{part.active ? "Mark inactive" : "Mark active this week"}</title>
+    <!-- Wider than the drawn circle below, so a small badge doesn't also
+         have to be a precise click. -->
+    <circle class="hit-area" r={ACTIVE_TOGGLE.hitRadius} fill="transparent" />
+    <circle
+      r={ACTIVE_TOGGLE.radius}
+      fill={part.active ? tokens.accent : "none"}
+      stroke={tokens.accent}
+      stroke-width={ACTIVE_TOGGLE.strokeWidth}
+    />
+    {#if part.active}
+      <path
+        d={ACTIVE_TOGGLE.checkPath}
+        fill="none"
+        stroke={tokens.nodeFill}
+        stroke-width={ACTIVE_TOGGLE.checkStrokeWidth}
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    {/if}
+  </g>
 </g>
 
 <style>
@@ -331,6 +390,14 @@
 
   .handle {
     cursor: crosshair;
+  }
+
+  .active-toggle {
+    cursor: pointer;
+  }
+
+  .active-toggle circle:not(.hit-area) {
+    transition: fill 150ms ease;
   }
 
   .node:focus-visible {

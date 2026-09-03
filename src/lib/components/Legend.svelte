@@ -9,9 +9,19 @@
     parts: readonly Part[];
     activeFilter?: Filter;
     onFilter?: (filter: Filter) => void;
+    /** Whether the "Active only" toggle is on. Independent of `activeFilter`
+     * — a role and this can combine, e.g. "active managers". */
+    activeOnlyFilter?: boolean;
+    onToggleActiveOnly?: () => void;
   }
 
-  const { parts, activeFilter = null, onFilter }: Props = $props();
+  const {
+    parts,
+    activeFilter = null,
+    onFilter,
+    activeOnlyFilter = false,
+    onToggleActiveOnly,
+  }: Props = $props();
 
   const counts = $derived(
     SECTOR_ROLES.reduce<Record<SectorRole, number>>(
@@ -22,6 +32,8 @@
       { manager: 0, firefighter: 0, exile: 0 },
     ),
   );
+
+  const activeCount = $derived(parts.filter((part) => part.active).length);
 
   const LABELS: Readonly<Record<SectorRole, string>> = {
     manager: "Managers",
@@ -55,6 +67,26 @@
       {LABELS[role]} · {counts[role]}
     </button>
   {/each}
+
+  <!--
+    A divider rather than a fifth pill: the role pills are mutually
+    exclusive (one `activeFilter` value at a time), but "active only" isn't
+    exclusive with any of them — "active managers" is a valid combination —
+    so it gets a visibly different control in the same row, not one more
+    option in that group.
+  -->
+  <span class="divider" aria-hidden="true"></span>
+
+  <button
+    type="button"
+    class="pill toggle"
+    class:active={activeOnlyFilter}
+    aria-pressed={activeOnlyFilter}
+    onclick={() => onToggleActiveOnly?.()}
+  >
+    <span class="check" aria-hidden="true">{activeOnlyFilter ? "✓" : ""}</span>
+    Active only · {activeCount}
+  </button>
 </div>
 
 <style>
@@ -100,5 +132,24 @@
     height: 10px;
     border-radius: 50%;
     background: var(--dot);
+  }
+
+  .divider {
+    align-self: center;
+    width: 1px;
+    height: 20px;
+    background: var(--pill-border);
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border: 1.3px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+    line-height: 1;
   }
 </style>

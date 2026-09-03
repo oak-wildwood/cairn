@@ -260,6 +260,24 @@ export const HANDLE = {
   fadeMs: 120,
 } as const;
 
+/**
+ * DERIVED: no equivalent in the source design. A circular checkbox — same
+ * checked/unchecked idea as the modal's "Active this week" control, drawn to
+ * match the node's own geometry instead of a form field. Sized a little
+ * larger than `HANDLE` because, unlike a handle, this stays visible and
+ * clickable at rest rather than only appearing under a hovering pointer that
+ * has already found the node; `hitRadius` widens the actual click target
+ * past the drawn circle so a small badge doesn't also have to be a precise one.
+ */
+export const ACTIVE_TOGGLE = {
+  radius: 7,
+  hitRadius: 11,
+  strokeWidth: 1.5,
+  /** A short checkmark, centred on the badge's own local origin. */
+  checkPath: "M -3.2 0.2 L -1 2.4 L 3.4 -2.8",
+  checkStrokeWidth: 1.4,
+} as const;
+
 /* -------------------------------------------------------------------------- */
 /* Connections                                                                 */
 /* -------------------------------------------------------------------------- */
