@@ -256,7 +256,7 @@
      * DERIVED: the original design's titles were always short enough to sit
      * on one line, so it never had to say how a wrapped one should look.
      * `balance` splits a two-line name evenly instead of leaving a lone
-     * orphan word on the second line (e.g. "Wally the" / "Worrier") if a
+     * orphan word on the second line (e.g. "Andy the" / "Avoider") if a
      * longer real name ever does wrap here, in the live panel or in the PDF
      * export's widened one.
      */
