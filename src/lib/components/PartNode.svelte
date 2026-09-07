@@ -299,7 +299,15 @@
     text-anchor="middle">{meta}</text
   >
 
-  <g class="handles" class:visible={showHandles} aria-hidden="true">
+  <!-- data-export-hide: read by pdfExport.ts, which hides every element
+       carrying it before screenshotting the diagram — a drag affordance has
+       no meaning on a printed page. -->
+  <g
+    class="handles"
+    class:visible={showHandles}
+    aria-hidden="true"
+    data-export-hide
+  >
     {#each HANDLE_POSITIONS as handle, index (index)}
       <!--
         Drawing a connection is a pointer-only affordance. The handles are

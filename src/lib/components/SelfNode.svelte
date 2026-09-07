@@ -104,7 +104,13 @@
     text-anchor="middle">Self</text
   >
 
-  <g class="handles" class:visible={showHandles} aria-hidden="true">
+  <!-- data-export-hide: see PartNode. -->
+  <g
+    class="handles"
+    class:visible={showHandles}
+    aria-hidden="true"
+    data-export-hide
+  >
     {#each HANDLE_POSITIONS as handle, index (index)}
       <!-- Pointer-only, for the reasons set out in PartNode. -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->

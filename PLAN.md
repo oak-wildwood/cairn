@@ -336,6 +336,27 @@ server." Commit at milestone boundaries, not mid-milestone.
     stacks), connector curve smoothness. Self-hosting is the option that also
     fixes the PNG export's type: an isolated SVG can embed a same-origin font as
     a data URI, where it can never reach a Google Fonts `<link>`.
+11. **Multi-page PDF export** — `pdfExport.ts`: one landscape PDF page per part,
+    each a screenshot of the live workspace (diagram + open detail panel) with
+    that part selected. New deps `html-to-image` (screenshots the live, attached
+    workspace — no `export.ts`-style clone-and-inline-styles needed) and `jspdf`
+    (assembles the per-part screenshots into one file); each page is sized to its
+    own screenshot rather than a fixed page size, since panel height tracks how
+    much a part has answered. `ExportProgressModal.svelte` is a click shield
+    while the export loop drives the real selection through every part in turn —
+    a native `<dialog>` via `showModal`, matching `StartFreshModal`/`PartModal`.
+    Two gotchas worth remembering if this breaks again: `getFontEmbedCSS` only
+    embeds a font it finds in use in the given subtree, so it has to run *after*
+    the first part's panel (the only Cormorant Garamond text in `workspace`) has
+    mounted, or every page's title silently falls back to a wider serif and
+    wraps; and `html-to-image`'s `filter` option never reaches anything inside
+    the diagram's `<svg>` (it clones that subtree with one native
+    `cloneNode(true)` rather than walking it), so hiding node handles and the
+    panel's Edit/Delete/close controls for the capture means hiding the live
+    elements directly and restoring them after, not filtering them out.
+    Unconditional in this milestone — always all parts, no configuration; a
+    scoped export dialog (all/active/hand-picked parts) and a plain-images
+    option are tracked as follow-on issues rather than built here.
 
 ## Acceptance criteria for v1
 
