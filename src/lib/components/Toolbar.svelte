@@ -16,27 +16,42 @@
   interface Props {
     onAddPart?: () => void;
     onExport?: () => void;
+    onExportPdf?: () => void;
     onBackUp: () => void;
     onRestore: (file: File) => void;
     onStartFresh: () => void;
+    /** True while a PDF export is walking every part's selection in turn. */
+    exporting?: boolean;
   }
 
   const {
     onAddPart,
     onExport,
+    onExportPdf,
     onBackUp,
     onRestore,
     onStartFresh,
+    exporting = false,
   }: Props = $props();
 </script>
 
 <div class="toolbar">
   <div class="actions">
-    <button type="button" class="button primary" onclick={onAddPart}>
+    <button
+      type="button"
+      class="button primary"
+      onclick={onAddPart}
+      disabled={exporting}
+    >
       + Add a part
     </button>
-    <button type="button" class="button" onclick={onExport}>Save image</button>
-    <MapMenu {onBackUp} {onRestore} {onStartFresh} />
+    <button type="button" class="button" onclick={onExport} disabled={exporting}>
+      Save image
+    </button>
+    <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
+      Export PDF
+    </button>
+    <MapMenu {onBackUp} {onRestore} {onStartFresh} disabled={exporting} />
   </div>
 </div>
 
@@ -82,5 +97,10 @@
   .button:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
+  }
+
+  .button:disabled {
+    cursor: default;
+    opacity: 0.5;
   }
 </style>

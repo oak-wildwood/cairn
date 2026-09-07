@@ -2,6 +2,7 @@
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
+  import ExportProgressModal from "./lib/components/ExportProgressModal.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
   import PartModal from "./lib/components/PartModal.svelte";
@@ -9,6 +10,7 @@
   import Toolbar from "./lib/components/Toolbar.svelte";
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
+  import { exportPartsPdf } from "./lib/pdfExport";
   import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
   import { SCHEMA_VERSION } from "./lib/types";
@@ -87,6 +89,31 @@
   /** The diagram's live `<svg>`, bound out of `Diagram` so it can be exported. */
   let diagramSvg = $state<SVGSVGElement | null>(null);
 
+  /**
+   * The live workspace (diagram + detail panel), bound out so the PDF export
+   * can screenshot it as it actually appears on screen — a detached clone
+   * would never show the panel `store.select` opens.
+   */
+  let workspaceEl = $state<HTMLElement | null>(null);
+
+  /**
+   * True while a PDF export is walking every part's selection in turn. The
+   * whole toolbar disables during this — adding, editing or deleting a part
+   * mid-walk could select an id the export has already passed or one it
+   * hasn't reached yet.
+   */
+  let exportingPdf = $state(false);
+
+  /**
+   * Drives `ExportProgressModal`, which doubles as a click shield: the
+   * export loop drives the real `store.select` through every part in turn,
+   * so a click landing on the diagram or panel mid-export would race it.
+   * `showModal` makes the rest of the page inert for the pointer, and
+   * `handleWindowKey` below separately guards Escape/Delete, which are
+   * window-level listeners a modal's inertness doesn't reach.
+   */
+  let exportProgress = $state<{ current: number; total: number } | null>(null);
+
   async function handleExport(): Promise<void> {
     if (!diagramSvg) return;
     try {
@@ -96,6 +123,52 @@
       // Rasterising is the browser's to do and can fail for reasons this app
       // can't see. Saying so beats a click that appears to do nothing.
       fileNotice = { tone: "bad", text: "Couldn't render the map as a PNG." };
+    }
+  }
+
+  async function handleExportPdf(): Promise<void> {
+    if (!workspaceEl || store.parts.length === 0) return;
+
+    // Snapshotted so the user's own filter and selection come back exactly
+    // as they left them, regardless of what the export itself selects.
+    const priorSelection = store.selectedPartId;
+    const priorFilter = store.activeFilter;
+    const priorActiveOnly = store.activeOnlyFilter;
+    const partIds = store.parts.map((part) => part.id);
+
+    // A filtered-out part would render dimmed or hidden on its own page
+    // otherwise — every page should show its part in full regardless of
+    // whatever filter happens to be on in the legend.
+    store.setFilter(null);
+    if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
+
+    exportingPdf = true;
+    exportProgress = { current: 1, total: partIds.length };
+    try {
+      await exportPartsPdf(
+        workspaceEl,
+        partIds,
+        (id) => store.select(id),
+        (done, total) => {
+          exportProgress = { current: done, total };
+        },
+      );
+      fileNotice = {
+        tone: "ok",
+        text: `Saved a ${partIds.length}-page PDF to your downloads.`,
+      };
+    } catch {
+      // Screenshotting and PDF assembly both happen in the browser and can
+      // fail for reasons this app can't see. Saying so beats a click that
+      // appears to do nothing.
+      fileNotice = { tone: "bad", text: "Couldn't build the PDF." };
+    } finally {
+      if (priorSelection !== null) store.select(priorSelection);
+      else store.clearSelection();
+      store.setFilter(priorFilter);
+      if (store.activeOnlyFilter !== priorActiveOnly) store.toggleActiveOnlyFilter();
+      exportingPdf = false;
+      exportProgress = null;
     }
   }
 
@@ -180,6 +253,12 @@
   }
 
   function handleWindowKey(event: KeyboardEvent): void {
+    // `ExportProgressModal`'s own inertness stops pointer interaction, but a
+    // window-level keydown listener isn't scoped to it — Escape clearing the
+    // export loop's own selection out from under it is exactly the race the
+    // modal exists to prevent.
+    if (exportingPdf) return;
+
     // The modal owns Escape while it is open; closing the form should not
     // also drop whatever is selected behind it.
     if (store.editing) return;
@@ -240,9 +319,11 @@
       <Toolbar
         onAddPart={() => store.startAdding()}
         onExport={handleExport}
+        onExportPdf={handleExportPdf}
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
+        exporting={exportingPdf}
       />
     </div>
 
@@ -254,7 +335,7 @@
 
     <hr class="rule" />
 
-    <section class="workspace">
+    <section class="workspace" bind:this={workspaceEl}>
       <div class="canvas">
         <Diagram
           bind:element={diagramSvg}
@@ -334,6 +415,10 @@
       }}
     />
   {/key}
+{/if}
+
+{#if exportProgress}
+  <ExportProgressModal current={exportProgress.current} total={exportProgress.total} />
 {/if}
 
 <style>

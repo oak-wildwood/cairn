@@ -16,9 +16,10 @@
      * menu deliberately owns no destructive action of its own.
      */
     onStartFresh: () => void;
+    disabled?: boolean;
   }
 
-  const { onBackUp, onRestore, onStartFresh }: Props = $props();
+  const { onBackUp, onRestore, onStartFresh, disabled = false }: Props = $props();
 
   let open = $state(false);
   let trigger = $state<HTMLButtonElement | null>(null);
@@ -29,6 +30,13 @@
     open = false;
     if (options.refocus) trigger?.focus();
   }
+
+  // A PDF export starting elsewhere in the toolbar should close a menu left
+  // open from before it began — its actions replace the map mid-export and
+  // shouldn't stay reachable while one is running.
+  $effect(() => {
+    if (disabled) close();
+  });
 
   function handleFile(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
@@ -82,6 +90,7 @@
     aria-label="Map file actions"
     aria-haspopup="menu"
     aria-expanded={open}
+    {disabled}
     onclick={() => (open ? close() : (open = true))}
   >
     <svg width="16" height="4" viewBox="0 0 16 4" aria-hidden="true">
@@ -170,6 +179,11 @@
   .trigger:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
+  }
+
+  .trigger:disabled {
+    cursor: default;
+    opacity: 0.5;
   }
 
   /* Right-aligned to the trigger so the panel grows inward, away from the
