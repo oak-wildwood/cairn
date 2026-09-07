@@ -252,6 +252,15 @@
     font-style: italic;
     font-weight: 500;
     line-height: 1.1;
+    /*
+     * DERIVED: the original design's titles were always short enough to sit
+     * on one line, so it never had to say how a wrapped one should look.
+     * `balance` splits a two-line name evenly instead of leaving a lone
+     * orphan word on the second line (e.g. "Andy the" / "Avoider") if a
+     * longer real name ever does wrap here, in the live panel or in the PDF
+     * export's widened one.
+     */
+    text-wrap: balance;
   }
 
   .close {
