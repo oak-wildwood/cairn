@@ -426,10 +426,10 @@ above); no real personal data goes in this repo.
   placed", without inventing a fourth sector), and `theme.ts` gives them a neutral
   lavender-grey marked `DERIVED` rather than one of the three sector hues. Both are
   reversible once "not fully surfaced" has a fuller definition.
-- ~~Deploy target for a live demo~~ — settled: GitHub Pages off the `gh-pages`
-  branch, with `main` published to the root and each PR previewed in a subfolder.
-  Both are served from one origin, which is why `persistence.ts` keys a preview's
-  stored map separately from production's.
+- ~~Deploy target for a live demo~~ — settled: production is GitHub Pages off the
+  `gh-pages` branch, published to the root on every push to `main`. PR previews are
+  a separate concern, handled by Vercel's GitHub integration — each preview gets its
+  own origin, so it needs no storage-key bucketing of its own.
 - CI currently only checks PR titles (from `gh repo-init`). Worth adding a workflow
   that runs `npm run check` and `npm run build` on PRs once there's real code to
   break — not needed while the repo is just the scaffold.

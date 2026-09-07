@@ -5,6 +5,9 @@ dist/
 *.local
 npm-debug.log*
 
+# Vercel CLI (per-machine project link, not shared)
+.vercel
+
 # Agent tooling. AGENTS.md, CLAUDE.md and .claude/skills/ are shared and
 # checked in. Per-machine settings are not.
 .claude/settings.local.json
