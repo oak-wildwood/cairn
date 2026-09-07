@@ -37,8 +37,8 @@ jobs:
             printf 'Expected: type: imperative summary\n'
             printf 'Types:    %s\n' "$(printf '%s' "$TYPES" | tr '|' ' ')"
             printf '\nFor example:\n'
-            printf '  feat: add per-week employer contact minimum\n'
-            printf '  fix: stop the week badge rendering on the printed sheet\n'
+            printf '  feat: add wheel zoom and drag-to-pan to the canvas\n'
+            printf '  fix: grow the frame so no part falls off the edge\n'
             printf '\nSee AGENTS.md for what each type covers.\n'
             exit 1
           }
