@@ -2,12 +2,8 @@ name: Deploy
 
 # Publishes main to the public site at https://oak-wildwood.github.io/cairn/.
 #
-# Pages serves the gh-pages branch, and PR previews live in subfolders of
-# pr-preview/ on that same branch. So production is deployed to the branch
-# root with clean-exclude keeping the previews — a plain clean would delete
-# every open PR's preview on each push to main. For the same reason this
-# repo can't switch Pages to the Actions build type: that would stop serving
-# the branch, and the previews with it.
+# Pages serves the gh-pages branch. PR previews are a separate concern,
+# handled by Vercel's GitHub integration rather than anything in this repo.
 
 on:
   push:
@@ -53,5 +49,4 @@ jobs:
           branch: gh-pages
           folder: dist
           clean: true
-          clean-exclude: pr-preview/
           commit-message: "deploy: ${{ github.sha }}"
