@@ -97,22 +97,19 @@
   let workspaceEl = $state<HTMLElement | null>(null);
 
   /**
-   * True while a PDF export is walking every part's selection in turn. The
-   * whole toolbar disables during this — adding, editing or deleting a part
-   * mid-walk could select an id the export has already passed or one it
-   * hasn't reached yet.
-   */
-  let exportingPdf = $state(false);
-
-  /**
    * Drives `ExportProgressModal`, which doubles as a click shield: the
    * export loop drives the real `store.select` through every part in turn,
    * so a click landing on the diagram or panel mid-export would race it.
    * `showModal` makes the rest of the page inert for the pointer, and
    * `handleWindowKey` below separately guards Escape/Delete, which are
-   * window-level listeners a modal's inertness doesn't reach.
+   * window-level listeners a modal's inertness doesn't reach. Non-null for
+   * the exact duration of an export, so it doubles as that boolean too — the
+   * whole toolbar disables while it's set, since adding, editing or deleting
+   * a part mid-walk could select an id the export has already passed or one
+   * it hasn't reached yet.
    */
   let exportProgress = $state<{ current: number; total: number } | null>(null);
+  const exportingPdf = $derived(exportProgress !== null);
 
   async function handleExport(): Promise<void> {
     if (!diagramSvg) return;
@@ -142,7 +139,6 @@
     store.setFilter(null);
     if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
 
-    exportingPdf = true;
     exportProgress = { current: 1, total: partIds.length };
     try {
       await exportPartsPdf(
@@ -167,7 +163,6 @@
       else store.clearSelection();
       store.setFilter(priorFilter);
       if (store.activeOnlyFilter !== priorActiveOnly) store.toggleActiveOnlyFilter();
-      exportingPdf = false;
       exportProgress = null;
     }
   }

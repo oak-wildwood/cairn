@@ -117,7 +117,16 @@
         </p>
         <h2 class="name">{part.name}</h2>
       </div>
-      <button class="close" type="button" onclick={onclose} aria-label="Close">
+      <!-- data-export-hide: read by pdfExport.ts, which hides every element
+           carrying it before screenshotting this panel — a live control has
+           no click handler on a printed page. -->
+      <button
+        class="close"
+        type="button"
+        onclick={onclose}
+        aria-label="Close"
+        data-export-hide
+      >
         &times;
       </button>
     </header>
@@ -162,7 +171,8 @@
       {/if}
     </section>
 
-    <footer class="actions">
+    <!-- data-export-hide: see the close button above. -->
+    <footer class="actions" data-export-hide>
       <button class="primary" type="button" onclick={() => onedit(part.id)}>
         Edit
       </button>

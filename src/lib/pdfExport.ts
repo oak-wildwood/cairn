@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { getFontEmbedCSS, toCanvas } from "html-to-image";
-import { fileStamp } from "./backup";
+import { downloadBlob, fileStamp } from "./backup";
 
 /**
  * Rendering one PDF page per part, each a screenshot of the live workspace
@@ -80,78 +80,76 @@ function nextFrame(): Promise<void> {
 }
 
 /**
- * Leave out controls that only make sense in the live app: the panel's close
- * button and its Edit / Delete / Confirm delete row. A PDF page has no click
- * handler behind either, so keeping them would export dead buttons rather
- * than a record of the part.
- *
- * This only reaches plain HTML — `html-to-image` clones an `<svg>` subtree
- * with one native `element.cloneNode(true)` rather than walking it node by
- * node (`clone-node.js`'s `cloneChildren` bails out as soon as the cloned
- * node is itself an `<svg>`), so `filter` is never called for anything
- * inside the diagram. `hideHandlesForCapture` below handles that case — no
- * pun intended — by hiding the live elements before the capture instead.
+ * Wider than the live sidebar's 22rem, for the PDF page only: the panel's
+ * long-form fields read cramped at the width the app uses next to the live,
+ * interactive diagram.
  */
-function isExportContent(node: HTMLElement): boolean {
-  if (!node.classList) return true;
-  if (node.classList.contains("close")) return false;
-  if (node.tagName === "FOOTER" && node.classList.contains("actions")) return false;
-  return true;
-}
+const EXPORT_PANEL_WIDTH = "26rem";
 
 /**
- * Every node's connection handles (`PartNode.svelte`/`SelfNode.svelte`,
- * `.handles`) are normally invisible (`opacity: 0`) except on hover or
- * focus, but they live inside the diagram's `<svg>`, where `filter` above
- * can't reach them (see `isExportContent`) — so instead of excluding them
- * from the clone, this hides the live elements outright for the moment of
- * capture and restores them straight after. `export.ts`'s PNG export hits
- * the identical problem for the identical reason: "miss it and every node
- * exports wearing four handles it doesn't have on screen."
+ * Temporarily override one CSS property on a fixed set of elements, e.g. for
+ * the moment of a capture. Returns a function that puts each one back
+ * exactly as found, including "no inline value at all" when the live app
+ * had none.
  */
-function hideHandlesForCapture(workspace: HTMLElement): () => void {
-  const handles = Array.from(workspace.querySelectorAll<SVGElement>(".handles"));
-  const previousDisplay = handles.map((el) => el.style.display);
-  for (const el of handles) el.style.display = "none";
+function overrideStyle(
+  elements: readonly HTMLElement[],
+  property: "display" | "width",
+  value: string,
+): () => void {
+  const previous = elements.map((el) => el.style.getPropertyValue(property));
+  for (const el of elements) el.style.setProperty(property, value);
 
   return () => {
-    handles.forEach((el, index) => {
-      el.style.display = previousDisplay[index];
+    elements.forEach((el, index) => {
+      el.style.setProperty(property, previous[index]);
     });
   };
 }
 
 /**
- * Wider than the live sidebar's 22rem, for the PDF page only: the panel's
- * long-form fields read cramped at the width the app uses next to the live,
- * interactive diagram. Applied as a temporary inline override on the live
- * `.panel`/`.inner` nodes right before a capture and cleared right after, so
- * the on-screen app is never left wider than its designed width — only
- * above the 900px breakpoint, where the panel is a fixed-width sidebar
- * rather than a full-width strip under the diagram.
+ * One-time DOM adjustments for the whole export, made right after the first
+ * part's panel mounts and undone once every page is captured — nothing here
+ * mounts, unmounts, or otherwise changes shape again while the export loop
+ * cycles the rest of the parts through the same panel and the same diagram,
+ * so there is nothing to redo per page.
+ *
+ * Widens the panel (see `EXPORT_PANEL_WIDTH`) and hides every
+ * `data-export-hide` element — `PartDetailPanel.svelte`'s close button and
+ * Edit/Delete row, `PartNode.svelte`/`SelfNode.svelte`'s connection handles —
+ * none of which belong in a picture of the map. Direct DOM overrides rather
+ * than `html-to-image`'s `filter` option because `filter` only reaches plain
+ * HTML: it clones the diagram's `<svg>` with one native
+ * `element.cloneNode(true)` rather than walking it node by node
+ * (`clone-node.js`'s `cloneChildren` bails out as soon as the cloned node is
+ * itself an `<svg>`), so anything inside it — including every node's
+ * handles — is invisible to `filter` no matter what it returns. `export.ts`'s
+ * PNG export hits the identical problem for the identical reason: "miss it
+ * and every node exports wearing four handles it doesn't have on screen."
  */
-const EXPORT_PANEL_WIDTH = "26rem";
+function prepareWorkspaceForCapture(workspace: HTMLElement): () => void {
+  const restoreHidden = overrideStyle(
+    Array.from(workspace.querySelectorAll<HTMLElement>("[data-export-hide]")),
+    "display",
+    "none",
+  );
 
-/**
- * Temporarily widen the open panel for one capture. Returns a function that
- * puts each overridden node's width back exactly as found, including "no
- * inline width at all" when the live app had none.
- */
-function widenPanelForCapture(workspace: HTMLElement): () => void {
-  if (!matchMedia("(min-width: 901px)").matches) return () => {};
-
-  const targets = [
-    workspace.querySelector<HTMLElement>(".panel"),
-    workspace.querySelector<HTMLElement>(".panel .inner"),
-  ].filter((el): el is HTMLElement => el !== null);
-
-  const previousWidths = targets.map((el) => el.style.width);
-  for (const el of targets) el.style.width = EXPORT_PANEL_WIDTH;
+  // Only above the 900px breakpoint, where the panel is a fixed-width
+  // sidebar rather than a full-width strip under the diagram.
+  const restoreWidth = matchMedia("(min-width: 901px)").matches
+    ? overrideStyle(
+        [
+          workspace.querySelector<HTMLElement>(".panel"),
+          workspace.querySelector<HTMLElement>(".panel .inner"),
+        ].filter((el): el is HTMLElement => el !== null),
+        "width",
+        EXPORT_PANEL_WIDTH,
+      )
+    : () => {};
 
   return () => {
-    targets.forEach((el, index) => {
-      el.style.width = previousWidths[index];
-    });
+    restoreHidden();
+    restoreWidth();
   };
 }
 
@@ -183,6 +181,7 @@ export async function exportPartsPdf(
   if (partIds.length === 0) return;
 
   let fontEmbedCSS: string | undefined;
+  let restoreWorkspace: (() => void) | undefined;
   let doc: jsPDF | null = null;
 
   for (const [index, id] of partIds.entries()) {
@@ -190,23 +189,19 @@ export async function exportPartsPdf(
     await nextFrame();
     await waitForPanelReveal(workspace);
 
-    // First iteration only: the panel has just mounted, so this is the
-    // earliest point at which its Cormorant Garamond title is actually in
-    // the DOM for `getFontEmbedCSS` to find.
+    // First iteration only: the panel has just mounted for the first time,
+    // so this is the earliest point at which its Cormorant Garamond title is
+    // in the DOM for `getFontEmbedCSS` to find, and at which every
+    // `data-export-hide` element (including the panel's own controls) exists
+    // to be hidden. Neither needs revisiting on later iterations — see
+    // `prepareWorkspaceForCapture`.
     if (fontEmbedCSS === undefined) {
       fontEmbedCSS = await getFontEmbedCSS(workspace);
+      restoreWorkspace = prepareWorkspaceForCapture(workspace);
+      await nextFrame();
     }
 
-    const restorePanelWidth = widenPanelForCapture(workspace);
-    const restoreHandles = hideHandlesForCapture(workspace);
-    await nextFrame();
-    const canvas = await toCanvas(workspace, {
-      pixelRatio: SCALE,
-      fontEmbedCSS,
-      filter: isExportContent,
-    });
-    restoreHandles();
-    restorePanelWidth();
+    const canvas = await toCanvas(workspace, { pixelRatio: SCALE, fontEmbedCSS });
     const width = (canvas.width / SCALE) * PX_TO_PT;
     const height = (canvas.height / SCALE) * PX_TO_PT;
     // JPEG rather than PNG: the workspace is full of soft radial glows behind
@@ -226,15 +221,12 @@ export async function exportPartsPdf(
     onProgress?.(index + 1, partIds.length);
   }
 
+  restoreWorkspace?.();
+
   if (!doc) return;
 
   // A blob rather than a data URL, matching `exportMapPng`/`downloadMap`: a
   // many-page PDF at 2x is easily megabytes, and a data URL would build all
   // of it as one base64 string first.
-  const url = URL.createObjectURL(doc.output("blob"));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = pdfExportFileName(now);
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(doc.output("blob"), pdfExportFileName(now));
 }

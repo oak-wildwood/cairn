@@ -1,4 +1,4 @@
-import { fileStamp } from "./backup";
+import { downloadBlob, fileStamp } from "./backup";
 
 /**
  * Rendering the map as a PNG the user can keep or share.
@@ -162,10 +162,5 @@ export async function exportMapPng(
 
   // A blob rather than the plan's `toDataURL`: at 2x this image is megabytes,
   // and a data URL would build all of it as one base64 string first.
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = exportFileName(now);
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, exportFileName(now));
 }

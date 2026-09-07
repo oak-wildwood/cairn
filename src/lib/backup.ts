@@ -28,24 +28,33 @@ export function backupFileName(now: Date): string {
 }
 
 /**
- * Hand the map to the browser as a download.
+ * Hand any blob to the browser as a named download.
  *
  * The detached anchor is the only way to name a downloaded file from script,
  * and it is not the DOM-ownership violation the repo's D3 rule is about: this
  * element is never inserted into the document, never rendered, and nothing
- * reactive can observe it. Pretty-printed because the point of a backup is
- * that a person can open it, read it, and see their own words in it.
+ * reactive can observe it. Shared by every export in the app — `export.ts`'s
+ * PNG, this file's own JSON backup, and `pdfExport.ts`'s PDF — rather than
+ * each hand-rolling the same object-URL/anchor/revoke sequence.
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  // Revoking immediately is safe — the download has already been handed off,
+  // and leaving it would pin the blob in memory for the page's lifetime.
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Pretty-printed because the point of a backup is that a person can open it,
+ * read it, and see their own words in it.
  */
 export function downloadMap(state: PersistedState, now: Date = new Date()): void {
   const blob = new Blob([JSON.stringify(state, null, 2)], {
     type: "application/json",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = backupFileName(now);
-  link.click();
-  // Revoking immediately is safe — the download has already been handed off,
-  // and leaving it would pin the whole map in memory for the page's lifetime.
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, backupFileName(now));
 }
