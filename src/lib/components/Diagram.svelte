@@ -54,6 +54,8 @@
     activeFilter: SectorRole | null;
     /** Whether the legend's "Active only" toggle is on. */
     activeOnlyFilter: boolean;
+    /** The tags the legend is filtering to. Empty means no tag filter. */
+    tagFilter: readonly string[];
     /**
      * The live `<svg>`, bound out so the toolbar can render it to a PNG.
      * Exposed rather than exporting from in here: this component owns the
@@ -79,6 +81,7 @@
     onconnectclose,
     activeFilter,
     activeOnlyFilter,
+    tagFilter,
     element = $bindable(null),
   }: Props = $props();
 
@@ -321,16 +324,32 @@
     role: Part["role"] | typeof SELF_ID;
     /** Self has no `active` field and always counts as active for filtering. */
     active: boolean;
+    /** Self has no `feelings`, so it never matches a tag filter — `survives` treats it as always-visible regardless. */
+    feelings: readonly string[];
   }
 
   function resolve(id: EndpointId): ResolvedEndpoint | null {
     if (id === SELF_ID) {
-      return { id, point: ORIGIN, radius: SELF.radius, role: SELF_ID, active: true };
+      return {
+        id,
+        point: ORIGIN,
+        radius: SELF.radius,
+        role: SELF_ID,
+        active: true,
+        feelings: [],
+      };
     }
     const part = partsById.get(id);
     const point = positions.get(id);
     if (!part || !point) return null;
-    return { id, point, radius: NODE.radius, role: part.role, active: part.active };
+    return {
+      id,
+      point,
+      radius: NODE.radius,
+      role: part.role,
+      active: part.active,
+      feelings: part.feelings,
+    };
   }
 
   function startConnection(sourceId: EndpointId): void {
@@ -458,22 +477,28 @@
   /**
    * Whether an endpoint survives the current filters.
    *
-   * Self always does, for both filters. It carries no `PartRole` and no
-   * `active` field — but it is the fixed centre every connector runs to, and
-   * fading it would leave the map a ring around nothing. A part with role
-   * "unknown" matches no sector, so it fades under a role filter, which is
-   * correct: it is not yet a manager, firefighter or exile. The two filters
-   * are independent — "active" managers and "all" managers are both valid
-   * combinations — so both have to pass.
+   * Self always does, for every filter. It carries no `PartRole`, no `active`
+   * field and no `feelings` — but it is the fixed centre every connector runs
+   * to, and fading it would leave the map a ring around nothing. A part with
+   * role "unknown" matches no sector, so it fades under a role filter, which
+   * is correct: it is not yet a manager, firefighter or exile. The three
+   * filters are independent — "active" managers tagged "shame" is a valid
+   * combination — so all three have to pass; tags themselves are OR'd against
+   * each other, since a part usually carries more than one.
    */
   function survives(
     role: Part["role"] | typeof SELF_ID,
     active: boolean,
+    tags: readonly string[],
   ): boolean {
     const survivesRole =
       activeFilter === null || role === SELF_ID || role === activeFilter;
     const survivesActive = !activeOnlyFilter || role === SELF_ID || active;
-    return survivesRole && survivesActive;
+    const survivesTags =
+      tagFilter.length === 0 ||
+      role === SELF_ID ||
+      tags.some((t) => tagFilter.includes(t));
+    return survivesRole && survivesActive && survivesTags;
   }
 
   /**
@@ -651,8 +676,8 @@
     <g
       class="filterable"
       opacity={fade(
-        survives(entry.source.role, entry.source.active) &&
-          survives(entry.target.role, entry.target.active),
+        survives(entry.source.role, entry.source.active, entry.source.feelings) &&
+          survives(entry.target.role, entry.target.active, entry.target.feelings),
       )}
     >
       <ConnectionPath
@@ -694,7 +719,10 @@
   {#each parts as part (part.id)}
     {@const position = positions.get(part.id)}
     {#if position}
-      <g class="filterable" opacity={fade(survives(part.role, part.active))}>
+      <g
+        class="filterable"
+        opacity={fade(survives(part.role, part.active, part.feelings))}
+      >
         <PartNode
           {part}
           {position}
