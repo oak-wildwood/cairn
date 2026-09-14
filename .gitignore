@@ -5,6 +5,9 @@ dist/
 *.local
 npm-debug.log*
 
+# Editor (per-machine)
+.vscode/
+
 # Vercel CLI (per-machine project link, not shared)
 .vercel
 
