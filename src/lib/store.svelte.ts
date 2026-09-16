@@ -91,6 +91,27 @@ class MapStore {
     this.activeOnlyFilter = !this.activeOnlyFilter;
   }
 
+  /**
+   * The tags the legend is filtering to. Empty means no tag filter. View
+   * state, not map data, for the same reason `activeFilter` is: a filter is
+   * a way of looking at a map, not a fact about one.
+   */
+  tagFilter = $state<string[]>([]);
+
+  setTagFilter(tags: string[]): void {
+    this.tagFilter = tags;
+  }
+
+  toggleTag(tag: string): void {
+    this.tagFilter = this.tagFilter.includes(tag)
+      ? this.tagFilter.filter((t) => t !== tag)
+      : [...this.tagFilter, tag];
+  }
+
+  clearTags(): void {
+    this.tagFilter = [];
+  }
+
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
 
@@ -162,6 +183,7 @@ class MapStore {
     // one, and nothing on screen would connect the emptiness to the pill.
     this.activeFilter = null;
     this.activeOnlyFilter = false;
+    this.tagFilter = [];
   }
 
   /**
@@ -185,6 +207,7 @@ class MapStore {
     // one, and nothing on screen would connect the emptiness to the pill.
     this.activeFilter = null;
     this.activeOnlyFilter = false;
+    this.tagFilter = [];
   }
 
   startAdding(): void {

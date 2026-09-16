@@ -362,6 +362,7 @@
     letter-spacing: normal;
     text-transform: none;
     cursor: pointer;
+    user-select: none;
   }
 
   .checkbox-label input[type="checkbox"] {

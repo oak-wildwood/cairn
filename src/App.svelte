@@ -131,6 +131,7 @@
     const priorSelection = store.selectedPartId;
     const priorFilter = store.activeFilter;
     const priorActiveOnly = store.activeOnlyFilter;
+    const priorTags = [...store.tagFilter];
     const partIds = store.parts.map((part) => part.id);
 
     // A filtered-out part would render dimmed or hidden on its own page
@@ -138,6 +139,7 @@
     // whatever filter happens to be on in the legend.
     store.setFilter(null);
     if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
+    if (store.tagFilter.length > 0) store.clearTags();
 
     exportProgress = { current: 1, total: partIds.length };
     try {
@@ -163,6 +165,7 @@
       else store.clearSelection();
       store.setFilter(priorFilter);
       if (store.activeOnlyFilter !== priorActiveOnly) store.toggleActiveOnlyFilter();
+      store.setTagFilter(priorTags);
       exportProgress = null;
     }
   }
@@ -350,6 +353,7 @@
           onconnectclose={() => store.clearConnectionSelection()}
           activeFilter={store.activeFilter}
           activeOnlyFilter={store.activeOnlyFilter}
+          tagFilter={store.tagFilter}
         />
       </div>
 
@@ -376,6 +380,10 @@
         onFilter={(filter) => store.setFilter(filter)}
         activeOnlyFilter={store.activeOnlyFilter}
         onToggleActiveOnly={() => store.toggleActiveOnlyFilter()}
+        tagFilter={store.tagFilter}
+        onToggleTag={(tag) => store.toggleTag(tag)}
+        onClearTags={() => store.clearTags()}
+        onSetTagFilter={(tags) => store.setTagFilter(tags)}
       />
       <div class="footer-spacer" aria-hidden="true"></div>
     </footer>
@@ -427,6 +435,9 @@
     --button-border: #4a5170;
     --pill-border: #3a4058;
     --focus-ring: #8fa3e3;
+    /* The detail panel's/modal's surface, a step above the darkest background
+       stop — also the Legend popovers' surface. */
+    --surface-raised: #12141f;
     --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
     --font-ui: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
@@ -441,6 +452,14 @@
   :global(body) {
     font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every button in this app is a control, never a place to read or copy
+     text from, so a click-drag over one should move the thing it triggers
+     (a drag on the canvas, a text selection elsewhere) rather than select
+     its own label. */
+  :global(button) {
+    user-select: none;
   }
 
   .shell {
