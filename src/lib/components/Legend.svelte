@@ -83,35 +83,6 @@
     return sortedTags.filter(([tag]) => tag.toLowerCase().includes(query));
   });
 
-  /**
-   * Mirrors the breakpoint `PartDetailPanel.svelte` and `pdfExport.ts` use for
-   * "is this a side-by-side layout or a stacked one" — below it the app is
-   * already choosing compact layouts elsewhere, so the parts filter folding
-   * into a dropdown here matches rather than fighting that.
-   */
-  let wideViewport = $state(matchMedia("(min-width: 901px)").matches);
-
-  $effect(() => {
-    const query = matchMedia("(min-width: 901px)");
-    const onChange = (event: MediaQueryListEvent): void => {
-      wideViewport = event.matches;
-    };
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  });
-
-  /**
-   * Past this many selected tags, the trigger's own chips take up about as
-   * much room as the flat pill row would, so showing both expanded doubles
-   * up on space the row doesn't have. Folding parts back into its dropdown
-   * gives the growing chip row somewhere to go.
-   */
-  const TAG_FOLD_THRESHOLD = 4;
-
-  const partsExpanded = $derived(
-    wideViewport && tagFilter.length < TAG_FOLD_THRESHOLD,
-  );
-
   let partsOpen = $state(false);
   let partsTrigger = $state<HTMLButtonElement | null>(null);
   let partsPanel = $state<HTMLDivElement | null>(null);
@@ -146,13 +117,6 @@
     onFilter?.(role);
     closeParts({ refocus: true });
   }
-
-  // The flat row has no popover of its own, so a stray open dropdown from
-  // before the row expanded (a resize, or the tag count dropping back under
-  // the fold threshold) shouldn't linger for when it collapses again.
-  $effect(() => {
-    if (partsExpanded) partsOpen = false;
-  });
 
   function handleTagsTriggerClick(): void {
     if (!hasTags) return;
@@ -241,95 +205,69 @@
 </script>
 
 <div class="legend">
-  {#if partsExpanded}
+  <div class="dropdown">
     <button
+      bind:this={partsTrigger}
       type="button"
       class="pill"
-      class:active={activeFilter === null}
-      aria-pressed={activeFilter === null}
-      onclick={() => onFilter?.(null)}
+      class:active={partsOpen}
+      aria-haspopup="listbox"
+      aria-expanded={partsOpen}
+      onclick={() => (partsOpen ? closeParts() : openParts())}
     >
-      All {parts.length}
+      {#if activeFilter !== null}
+        <span
+          class="dot"
+          style:--dot={ROLES[activeFilter].accent}
+          aria-hidden="true"
+        ></span>
+      {/if}
+      <span>{activeFilter === null ? "All parts" : LABELS[activeFilter]}</span>
+      <span class="chevron" class:open={partsOpen} aria-hidden="true"></span>
     </button>
-    {#each SECTOR_ROLES as role (role)}
-      <button
-        type="button"
-        class="pill"
-        class:active={activeFilter === role}
-        aria-pressed={activeFilter === role}
-        style:--dot={ROLES[role].accent}
-        style:--pill-text={ROLES[role].pillText}
-        onclick={() => onFilter?.(role)}
-      >
-        <span class="dot" aria-hidden="true"></span>
-        {LABELS[role]} · {counts[role]}
-      </button>
-    {/each}
-  {:else}
-    <div class="dropdown">
-      <button
-        bind:this={partsTrigger}
-        type="button"
-        class="pill"
-        class:active={partsOpen}
-        aria-haspopup="listbox"
-        aria-expanded={partsOpen}
-        onclick={() => (partsOpen ? closeParts() : openParts())}
-      >
-        {#if activeFilter !== null}
-          <span
-            class="dot"
-            style:--dot={ROLES[activeFilter].accent}
-            aria-hidden="true"
-          ></span>
-        {/if}
-        <span>{activeFilter === null ? "All parts" : LABELS[activeFilter]}</span>
-        <span class="chevron" class:open={partsOpen} aria-hidden="true"></span>
-      </button>
 
-      {#if partsOpen}
-        <div
-          bind:this={partsPanel}
-          class="popover parts-popover"
-          role="listbox"
-          aria-label="Filter by part"
-        >
-          <p class="eyebrow">Filter by part</p>
-          <div class="radio-list">
+    {#if partsOpen}
+      <div
+        bind:this={partsPanel}
+        class="popover parts-popover"
+        role="listbox"
+        aria-label="Filter by part"
+      >
+        <p class="eyebrow">Filter by part</p>
+        <div class="radio-list">
+          <label class="option-row">
+            <input
+              type="radio"
+              name="part-filter"
+              checked={activeFilter === null}
+              onclick={() => selectRole(null)}
+              onchange={() => selectRole(null)}
+            />
+            <span class="option-label">All parts</span>
+            <span class="option-count">{parts.length}</span>
+          </label>
+          {#each SECTOR_ROLES as role (role)}
             <label class="option-row">
               <input
                 type="radio"
                 name="part-filter"
-                checked={activeFilter === null}
-                onclick={() => selectRole(null)}
-                onchange={() => selectRole(null)}
+                checked={activeFilter === role}
+                onclick={() => selectRole(role)}
+                onchange={() => selectRole(role)}
               />
-              <span class="option-label">All parts</span>
-              <span class="option-count">{parts.length}</span>
+              <span
+                class="dot"
+                style:--dot={ROLES[role].accent}
+                aria-hidden="true"
+              ></span>
+              <span class="option-label">{LABELS[role]}</span>
+              <span class="option-count">{counts[role]}</span>
             </label>
-            {#each SECTOR_ROLES as role (role)}
-              <label class="option-row">
-                <input
-                  type="radio"
-                  name="part-filter"
-                  checked={activeFilter === role}
-                  onclick={() => selectRole(role)}
-                  onchange={() => selectRole(role)}
-                />
-                <span
-                  class="dot"
-                  style:--dot={ROLES[role].accent}
-                  aria-hidden="true"
-                ></span>
-                <span class="option-label">{LABELS[role]}</span>
-                <span class="option-count">{counts[role]}</span>
-              </label>
-            {/each}
-          </div>
+          {/each}
         </div>
-      {/if}
-    </div>
-  {/if}
+      </div>
+    {/if}
+  </div>
 
   <button
     type="button"
@@ -476,7 +414,7 @@
 
   .pill:hover,
   .pill.active {
-    color: var(--pill-text, var(--text-bright));
+    color: var(--text-bright);
     border-color: var(--text-muted);
   }
 
