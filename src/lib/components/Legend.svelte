@@ -342,7 +342,7 @@
     Active only · {activeCount}
   </button>
 
-  <!-- A divider rather than folding Tags into the row above: it filters on a
+  <!-- A divider rather than folding Feelings into the row above: it filters on a
        different facet (theme/dynamic rather than role), and ANDs against the
        other two rather than replacing either. -->
   <span class="divider" aria-hidden="true"></span>
@@ -363,7 +363,7 @@
       onkeydown={handleTagsTriggerKeydown}
     >
       {#if tagFilter.length === 0}
-        <span class="tags-label">Tags</span>
+        <span class="tags-label">Feelings</span>
       {:else}
         {#each tagFilter as tag (tag)}
           <span class="chip">
@@ -371,7 +371,7 @@
             <button
               type="button"
               class="chip-remove"
-              aria-label="Remove tag {tag}"
+              aria-label="Remove feeling {tag}"
               onclick={(event) => removeTag(event, tag)}
             >
               ×
@@ -394,14 +394,14 @@
         bind:this={tagsPanel}
         class="popover tags-popover"
         role="dialog"
-        aria-label="Filter by tag"
+        aria-label="Filter by feeling"
       >
-        <p class="eyebrow">Filter by tag</p>
+        <p class="eyebrow">Filter by feeling</p>
         <input
           class="search"
           type="text"
-          placeholder="Search tags"
-          aria-label="Search tags"
+          placeholder="Search feelings"
+          aria-label="Search feelings"
           bind:value={tagSearch}
         />
         <ul class="tag-list">
@@ -418,7 +418,7 @@
               </label>
             </li>
           {:else}
-            <li class="empty">No matching tags.</li>
+            <li class="empty">No matching feelings.</li>
           {/each}
         </ul>
         <div class="popover-footer">
@@ -751,6 +751,27 @@
     padding: 0;
     overflow-y: auto;
     list-style: none;
+    /* Firefox; Chromium picks this up too, but gets the fuller treatment below. */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 16%) transparent;
+  }
+
+  .tag-list::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .tag-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .tag-list::-webkit-scrollbar-thumb {
+    border: 2px solid var(--surface-raised);
+    border-radius: 999px;
+    background-color: rgb(255 255 255 / 16%);
+  }
+
+  .tag-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 28%);
   }
 
   .tag-list .empty {
