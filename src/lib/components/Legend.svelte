@@ -486,7 +486,7 @@
   }
 
   .tags-popover {
-    right: 0;
+    left: 0;
     width: 260px;
   }
 
