@@ -139,7 +139,7 @@
     // whatever filter happens to be on in the legend.
     store.setFilter(null);
     if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
-    if (store.tagFilter.length > 0) store.clearTags();
+    if (store.tagFilter.length > 0) store.setTagFilter([]);
 
     exportProgress = { current: 1, total: partIds.length };
     try {
@@ -366,6 +366,7 @@
           onclose={() => store.clearSelection()}
           onedit={(id) => store.startEditing(id)}
           ondelete={(id) => store.deletePart(id)}
+          onfeelings={(id, feelings) => store.setFeelings(id, feelings)}
         />
       {/if}
     </section>
@@ -381,9 +382,7 @@
         activeOnlyFilter={store.activeOnlyFilter}
         onToggleActiveOnly={() => store.toggleActiveOnlyFilter()}
         tagFilter={store.tagFilter}
-        onToggleTag={(tag) => store.toggleTag(tag)}
-        onClearTags={() => store.clearTags()}
-        onSetTagFilter={(tags) => store.setTagFilter(tags)}
+        onTagFilterChange={(tags) => store.setTagFilter(tags)}
       />
       <div class="footer-spacer" aria-hidden="true"></div>
     </footer>
@@ -410,6 +409,7 @@
   {#key store.editing}
     <PartModal
       part={store.editingPart}
+      parts={store.parts}
       oncancel={() => store.stopEditing()}
       onsubmit={(draft) => {
         const target = store.editing;

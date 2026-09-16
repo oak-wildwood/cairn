@@ -102,16 +102,6 @@ class MapStore {
     this.tagFilter = tags;
   }
 
-  toggleTag(tag: string): void {
-    this.tagFilter = this.tagFilter.includes(tag)
-      ? this.tagFilter.filter((t) => t !== tag)
-      : [...this.tagFilter, tag];
-  }
-
-  clearTags(): void {
-    this.tagFilter = [];
-  }
-
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);
 
@@ -335,6 +325,17 @@ class MapStore {
     this.showingExample = false;
     this.parts = this.parts.map((part) =>
       part.id === id ? { ...part, active: !part.active } : part,
+    );
+  }
+
+  /**
+   * Quick-edit a part's feelings directly from the detail panel, bypassing
+   * the edit modal — same idea as `toggleActive` above.
+   */
+  setFeelings(id: string, feelings: string[]): void {
+    this.showingExample = false;
+    this.parts = this.parts.map((part) =>
+      part.id === id ? { ...part, feelings } : part,
     );
   }
 
