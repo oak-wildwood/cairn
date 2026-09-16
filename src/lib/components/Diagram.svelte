@@ -798,6 +798,7 @@
 
   .backdrop {
     touch-action: none;
+    user-select: none;
   }
 
   /* Grab affordance for panning, matching the grab/grabbing pair PartNode

@@ -269,6 +269,9 @@
 
   .label {
     cursor: pointer;
+    /* A drag that starts on the label text should open the editor, not
+       select the words underneath it. */
+    user-select: none;
     /* Paints the connector out from behind the words without a background
        rect, which would have to be sized from the text at runtime. */
     paint-order: stroke;

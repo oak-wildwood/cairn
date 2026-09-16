@@ -514,6 +514,7 @@
     color: var(--text-primary);
     font-size: 13px;
     cursor: pointer;
+    user-select: none;
   }
 
   .option-row:hover {
@@ -563,6 +564,7 @@
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
+    user-select: none;
     transition:
       color 160ms ease,
       border-color 160ms ease;
@@ -603,21 +605,33 @@
   }
 
   .chip-remove {
-    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Visually the × sits close to the chip's label, but the hit area is
+       widened past the glyph's own box so a small target isn't the reason
+       the removal doesn't land. */
+    width: 18px;
+    height: 18px;
+    margin: -3px -4px -3px 0;
     padding: 0;
     border: none;
+    border-radius: 50%;
     background: none;
     color: inherit;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1;
     cursor: pointer;
     opacity: 0.75;
-    transition: opacity 160ms ease;
+    transition:
+      opacity 160ms ease,
+      background-color 160ms ease;
   }
 
   .chip-remove:hover {
     opacity: 1;
+    background: rgb(255 255 255 / 12%);
   }
 
   .chip-remove:focus-visible {

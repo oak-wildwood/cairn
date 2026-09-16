@@ -454,6 +454,14 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Every button in this app is a control, never a place to read or copy
+     text from, so a click-drag over one should move the thing it triggers
+     (a drag on the canvas, a text selection elsewhere) rather than select
+     its own label. */
+  :global(button) {
+    user-select: none;
+  }
+
   .shell {
     display: flex;
     flex-direction: column;
