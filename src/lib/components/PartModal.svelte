@@ -321,6 +321,26 @@
     gap: 1rem;
     padding: 1.25rem 1.5rem;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 16%) transparent;
+  }
+
+  .body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .body::-webkit-scrollbar-thumb {
+    border: 2px solid #12141f;
+    border-radius: 999px;
+    background-color: rgb(255 255 255 / 16%);
+  }
+
+  .body::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 28%);
   }
 
   .row {
