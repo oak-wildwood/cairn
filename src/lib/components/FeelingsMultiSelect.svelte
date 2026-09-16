@@ -10,6 +10,8 @@
    * feelings that already exist, while editing a part's own feelings is how a
    * new one enters that vocabulary in the first place.
    */
+  import { onMount } from "svelte";
+
   interface Props {
     /** The known feeling vocabulary and how many parts carry each, from
      * `feelingCounts` — not this control's own selection. */
@@ -29,6 +31,23 @@
     /** Anchors the popover above the trigger (the legend, pinned near the
      * page bottom) or below it (the panel/modal, which have room underneath). */
     dropDirection?: "up" | "down";
+    /** Routes "Clear"/"Clear all" through a blocking confirmation dialog
+     * instead of clearing immediately. On for the detail panel's quick
+     * editor, where clearing writes straight to the part with no undo; off
+     * for the legend's filter (clearing only changes what's shown) and the
+     * add/edit modal (clearing is just editing a draft, undone by Cancel). */
+    confirmClear?: boolean;
+    /** Opens the popover as soon as this control mounts, so a caller that
+     * swaps a readonly view for this one (the detail panel's quick editor)
+     * can go straight to the picker instead of needing a second click on
+     * the trigger. */
+    autoOpen?: boolean;
+    /** Called when the user signals they're actually finished — Done,
+     * Escape, or a click outside the whole control — but not when the
+     * trigger itself just toggles the popover shut. For a caller that wants
+     * to leave its own "editing" state once editing is done (the detail
+     * panel's quick editor, reverting to its readonly tag list). */
+    onClose?: () => void;
   }
 
   const {
@@ -40,6 +59,9 @@
     eyebrow,
     searchPlaceholder = "Search feelings",
     dropDirection = "down",
+    confirmClear = false,
+    autoOpen = false,
+    onClose,
   }: Props = $props();
 
   const hasVocabulary = $derived(tagCounts.size > 0);
@@ -102,15 +124,32 @@
     open = true;
   }
 
-  function closePanel(options: { refocus: boolean } = { refocus: false }): void {
+  /**
+   * Collapses the popover without telling a caller that editing is "done" —
+   * used by the trigger itself, so toggling the dropdown shut behaves like
+   * any other dropdown instead of also kicking a caller like the detail
+   * panel's quick editor back to its readonly view. `closePanel`, below, is
+   * for the actions that really do mean "I'm finished": Done, Escape, and a
+   * click outside the whole control.
+   */
+  function collapsePanel(): void {
     open = false;
     search = "";
-    if (options.refocus) trigger?.focus();
   }
+
+  function closePanel(options: { refocus: boolean } = { refocus: false }): void {
+    collapsePanel();
+    if (options.refocus) trigger?.focus();
+    onClose?.();
+  }
+
+  onMount(() => {
+    if (autoOpen) openPanel();
+  });
 
   function handleTriggerClick(): void {
     if (!canOpen) return;
-    if (open) closePanel();
+    if (open) collapsePanel();
     else openPanel();
   }
 
@@ -118,7 +157,7 @@
     if (!canOpen) return;
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    if (open) closePanel();
+    if (open) collapsePanel();
     else openPanel();
   }
 
@@ -137,9 +176,37 @@
     onChange(selected.filter((existing) => existing !== tag));
   }
 
-  function clearFromTrigger(event: MouseEvent): void {
+  /**
+   * "Clear"/"Clear all" go through a blocking centre-screen dialog when
+   * `confirmClear` is on, matching `StartFreshModal` — the feelings are
+   * written straight through with no undo, so the confirmation is a native
+   * `<dialog>` rather than a second click easy to land by accident.
+   */
+  let clearConfirmOpen = $state(false);
+  let clearDialog = $state<HTMLDialogElement | null>(null);
+
+  $effect(() => {
+    if (clearConfirmOpen) clearDialog?.showModal();
+  });
+
+  function requestClear(event: MouseEvent): void {
+    // Stops the click from also bubbling to the trigger's own onclick, which
+    // would reopen (or close) the popover as a side effect of clearing.
     event.stopPropagation();
+    if (!confirmClear || selected.length === 0) {
+      onChange([]);
+      return;
+    }
+    clearConfirmOpen = true;
+  }
+
+  function cancelClear(): void {
+    clearConfirmOpen = false;
+  }
+
+  function confirmClearAction(): void {
     onChange([]);
+    clearConfirmOpen = false;
   }
 
   function createFromSearch(): void {
@@ -165,6 +232,10 @@
     if (!open) return;
 
     const onPointerDown = (event: PointerEvent): void => {
+      // The confirm dialog owns its own dismissal while it's up — a click on
+      // its backdrop is otherwise indistinguishable from a click outside
+      // this popover, and would close the popover out from under it.
+      if (clearConfirmOpen) return;
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (panel?.contains(target) || trigger?.contains(target)) return;
@@ -172,6 +243,7 @@
     };
 
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (clearConfirmOpen) return;
       if (event.key !== "Escape") return;
       event.stopPropagation();
       closePanel({ refocus: true });
@@ -224,7 +296,7 @@
         type="button"
         class="clear-action"
         data-export-hide
-        onclick={clearFromTrigger}
+        onclick={requestClear}
       >
         Clear
       </button>
@@ -278,7 +350,7 @@
         {/each}
       </ul>
       <div class="popover-footer">
-        <button type="button" class="text-action" onclick={() => onChange([])}>
+        <button type="button" class="text-action" onclick={requestClear}>
           Clear all
         </button>
         <button
@@ -290,6 +362,36 @@
         </button>
       </div>
     </div>
+  {/if}
+
+  {#if clearConfirmOpen}
+    <dialog
+      bind:this={clearDialog}
+      onclose={cancelClear}
+      aria-label="Clear feelings"
+    >
+      <div class="confirm-form">
+        <h2 class="confirm-title">Clear feelings?</h2>
+        <p class="confirm-body">
+          {selected.length === 1
+            ? "This removes the feeling recorded on this part."
+            : `This removes all ${selected.length} feelings recorded on this part.`}
+          This can't be undone.
+        </p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-button" onclick={cancelClear}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="confirm-button danger"
+            onclick={confirmClearAction}
+          >
+            Clear feelings
+          </button>
+        </div>
+      </div>
+    </dialog>
   {/if}
 </div>
 
@@ -314,7 +416,11 @@
     gap: 6px;
     min-height: 36px;
     max-width: 320px;
-    padding: 4px 14px;
+    /* Extra right padding reserves room for `.chevron`, which is positioned
+       absolutely (see below) rather than flowing as a wrapped flex child —
+       otherwise a full row of chips pushes it, alone, onto a line of its
+       own. */
+    padding: 4px 28px 4px 14px;
     border: 1.3px solid var(--pill-border);
     border-radius: 18px;
     color: var(--text-muted);
@@ -349,19 +455,28 @@
     flex: 1 1 auto;
   }
 
-  /* CSS border-triangle chevron. */
+  /*
+   * CSS border-triangle chevron, pinned to the pill's edge rather than left
+   * in the flex-wrap flow: as a normal flex child it would wrap onto its own
+   * line whenever the chips ahead of it exactly filled the row, stranding it
+   * below the pill.
+   */
   .chevron {
+    position: absolute;
+    top: 50%;
+    right: 14px;
     width: 0;
     height: 0;
-    flex-shrink: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
     border-top: 5px solid currentColor;
+    transform: translateY(-50%);
     transition: transform 160ms ease;
+    pointer-events: none;
   }
 
   .chevron.open {
-    transform: rotate(180deg);
+    transform: translateY(-50%) rotate(180deg);
   }
 
   .chip {
@@ -627,6 +742,88 @@
   }
 
   .done-button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* DERIVED: the confirmation dialog itself, styled to match
+     `StartFreshModal` — same surface, same backdrop, same button shapes —
+     so a centre-screen blocking dialog reads as one consistent pattern
+     wherever the app uses it, rather than each call site inventing its own. */
+  dialog {
+    width: min(24rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--pill-border);
+    border-radius: 14px;
+    background: #12141f;
+    color: var(--text-primary);
+  }
+
+  dialog::backdrop {
+    background: rgb(6 7 12 / 66%);
+  }
+
+  .confirm-form {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+
+  .confirm-title {
+    margin: 0 0 0.625rem;
+    color: var(--text-bright);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .confirm-body {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.625rem;
+    margin-top: 1.5rem;
+  }
+
+  .confirm-button {
+    height: 36px;
+    padding: 0 1.25rem;
+    border: 1.3px solid var(--button-border);
+    border-radius: 18px;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .confirm-button:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  .confirm-button.danger {
+    border-color: var(--pill-border);
+    color: #e38f6b;
+  }
+
+  .confirm-button.danger:hover {
+    border-color: #c1876e;
+    color: #e38f6b;
+  }
+
+  .confirm-button:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }

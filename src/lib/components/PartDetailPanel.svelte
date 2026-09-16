@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { cubicOut } from "svelte/easing";
   import type { TransitionConfig } from "svelte/transition";
   import FeelingsMultiSelect from "./FeelingsMultiSelect.svelte";
@@ -107,11 +108,31 @@
     ondelete(part.id);
   }
 
-  // Any change of part resets the pending confirmation, so a second part never
-  // inherits the first one's armed Delete button.
+  /**
+   * Feelings default to a plain readonly tag list; clicking the small "Edit"
+   * (or "Add feelings") link swaps it for `FeelingsMultiSelect`, which closes
+   * itself back to readonly on Done, Escape, or an outside click via
+   * `onClose`.
+   */
+  let editingFeelings = $state(false);
+
+  /**
+   * Selecting a different part resets the pending confirmation and drops
+   * back to the readonly feelings view, so a second part never inherits the
+   * first one's armed Delete button or open quick editor. Keyed against a
+   * remembered id rather than just reading `part.id` — `setFeelings` in the
+   * store rebuilds `part` as a new object on every edit (same id, new
+   * reference), and reading `part.id` alone would rerun this on every
+   * keystroke of editing, collapsing the quick editor the instant it wrote
+   * through.
+   */
+  let lastPartId = $state(untrack(() => part.id));
+
   $effect(() => {
-    part.id;
+    if (part.id === lastPartId) return;
+    lastPartId = part.id;
     confirmingDelete = false;
+    editingFeelings = false;
   });
 </script>
 
@@ -138,22 +159,48 @@
       </button>
     </header>
 
-    <!-- data-export-hide only when empty: with feelings recorded, the chips
-         themselves are content worth printing, and `FeelingsMultiSelect`
-         already hides its own chevron/remove buttons for the PDF export.
-         Empty, this is purely an invitation to add some, which doesn't
-         belong on a printed page any more than the close button does. -->
-    <div data-export-hide={part.feelings.length === 0}>
-      <FeelingsMultiSelect
-        tagCounts={tagCounts}
-        selected={part.feelings}
-        onChange={(feelings) => onfeelings(part.id, feelings)}
-        allowCreate
-        label="Add feelings"
-        eyebrow="Feelings"
-        dropDirection="down"
-      />
-    </div>
+    {#if editingFeelings}
+      <!-- data-export-hide: the quick editor is a live control, and PDF
+           export always sees the panel in its default (closed) state
+           anyway. -->
+      <div data-export-hide>
+        <FeelingsMultiSelect
+          tagCounts={tagCounts}
+          selected={part.feelings}
+          onChange={(feelings) => onfeelings(part.id, feelings)}
+          onClose={() => (editingFeelings = false)}
+          allowCreate
+          confirmClear
+          autoOpen
+          label="Add feelings"
+          eyebrow="Feelings"
+          dropDirection="down"
+        />
+      </div>
+    {:else}
+      <div class="feelings-row">
+        {#if part.feelings.length > 0}
+          <ul class="feelings">
+            {#each part.feelings as feeling (feeling)}
+              <li class="feeling" style:border-color={accent} style:color={accent}>
+                {feeling}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        <!-- data-export-hide: a live control, same as the close button. -->
+        <button
+          type="button"
+          class="edit-feelings"
+          class:cta={part.feelings.length === 0}
+          style:color={part.feelings.length === 0 ? accent : undefined}
+          data-export-hide
+          onclick={() => (editingFeelings = true)}
+        >
+          {part.feelings.length > 0 ? "Edit" : "+ feelings"}
+        </button>
+      </div>
+    {/if}
 
     <dl class="fields">
       {#each fields as field (field.label)}
@@ -293,6 +340,72 @@
 
   .close:hover {
     color: var(--text-bright);
+  }
+
+  .feelings-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .feelings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .feeling {
+    padding: 0.25rem 0.625rem;
+    border: 1px solid;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+
+  .edit-feelings {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .edit-feelings:hover {
+    color: var(--text-bright);
+  }
+
+  /*
+   * DERIVED: no feelings recorded yet is the one point in this panel meant
+   * to prompt an action rather than just report one, so it borrows the
+   * part's own role accent (already used for its meta caption and its
+   * feeling tags) instead of the muted grey every other inline control
+   * uses — a colour the panel already has a reason to show, not an
+   * invented one. The pill shape matches `.feeling` right next to it, so an
+   * empty part reads as "one pill waiting to be filled" rather than a
+   * stray line of text.
+   */
+  .edit-feelings.cta {
+    padding: 0.25rem 0.625rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .edit-feelings.cta:hover {
+    opacity: 0.8;
   }
 
   .fields {
