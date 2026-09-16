@@ -90,6 +90,15 @@
   let tagsOpen = $state(false);
   let tagsTrigger = $state<HTMLDivElement | null>(null);
   let tagsPanel = $state<HTMLDivElement | null>(null);
+  /**
+   * The popover's on-screen position, captured once when it opens rather than
+   * derived live from the trigger. The trigger's own left edge moves as its
+   * chip row grows or shrinks — `.legend`'s `justify-content: center` re-flows
+   * the whole row around it — so tracking the trigger continuously just moves
+   * the drift from one edge to the other. Freezing the anchor at open time is
+   * what actually keeps the popover still while you check boxes inside it.
+   */
+  let tagsAnchor = $state<{ left: number; bottom: number } | null>(null);
 
   function openParts(): void {
     tagsOpen = false;
@@ -101,9 +110,16 @@
     if (options.refocus) partsTrigger?.focus();
   }
 
+  function measureTagsAnchor(): void {
+    const rect = tagsTrigger?.getBoundingClientRect();
+    if (!rect) return;
+    tagsAnchor = { left: rect.left, bottom: window.innerHeight - rect.top + 8 };
+  }
+
   function openTags(): void {
     if (!hasTags) return;
     partsOpen = false;
+    measureTagsAnchor();
     tagsOpen = true;
   }
 
@@ -197,9 +213,11 @@
 
     window.addEventListener("pointerdown", onPointerDown, true);
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("resize", measureTagsAnchor);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("resize", measureTagsAnchor);
     };
   });
 </script>
@@ -327,12 +345,14 @@
       <span class="chevron" class:open={tagsOpen} aria-hidden="true"></span>
     </div>
 
-    {#if tagsOpen}
+    {#if tagsOpen && tagsAnchor}
       <div
         bind:this={tagsPanel}
         class="popover tags-popover"
         role="dialog"
         aria-label="Filter by feeling"
+        style:left="{tagsAnchor.left}px"
+        style:bottom="{tagsAnchor.bottom}px"
       >
         <p class="eyebrow">Filter by feeling</p>
         <input
@@ -485,8 +505,11 @@
     left: 0;
   }
 
+  /* Positioned in JS (see `measureTagsAnchor`) rather than relative to
+     `.dropdown` — `left`/`bottom` are frozen to where the trigger was at open
+     time, so the popover doesn't creep as its own chip row keeps growing. */
   .tags-popover {
-    left: 0;
+    position: fixed;
     width: 260px;
   }
 
