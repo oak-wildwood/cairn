@@ -1,6 +1,8 @@
 <script lang="ts">
   import { cubicOut } from "svelte/easing";
   import type { TransitionConfig } from "svelte/transition";
+  import FeelingsMultiSelect from "./FeelingsMultiSelect.svelte";
+  import { feelingCounts } from "../feelings";
   import { partCaption } from "../layout";
   import { ROLES } from "../theme";
   import { SELF_ID } from "../types";
@@ -10,17 +12,22 @@
     part: Part;
     /** Every connection touching this part, in either direction. */
     connections: readonly Connection[];
-    /** The rest of the map, for naming a connection's other endpoint. */
+    /** The rest of the map, for naming a connection's other endpoint and for
+     * the feelings vocabulary `FeelingsMultiSelect` suggests from. */
     parts: readonly Part[];
     onclose: () => void;
     onedit: (id: string) => void;
     ondelete: (id: string) => void;
+    /** Quick-edits this part's feelings, bypassing the edit modal. */
+    onfeelings: (id: string, feelings: string[]) => void;
   }
 
-  const { part, connections, parts, onclose, onedit, ondelete }: Props =
+  const { part, connections, parts, onclose, onedit, ondelete, onfeelings }: Props =
     $props();
 
   const accent = $derived(ROLES[part.role].accent);
+
+  const tagCounts = $derived(feelingCounts(parts));
 
   /**
    * The worksheet's long-form fields, in the order an IFS worksheet asks them.
@@ -131,15 +138,22 @@
       </button>
     </header>
 
-    {#if part.feelings.length > 0}
-      <ul class="feelings">
-        {#each part.feelings as feeling (feeling)}
-          <li class="feeling" style:border-color={accent} style:color={accent}>
-            {feeling}
-          </li>
-        {/each}
-      </ul>
-    {/if}
+    <!-- data-export-hide only when empty: with feelings recorded, the chips
+         themselves are content worth printing, and `FeelingsMultiSelect`
+         already hides its own chevron/remove buttons for the PDF export.
+         Empty, this is purely an invitation to add some, which doesn't
+         belong on a printed page any more than the close button does. -->
+    <div data-export-hide={part.feelings.length === 0}>
+      <FeelingsMultiSelect
+        tagCounts={tagCounts}
+        selected={part.feelings}
+        onChange={(feelings) => onfeelings(part.id, feelings)}
+        allowCreate
+        label="Add feelings"
+        eyebrow="Feelings"
+        dropDirection="down"
+      />
+    </div>
 
     <dl class="fields">
       {#each fields as field (field.label)}
@@ -279,24 +293,6 @@
 
   .close:hover {
     color: var(--text-bright);
-  }
-
-  .feelings {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .feeling {
-    padding: 0.25rem 0.625rem;
-    border: 1px solid;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    opacity: 0.9;
   }
 
   .fields {

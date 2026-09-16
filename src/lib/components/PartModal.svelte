@@ -1,15 +1,22 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import FeelingsMultiSelect from "./FeelingsMultiSelect.svelte";
+  import { feelingCounts } from "../feelings";
   import type { Part, PartDraft, PartRole } from "../types";
 
   interface Props {
     /** The part being edited, or null when adding a new one. */
     part: Part | null;
+    /** The rest of the map, for the feelings vocabulary `FeelingsMultiSelect`
+     * suggests from. */
+    parts: readonly Part[];
     onsubmit: (draft: PartDraft) => void;
     oncancel: () => void;
   }
 
-  const { part, onsubmit, oncancel }: Props = $props();
+  const { part, parts, onsubmit, oncancel }: Props = $props();
+
+  const tagCounts = $derived(feelingCounts(parts));
 
   /**
    * Spread onto every free-text field: password managers and form fillers
@@ -58,7 +65,7 @@
   const statusSuggestions = $derived(
     role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
   );
-  let feelings = $state(initial?.feelings.join(", ") ?? "");
+  let feelings = $state<string[]>(initial?.feelings ?? []);
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
   let trigger = $state(initial?.trigger ?? "");
@@ -95,10 +102,7 @@
       role,
       status: status.trim(),
       active,
-      feelings: feelings
-        .split(",")
-        .map((feeling) => feeling.trim())
-        .filter((feeling) => feeling !== ""),
+      feelings,
       description: description.trim(),
       bodyLocation: bodyLocation.trim(),
       trigger: trigger.trim(),
@@ -171,15 +175,16 @@
         </p>
 
         <p class="field">
-          <label for="part-feelings">Feelings</label>
-          <input
-            id="part-feelings"
-            bind:value={feelings}
-            placeholder="exhausted, sad, forgotten"
-            autocomplete="off"
-            {...NO_AUTOFILL}
+          <span class="field-label">Feelings</span>
+          <FeelingsMultiSelect
+            tagCounts={tagCounts}
+            selected={feelings}
+            onChange={(tags) => (feelings = tags)}
+            allowCreate
+            label="Add feelings"
+            eyebrow="Feelings"
+            dropDirection="down"
           />
-          <span class="hint">Separate with commas.</span>
         </p>
       </div>
 
@@ -340,7 +345,8 @@
     margin: 0;
   }
 
-  label {
+  label,
+  .field-label {
     color: var(--text-eyebrow);
     font-size: 11px;
     font-weight: 600;
@@ -400,11 +406,6 @@
   button:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
-  }
-
-  .hint {
-    color: var(--text-muted);
-    font-size: 12px;
   }
 
   .actions {

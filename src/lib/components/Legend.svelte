@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FeelingsMultiSelect from "./FeelingsMultiSelect.svelte";
+  import { feelingCounts } from "../feelings";
   import { ROLES, SECTOR_ROLES } from "../theme";
   import type { Part, SectorRole } from "../types";
 
@@ -15,11 +17,8 @@
     onToggleActiveOnly?: () => void;
     /** The tags the legend is filtering to. Empty means no tag filter. */
     tagFilter?: readonly string[];
-    onToggleTag?: (tag: string) => void;
-    /** Clears every selected tag from the trigger's own "Clear" action. */
-    onClearTags?: () => void;
-    /** Replaces the whole tag selection — used by the popover's "Clear all". */
-    onSetTagFilter?: (tags: string[]) => void;
+    /** Replaces the whole tag selection. */
+    onTagFilterChange?: (tags: string[]) => void;
   }
 
   const {
@@ -29,9 +28,7 @@
     activeOnlyFilter = false,
     onToggleActiveOnly,
     tagFilter = [],
-    onToggleTag,
-    onClearTags,
-    onSetTagFilter,
+    onTagFilterChange,
   }: Props = $props();
 
   const counts = $derived(
@@ -52,56 +49,14 @@
     exile: "Exiles",
   };
 
-  /**
-   * The tag vocabulary and its counts, built by flattening `feelings` across
-   * every part rather than tracked as a field of its own — `feelings` already
-   * is the tag list, so there is nothing else to keep in sync.
-   */
-  const tagCounts = $derived.by(() => {
-    const counts = new Map<string, number>();
-    for (const part of parts) {
-      for (const tag of part.feelings) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return counts;
-  });
-
-  const hasTags = $derived(tagCounts.size > 0);
-
-  const sortedTags = $derived(
-    [...tagCounts.entries()].sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    ),
-  );
-
-  let tagSearch = $state("");
-
-  const filteredTags = $derived.by(() => {
-    const query = tagSearch.trim().toLowerCase();
-    if (query === "") return sortedTags;
-    return sortedTags.filter(([tag]) => tag.toLowerCase().includes(query));
-  });
+  /** The feeling vocabulary and its counts, for `FeelingsMultiSelect` below. */
+  const tagCounts = $derived(feelingCounts(parts));
 
   let partsOpen = $state(false);
   let partsTrigger = $state<HTMLButtonElement | null>(null);
   let partsPanel = $state<HTMLDivElement | null>(null);
 
-  let tagsOpen = $state(false);
-  let tagsTrigger = $state<HTMLDivElement | null>(null);
-  let tagsPanel = $state<HTMLDivElement | null>(null);
-  /**
-   * The popover's on-screen position, captured once when it opens rather than
-   * derived live from the trigger. The trigger's own left edge moves as its
-   * chip row grows or shrinks — `.legend`'s `justify-content: center` re-flows
-   * the whole row around it — so tracking the trigger continuously just moves
-   * the drift from one edge to the other. Freezing the anchor at open time is
-   * what actually keeps the popover still while you check boxes inside it.
-   */
-  let tagsAnchor = $state<{ left: number; bottom: number } | null>(null);
-
   function openParts(): void {
-    tagsOpen = false;
     partsOpen = true;
   }
 
@@ -110,54 +65,9 @@
     if (options.refocus) partsTrigger?.focus();
   }
 
-  function measureTagsAnchor(): void {
-    const rect = tagsTrigger?.getBoundingClientRect();
-    if (!rect) return;
-    tagsAnchor = { left: rect.left, bottom: window.innerHeight - rect.top + 8 };
-  }
-
-  function openTags(): void {
-    if (!hasTags) return;
-    partsOpen = false;
-    measureTagsAnchor();
-    tagsOpen = true;
-  }
-
-  function closeTags(options: { refocus: boolean } = { refocus: false }): void {
-    tagsOpen = false;
-    tagSearch = "";
-    if (options.refocus) tagsTrigger?.focus();
-  }
-
   function selectRole(role: Filter): void {
     onFilter?.(role);
     closeParts({ refocus: true });
-  }
-
-  function handleTagsTriggerClick(): void {
-    if (!hasTags) return;
-    if (tagsOpen) closeTags();
-    else openTags();
-  }
-
-  function handleTagsTriggerKeydown(event: KeyboardEvent): void {
-    if (!hasTags) return;
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    if (tagsOpen) closeTags();
-    else openTags();
-  }
-
-  function removeTag(event: MouseEvent, tag: string): void {
-    // Stops the click from also bubbling to the trigger's own onclick, which
-    // would reopen (or close) the popover as a side effect of removing a chip.
-    event.stopPropagation();
-    onToggleTag?.(tag);
-  }
-
-  function clearTagsFromTrigger(event: MouseEvent): void {
-    event.stopPropagation();
-    onClearTags?.();
   }
 
   /**
@@ -190,34 +100,6 @@
     return () => {
       window.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("keydown", onKeyDown, true);
-    };
-  });
-
-  $effect(() => {
-    if (!tagsOpen) return;
-
-    const onPointerDown = (event: PointerEvent): void => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (tagsPanel?.contains(target) || tagsTrigger?.contains(target)) {
-        return;
-      }
-      closeTags();
-    };
-
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      closeTags({ refocus: true });
-    };
-
-    window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("resize", measureTagsAnchor);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("keydown", onKeyDown, true);
-      window.removeEventListener("resize", measureTagsAnchor);
     };
   });
 </script>
@@ -303,101 +185,14 @@
        other two rather than replacing either. -->
   <span class="divider" aria-hidden="true"></span>
 
-  <div class="dropdown">
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      bind:this={tagsTrigger}
-      class="tags-control"
-      class:active={tagsOpen}
-      class:has-tags={tagFilter.length > 0}
-      role="button"
-      tabindex={hasTags ? 0 : -1}
-      aria-disabled={!hasTags}
-      aria-haspopup="true"
-      aria-expanded={tagsOpen}
-      onclick={handleTagsTriggerClick}
-      onkeydown={handleTagsTriggerKeydown}
-    >
-      {#if tagFilter.length === 0}
-        <span class="tags-label">Feelings</span>
-      {:else}
-        {#each tagFilter as tag (tag)}
-          <span class="chip">
-            {tag}
-            <button
-              type="button"
-              class="chip-remove"
-              aria-label="Remove feeling {tag}"
-              onclick={(event) => removeTag(event, tag)}
-            >
-              ×
-            </button>
-          </span>
-        {/each}
-        <button
-          type="button"
-          class="clear-action"
-          onclick={clearTagsFromTrigger}
-        >
-          Clear
-        </button>
-      {/if}
-      <span class="chevron" class:open={tagsOpen} aria-hidden="true"></span>
-    </div>
-
-    {#if tagsOpen && tagsAnchor}
-      <div
-        bind:this={tagsPanel}
-        class="popover tags-popover"
-        role="dialog"
-        aria-label="Filter by feeling"
-        style:left="{tagsAnchor.left}px"
-        style:bottom="{tagsAnchor.bottom}px"
-      >
-        <p class="eyebrow">Filter by feeling</p>
-        <input
-          class="search"
-          type="text"
-          placeholder="Search feelings"
-          aria-label="Search feelings"
-          bind:value={tagSearch}
-        />
-        <ul class="tag-list">
-          {#each filteredTags as [tag, count] (tag)}
-            <li>
-              <label class="option-row">
-                <input
-                  type="checkbox"
-                  checked={tagFilter.includes(tag)}
-                  onchange={() => onToggleTag?.(tag)}
-                />
-                <span class="option-label">{tag}</span>
-                <span class="option-count">{count}</span>
-              </label>
-            </li>
-          {:else}
-            <li class="empty">No matching feelings.</li>
-          {/each}
-        </ul>
-        <div class="popover-footer">
-          <button
-            type="button"
-            class="text-action"
-            onclick={() => onSetTagFilter?.([])}
-          >
-            Clear all
-          </button>
-          <button
-            type="button"
-            class="done-button"
-            onclick={() => closeTags({ refocus: true })}
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    {/if}
-  </div>
+  <FeelingsMultiSelect
+    tagCounts={tagCounts}
+    selected={tagFilter}
+    onChange={(tags) => onTagFilterChange?.(tags)}
+    label="Feelings"
+    eyebrow="Filter by feeling"
+    dropDirection="up"
+  />
 </div>
 
 <style>
@@ -505,14 +300,6 @@
     left: 0;
   }
 
-  /* Positioned in JS (see `measureTagsAnchor`) rather than relative to
-     `.dropdown` — `left`/`bottom` are frozen to where the trigger was at open
-     time, so the popover doesn't creep as its own chip row keeps growing. */
-  .tags-popover {
-    position: fixed;
-    width: 260px;
-  }
-
   .eyebrow {
     margin: 0 0 10px;
     color: var(--text-eyebrow);
@@ -544,8 +331,7 @@
     background: rgb(255 255 255 / 4%);
   }
 
-  .option-row input[type="radio"],
-  .option-row input[type="checkbox"] {
+  .option-row input[type="radio"] {
     width: 14px;
     height: 14px;
     flex-shrink: 0;
@@ -568,225 +354,5 @@
     flex-shrink: 0;
     color: var(--text-muted);
     font-size: 11px;
-  }
-
-  /* Default state: looks like a normal pill. */
-  .tags-control {
-    position: relative;
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    min-height: 36px;
-    max-width: 320px;
-    padding: 4px 14px;
-    border: 1.3px solid var(--pill-border);
-    border-radius: 18px;
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    user-select: none;
-    transition:
-      color 160ms ease,
-      border-color 160ms ease;
-  }
-
-  .tags-control:hover,
-  .tags-control.active {
-    color: var(--text-bright);
-    border-color: var(--text-muted);
-  }
-
-  .tags-control:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  .tags-control[aria-disabled="true"] {
-    opacity: 0.5;
-    cursor: default;
-    pointer-events: none;
-  }
-
-  .tags-label {
-    flex: 1 1 auto;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px 3px 10px;
-    border-radius: 999px;
-    background: rgb(143 163 227 / 16%);
-    color: var(--text-bright);
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .chip-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* Visually the × sits close to the chip's label, but the hit area is
-       widened past the glyph's own box so a small target isn't the reason
-       the removal doesn't land. */
-    width: 18px;
-    height: 18px;
-    margin: -3px -4px -3px 0;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: none;
-    color: inherit;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-    opacity: 0.75;
-    transition:
-      opacity 160ms ease,
-      background-color 160ms ease;
-  }
-
-  .chip-remove:hover {
-    opacity: 1;
-    background: rgb(255 255 255 / 12%);
-  }
-
-  .chip-remove:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  .clear-action {
-    margin: 0;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: color 160ms ease;
-  }
-
-  .clear-action:hover {
-    color: var(--text-bright);
-  }
-
-  .clear-action:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  .search {
-    box-sizing: border-box;
-    width: 100%;
-    height: 30px;
-    margin-bottom: 10px;
-    padding: 0 8px;
-    border: 1px solid var(--pill-border);
-    border-radius: 6px;
-    background: #0e1019;
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 12px;
-  }
-
-  .search:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  .tag-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-height: 200px;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
-    list-style: none;
-    /* Firefox; Chromium picks this up too, but gets the fuller treatment below. */
-    scrollbar-width: thin;
-    scrollbar-color: rgb(255 255 255 / 16%) transparent;
-  }
-
-  .tag-list::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .tag-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .tag-list::-webkit-scrollbar-thumb {
-    border: 2px solid var(--surface-raised);
-    border-radius: 999px;
-    background-color: rgb(255 255 255 / 16%);
-  }
-
-  .tag-list::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(255 255 255 / 28%);
-  }
-
-  .tag-list .empty {
-    padding: 6px 4px;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-
-  .popover-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
-  }
-
-  .text-action {
-    margin: 0;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: color 160ms ease;
-  }
-
-  .text-action:hover {
-    color: var(--text-bright);
-  }
-
-  .text-action:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  .done-button {
-    height: 28px;
-    padding: 0 14px;
-    border: 1.3px solid var(--button-border);
-    border-radius: 14px;
-    background: rgb(143 163 227 / 12%);
-    color: var(--text-bright);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .done-button:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
   }
 </style>
