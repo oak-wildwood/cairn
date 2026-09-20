@@ -110,6 +110,7 @@
       bind:this={partsTrigger}
       type="button"
       class="pill"
+      data-tour="role-filter"
       class:active={partsOpen}
       aria-haspopup="listbox"
       aria-expanded={partsOpen}

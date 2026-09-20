@@ -279,13 +279,13 @@
   });
 
   /**
-   * Steps 3 and 4 point at the detail panel, which only exists once a part
-   * is selected. Rather than have every such step open and close it, one
-   * effect keeps `store.selectedPartId` matching what the current step
-   * needs and puts it back to `tourPriorSelection` the moment it doesn't —
-   * the tour opens `store.parts[0]`, the same part `part-node` (step 2)
-   * resolves to via `document.querySelector`, so the highlighted node in one
-   * step is the one whose panel opens in the next.
+   * The "feelings" and "fields" steps point at the detail panel, which only
+   * exists once a part is selected. Rather than have every such step open
+   * and close it, one effect keeps `store.selectedPartId` matching what the
+   * current step needs and puts it back to `tourPriorSelection` the moment
+   * it doesn't — the tour opens `store.parts[0]`, the same part `part-node`
+   * ("select-part") resolves to via `document.querySelector`, so the
+   * highlighted node in one step is the one whose panel opens in the next.
    */
   $effect(() => {
     if (!tourActive) return;

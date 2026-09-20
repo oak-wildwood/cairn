@@ -343,6 +343,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <g
     class="active-toggle"
+    data-tour="node-active-toggle"
     transform="translate({ACTIVE_TOGGLE_POSITION.x}, {ACTIVE_TOGGLE_POSITION.y})"
     aria-hidden="true"
     onpointerdown={(event) => event.stopPropagation()}

@@ -35,6 +35,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     placement: "left",
   },
   {
+    id: "node-active-toggle",
+    title: "Mark a part active",
+    body: "That small badge on a part's edge toggles whether it's active this week, right from the map — no need to open the part first.",
+    target: "node-active-toggle",
+    placement: "right",
+  },
+  {
     id: "select-part",
     title: "Open a part",
     body: "Click any part to open everything you've recorded about it.",
@@ -46,7 +53,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: "Tag its feelings",
     body: "Add feelings straight from a part's detail panel, without opening the full edit form.",
     target: "detail-feelings",
-    placement: "left",
+    placement: "bottom",
     requiresPart: true,
   },
   {
@@ -70,6 +77,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
     target: "add-part",
     placement: "bottom",
+  },
+  {
+    id: "role-filter",
+    title: "Filter by part type",
+    body: "Narrow the map down to just managers, firefighters, or exiles.",
+    target: "role-filter",
+    placement: "top",
   },
   {
     id: "feelings-filter",
