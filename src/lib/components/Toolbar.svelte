@@ -20,6 +20,7 @@
     onBackUp: () => void;
     onRestore: (file: File) => void;
     onStartFresh: () => void;
+    onStartTour: () => void;
     /** True while a PDF export is walking every part's selection in turn. */
     exporting?: boolean;
   }
@@ -31,6 +32,7 @@
     onBackUp,
     onRestore,
     onStartFresh,
+    onStartTour,
     exporting = false,
   }: Props = $props();
 </script>
@@ -40,18 +42,21 @@
     <button
       type="button"
       class="button primary"
+      data-tour="add-part"
       onclick={onAddPart}
       disabled={exporting}
     >
       + Add a part
     </button>
-    <button type="button" class="button" onclick={onExport} disabled={exporting}>
-      Save image
-    </button>
-    <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
-      Export PDF
-    </button>
-    <MapMenu {onBackUp} {onRestore} {onStartFresh} disabled={exporting} />
+    <div class="export-group" data-tour="export">
+      <button type="button" class="button" onclick={onExport} disabled={exporting}>
+        Save image
+      </button>
+      <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
+        Export PDF
+      </button>
+    </div>
+    <MapMenu {onBackUp} {onRestore} {onStartFresh} {onStartTour} disabled={exporting} />
   </div>
 </div>
 
@@ -64,6 +69,14 @@
   }
 
   .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  /* Groups the two export buttons only so the tour has one element to
+     spotlight for both — no visual difference from ungrouped buttons. */
+  .export-group {
     display: flex;
     align-items: center;
     gap: 0.625rem;

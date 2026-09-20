@@ -178,7 +178,7 @@
         />
       </div>
     {:else}
-      <div class="feelings-row">
+      <div class="feelings-row" data-tour="detail-feelings">
         {#if part.feelings.length > 0}
           <ul class="feelings">
             {#each part.feelings as feeling (feeling)}
@@ -202,7 +202,7 @@
       </div>
     {/if}
 
-    <dl class="fields">
+    <dl class="fields" data-tour="detail-fields">
       {#each fields as field (field.label)}
         <dt>{field.label}</dt>
         <dd class:empty={field.value.trim() === ""}>
@@ -211,7 +211,7 @@
       {/each}
     </dl>
 
-    <section class="relations">
+    <section class="relations" data-tour="detail-connections">
       <h3 class="section-title">Connections</h3>
       {#if relations.length === 0}
         <p class="empty">No connections yet.</p>

@@ -515,6 +515,16 @@
     return visible ? 1 : FILTER_FADE;
   }
 
+  /**
+   * The tour's "connection" step spotlights this one specifically — the
+   * "polarized with" line between The Fixer and The Analyst in
+   * `exampleData.ts` — rather than the first connector in the list, so it
+   * reads as parts connecting to each other rather than to Self. Only
+   * matches on the sample map; a real map has no connection with this id,
+   * so the step falls back to centering with no spotlight.
+   */
+  const TOUR_CONNECTION_ID = "c-fixer-analyst";
+
   /** Drop any connector whose endpoints don't resolve rather than throwing. */
   const drawableConnections = $derived(
     connections
@@ -675,6 +685,7 @@
          relationship to something that isn't there. -->
     <g
       class="filterable"
+      data-tour={entry.connection.id === TOUR_CONNECTION_ID ? "connection" : undefined}
       opacity={fade(
         survives(entry.source.role, entry.source.active, entry.source.feelings) &&
           survives(entry.target.role, entry.target.active, entry.target.feelings),
@@ -739,7 +750,7 @@
   {/each}
 </svg>
 
-  <div class="zoom-controls" role="group" aria-label="Zoom">
+  <div class="zoom-controls" data-tour="zoom-controls" role="group" aria-label="Zoom">
     <button
       type="button"
       class="zoom-button"
