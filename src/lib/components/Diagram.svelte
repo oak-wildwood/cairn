@@ -669,12 +669,13 @@
   {/each}
 
   <!-- connectors first, so nodes sit above them -->
-  {#each drawableConnections as entry (entry.connection.id)}
+  {#each drawableConnections as entry, index (entry.connection.id)}
     <!-- A connector fades unless both of its endpoints survive the filter:
          a full-strength line running to a faded node would read as a
          relationship to something that isn't there. -->
     <g
       class="filterable"
+      data-tour={index === 0 ? "connection" : undefined}
       opacity={fade(
         survives(entry.source.role, entry.source.active, entry.source.feelings) &&
           survives(entry.target.role, entry.target.active, entry.target.feelings),

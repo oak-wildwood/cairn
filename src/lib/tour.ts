@@ -35,11 +35,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
     placement: "left",
   },
   {
-    id: "node-active-toggle",
-    title: "Mark a part active",
-    body: "That small badge on a part's edge toggles whether it's active this week, right from the map — no need to open the part first.",
-    target: "node-active-toggle",
-    placement: "right",
+    id: "add-part",
+    title: "Add a part",
+    body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
+    target: "add-part",
+    placement: "bottom",
   },
   {
     id: "select-part",
@@ -65,6 +65,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     requiresPart: true,
   },
   {
+    id: "connection",
+    title: "How parts connect",
+    body: "A line between two parts is a connection — click it to read or change what it means, or drag from one part to another to draw a new one.",
+    target: "connection",
+    placement: "top",
+  },
+  {
     id: "start-fresh",
     title: "Make the map yours",
     body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
@@ -72,11 +79,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
     placement: "bottom",
   },
   {
-    id: "add-part",
-    title: "Add a part",
-    body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
-    target: "add-part",
-    placement: "bottom",
+    id: "node-active-toggle",
+    title: "Mark a part active",
+    body: "That small badge on a part's edge toggles whether it's active this week, right from the map — no need to open the part first.",
+    target: "node-active-toggle",
+    placement: "right",
   },
   {
     id: "role-filter",

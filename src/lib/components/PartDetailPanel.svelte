@@ -178,7 +178,7 @@
         />
       </div>
     {:else}
-      <div class="feelings-row">
+      <div class="feelings-row" data-tour="detail-feelings">
         {#if part.feelings.length > 0}
           <ul class="feelings">
             {#each part.feelings as feeling (feeling)}
@@ -195,7 +195,6 @@
           class:cta={part.feelings.length === 0}
           style:color={part.feelings.length === 0 ? accent : undefined}
           data-export-hide
-          data-tour="detail-feelings"
           onclick={() => (editingFeelings = true)}
         >
           {part.feelings.length > 0 ? "Edit" : "+ feelings"}

@@ -418,10 +418,12 @@ export const TYPE_SCALE = {
  * stop, `#0B0C12`) rather than inventing a new near-black, and the spotlight
  * ring borrows Self's gold stroke (`SELF.stroke`) — already the one color in
  * this palette that means "look here" — so a highlighted element reads as an
- * extension of the existing language rather than a new one.
+ * extension of the existing language rather than a new one. 0.7 rather than
+ * a heavier value keeps the dimmed map legible as a backdrop while it's
+ * being talked about, rather than reading as fully occluded.
  */
 export const TOUR = {
-  scrimColor: "rgba(11, 12, 18, 0.82)",
+  scrimColor: "rgba(11, 12, 18, 0.7)",
   spotlightPadding: 10,
   spotlightRadius: 14,
   spotlightRing: "#E8C98C",
