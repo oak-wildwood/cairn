@@ -10,7 +10,7 @@
    * feelings that already exist, while editing a part's own feelings is how a
    * new one enters that vocabulary in the first place.
    */
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
   interface Props {
     /** The known feeling vocabulary and how many parts carry each, from
@@ -115,6 +115,7 @@
   let open = $state(false);
   let trigger = $state<HTMLDivElement | null>(null);
   let panel = $state<HTMLDivElement | null>(null);
+  let tagList = $state<HTMLUListElement | null>(null);
 
   /**
    * The popover's on-screen position, captured once when it opens rather than
@@ -227,10 +228,26 @@
     clearConfirmOpen = false;
   }
 
-  function createFromSearch(): void {
+  /**
+   * A freshly created tag always sorts in by count last (it starts at 1,
+   * same as any other rarely-used tag) and alphabetically wherever its
+   * spelling lands, so on a part with an existing feelings vocabulary it can
+   * easily fall below the fold of the scrollable list. Without this, the tag
+   * checks itself in exactly where the merge fix above says it should, but a
+   * user who only sees the visible rows has no way to tell that from "it
+   * didn't work".
+   */
+  async function createFromSearch(): Promise<void> {
     if (!canCreate) return;
-    onChange([...selected, trimmedSearch]);
+    const tag = trimmedSearch;
+    onChange([...selected, tag]);
     search = "";
+    await tick();
+    for (const row of tagList?.querySelectorAll<HTMLElement>("[data-tag]") ?? []) {
+      if (row.dataset.tag !== tag) continue;
+      row.scrollIntoView({ block: "nearest" });
+      break;
+    }
   }
 
   function handleSearchKeydown(event: KeyboardEvent): void {
@@ -341,7 +358,7 @@
         bind:value={search}
         onkeydown={handleSearchKeydown}
       />
-      <ul class="tag-list">
+      <ul class="tag-list" bind:this={tagList}>
         {#if canCreate}
           <li>
             <button type="button" class="create-option" onclick={createFromSearch}>
@@ -350,7 +367,7 @@
           </li>
         {/if}
         {#each filteredTags as [tag, count] (tag)}
-          <li>
+          <li data-tag={tag}>
             <label class="option-row">
               <input
                 type="checkbox"
