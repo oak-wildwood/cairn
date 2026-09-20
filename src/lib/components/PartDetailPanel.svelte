@@ -211,7 +211,7 @@
       {/each}
     </dl>
 
-    <section class="relations">
+    <section class="relations" data-tour="detail-connections">
       <h3 class="section-title">Connections</h3>
       {#if relations.length === 0}
         <p class="empty">No connections yet.</p>

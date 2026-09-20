@@ -21,6 +21,11 @@ export interface TourStep {
    * fallback demo content to point at on an empty map. */
   readonly target: string | null;
   readonly placement: TourPlacement;
+  /** A second `[data-tour]` match spotlighted at the same time as `target`,
+   * for a step showing the same thing in two places at once (the canvas
+   * line and the detail panel's own record of it). The tooltip still
+   * anchors to `target` alone. */
+  readonly secondaryTarget?: string;
   /** This step points at the detail panel, so it needs a part selected —
    * `App.svelte` opens one of the user's own parts for the duration. */
   readonly requiresPart?: boolean;
@@ -74,9 +79,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "connection",
     title: "How parts connect",
-    body: "A line between two parts is a connection — click it to read or change what it means, or drag from one part to another to draw a new one.",
+    body: "A line between two parts is a connection — click it to read or change what it means, or drag from one part to another to draw a new one. It also shows up in the part's own panel, on the right.",
     target: "connection",
+    secondaryTarget: "detail-connections",
     placement: "top",
+    requiresPart: true,
   },
   {
     id: "node-active-toggle",

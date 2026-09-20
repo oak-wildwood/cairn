@@ -27,6 +27,9 @@
    * than wiring a listener for every way this app's own layout can shift.
    */
   let rect = $state<DOMRect | null>(null);
+  /** The step's `secondaryTarget` rect, spotlighted alongside `rect` — null
+   * for the steps (most of them) that only point at one place. */
+  let secondaryRect = $state<DOMRect | null>(null);
   let tooltipEl = $state<HTMLElement | null>(null);
   let tooltipSize = $state({ width: 320, height: 140 });
   let viewport = $state({ width: window.innerWidth, height: window.innerHeight });
@@ -50,6 +53,13 @@
         : null;
       const nextRect = el ? el.getBoundingClientRect() : null;
       if (!rectsEqual(rect, nextRect)) rect = nextRect;
+
+      const secondarySelector = step.secondaryTarget;
+      const secondaryEl = secondarySelector
+        ? document.querySelector<HTMLElement>(`[data-tour="${secondarySelector}"]`)
+        : null;
+      const nextSecondaryRect = secondaryEl ? secondaryEl.getBoundingClientRect() : null;
+      if (!rectsEqual(secondaryRect, nextSecondaryRect)) secondaryRect = nextSecondaryRect;
 
       if (tooltipEl) {
         const size = tooltipEl.getBoundingClientRect();
@@ -149,16 +159,32 @@
     };
   });
 
-  const spotlightStyle = $derived.by(() => {
-    if (!rect) return "";
+  function spotlightStyle(target: DOMRect): string {
     const pad = TOUR.spotlightPadding;
     return [
-      `top: ${rect.top - pad}px`,
-      `left: ${rect.left - pad}px`,
-      `width: ${rect.width + pad * 2}px`,
-      `height: ${rect.height + pad * 2}px`,
+      `top: ${target.top - pad}px`,
+      `left: ${target.left - pad}px`,
+      `width: ${target.width + pad * 2}px`,
+      `height: ${target.height + pad * 2}px`,
     ].join("; ");
-  });
+  }
+
+  interface HoleRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
+
+  function holeRect(target: DOMRect): HoleRect {
+    const pad = TOUR.spotlightPadding;
+    return {
+      x: target.left - pad,
+      y: target.top - pad,
+      width: target.width + pad * 2,
+      height: target.height + pad * 2,
+    };
+  }
 </script>
 
 <!-- `display: contents` below, so this wrapper only exists to set the TOUR
@@ -172,10 +198,48 @@
   style:--tour-ring={TOUR.spotlightRing}
   style:--tour-ring-width="{TOUR.spotlightRingWidth}px"
 >
+  <!-- One scrim rect, with a hole punched per spotlighted rect via an SVG
+       mask — white shows the scrim, black hides it. Two independent
+       full-viewport `box-shadow` spotlights (the first attempt at this)
+       each darkened the *other* one's rect, since from its own shadow's
+       perspective that rect is just more "outside my hole" — so a
+       two-target step like `connection` came out dimmer than a one-target
+       step instead of matching it. A single shared mask has no such
+       "outside", so every hole reveals the real page cleanly regardless of
+       how many there are. -->
+  <svg class="tour-scrim" aria-hidden="true">
+    <mask id="tour-mask">
+      <rect x="0" y="0" width="100%" height="100%" fill="white" />
+      {#if rect}
+        {@const hole = holeRect(rect)}
+        <rect
+          x={hole.x}
+          y={hole.y}
+          width={hole.width}
+          height={hole.height}
+          rx={TOUR.spotlightRadius}
+          fill="black"
+        />
+      {/if}
+      {#if secondaryRect}
+        {@const hole = holeRect(secondaryRect)}
+        <rect
+          x={hole.x}
+          y={hole.y}
+          width={hole.width}
+          height={hole.height}
+          rx={TOUR.spotlightRadius}
+          fill="black"
+        />
+      {/if}
+    </mask>
+    <rect x="0" y="0" width="100%" height="100%" fill={TOUR.scrimColor} mask="url(#tour-mask)" />
+  </svg>
   {#if rect}
-    <div class="tour-spotlight" style={spotlightStyle} aria-hidden="true"></div>
-  {:else}
-    <div class="tour-dim" aria-hidden="true"></div>
+    <div class="tour-ring" style={spotlightStyle(rect)} aria-hidden="true"></div>
+  {/if}
+  {#if secondaryRect}
+    <div class="tour-ring" style={spotlightStyle(secondaryRect)} aria-hidden="true"></div>
   {/if}
 
   <div
@@ -232,21 +296,20 @@
      custom properties App.svelte already declares for the rest of the
      app's chrome, the same way MapMenu.svelte and Legend.svelte do. */
 
-  .tour-dim {
+  .tour-scrim {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 300;
-    background: var(--tour-scrim);
     pointer-events: none;
   }
 
-  .tour-spotlight {
+  .tour-ring {
     position: fixed;
     z-index: 300;
     border-radius: var(--tour-spotlight-radius);
-    box-shadow:
-      0 0 0 9999px var(--tour-scrim),
-      0 0 0 var(--tour-ring-width) var(--tour-ring);
+    box-shadow: 0 0 0 var(--tour-ring-width) var(--tour-ring);
     pointer-events: none;
     transition:
       top 200ms ease,
