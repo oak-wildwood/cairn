@@ -195,6 +195,7 @@
           class:cta={part.feelings.length === 0}
           style:color={part.feelings.length === 0 ? accent : undefined}
           data-export-hide
+          data-tour="detail-feelings"
           onclick={() => (editingFeelings = true)}
         >
           {part.feelings.length > 0 ? "Edit" : "+ feelings"}
@@ -202,7 +203,7 @@
       </div>
     {/if}
 
-    <dl class="fields">
+    <dl class="fields" data-tour="detail-fields">
       {#each fields as field (field.label)}
         <dt>{field.label}</dt>
         <dd class:empty={field.value.trim() === ""}>

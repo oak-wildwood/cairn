@@ -408,6 +408,27 @@ export const TYPE_SCALE = {
 } as const;
 
 /* -------------------------------------------------------------------------- */
+/* Tour                                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * DERIVED: the guided tour is new UI the original design never had reason to
+ * cover — a static comp has nothing to onboard anyone into. The scrim reuses
+ * the background gradient's own darkest stop (`BACKGROUND_GRADIENT`'s 100%
+ * stop, `#0B0C12`) rather than inventing a new near-black, and the spotlight
+ * ring borrows Self's gold stroke (`SELF.stroke`) — already the one color in
+ * this palette that means "look here" — so a highlighted element reads as an
+ * extension of the existing language rather than a new one.
+ */
+export const TOUR = {
+  scrimColor: "rgba(11, 12, 18, 0.82)",
+  spotlightPadding: 10,
+  spotlightRadius: 14,
+  spotlightRing: "#E8C98C",
+  spotlightRingWidth: 2,
+} as const;
+
+/* -------------------------------------------------------------------------- */
 /* Filter legend                                                               */
 /* -------------------------------------------------------------------------- */
 

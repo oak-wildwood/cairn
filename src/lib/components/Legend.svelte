@@ -172,6 +172,7 @@
   <button
     type="button"
     class="pill toggle"
+    data-tour="active-filter"
     class:active={activeOnlyFilter}
     aria-pressed={activeOnlyFilter}
     onclick={() => onToggleActiveOnly?.()}
@@ -185,14 +186,16 @@
        other two rather than replacing either. -->
   <span class="divider" aria-hidden="true"></span>
 
-  <FeelingsMultiSelect
-    tagCounts={tagCounts}
-    selected={tagFilter}
-    onChange={(tags) => onTagFilterChange?.(tags)}
-    label="Feelings"
-    eyebrow="Filter by feeling"
-    dropDirection="up"
-  />
+  <div data-tour="feelings-filter">
+    <FeelingsMultiSelect
+      tagCounts={tagCounts}
+      selected={tagFilter}
+      onChange={(tags) => onTagFilterChange?.(tags)}
+      label="Feelings"
+      eyebrow="Filter by feeling"
+      dropDirection="up"
+    />
+  </div>
 </div>
 
 <style>

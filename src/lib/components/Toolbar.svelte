@@ -20,6 +20,7 @@
     onBackUp: () => void;
     onRestore: (file: File) => void;
     onStartFresh: () => void;
+    onStartTour: () => void;
     /** True while a PDF export is walking every part's selection in turn. */
     exporting?: boolean;
   }
@@ -31,6 +32,7 @@
     onBackUp,
     onRestore,
     onStartFresh,
+    onStartTour,
     exporting = false,
   }: Props = $props();
 </script>
@@ -40,18 +42,25 @@
     <button
       type="button"
       class="button primary"
+      data-tour="add-part"
       onclick={onAddPart}
       disabled={exporting}
     >
       + Add a part
     </button>
-    <button type="button" class="button" onclick={onExport} disabled={exporting}>
+    <button
+      type="button"
+      class="button"
+      data-tour="export"
+      onclick={onExport}
+      disabled={exporting}
+    >
       Save image
     </button>
     <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
       Export PDF
     </button>
-    <MapMenu {onBackUp} {onRestore} {onStartFresh} disabled={exporting} />
+    <MapMenu {onBackUp} {onRestore} {onStartFresh} {onStartTour} disabled={exporting} />
   </div>
 </div>
 

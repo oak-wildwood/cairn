@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
@@ -8,11 +9,13 @@
   import PartModal from "./lib/components/PartModal.svelte";
   import StartFreshModal from "./lib/components/StartFreshModal.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
+  import TourOverlay from "./lib/components/TourOverlay.svelte";
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
   import { exportPartsPdf } from "./lib/pdfExport";
   import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
+  import { hasSeenTour, markTourSeen, TOUR_STEPS } from "./lib/tour";
   import { SCHEMA_VERSION } from "./lib/types";
   import type { PersistedState } from "./lib/types";
 
@@ -233,6 +236,74 @@
   }
 
   /**
+   * The guided tour's own state. `tourPriorSelection` snapshots whatever was
+   * selected (or nothing) before the tour started, so the `requiresPart`
+   * effect below can drive `store.selectedPartId` for its own steps without
+   * losing whatever the user had open when they launched it from the menu.
+   */
+  let tourActive = $state(false);
+  let tourStepIndex = $state(0);
+  let tourPriorSelection: string | null = null;
+
+  function startTour(): void {
+    tourPriorSelection = store.selectedPartId;
+    tourStepIndex = 0;
+    tourActive = true;
+  }
+
+  function endTour(): void {
+    tourActive = false;
+    markTourSeen();
+    if (tourPriorSelection !== null) store.select(tourPriorSelection);
+    else store.clearSelection();
+  }
+
+  function tourNext(): void {
+    if (tourStepIndex >= TOUR_STEPS.length - 1) {
+      endTour();
+      return;
+    }
+    tourStepIndex += 1;
+  }
+
+  function tourBack(): void {
+    if (tourStepIndex === 0) return;
+    tourStepIndex -= 1;
+  }
+
+  // The demo page is a second static entry for looking at the seed map
+  // alongside a real one (see `isDemoRoute` in persistence.ts) — it isn't a
+  // first visit to the real app, so it shouldn't offer the tour either.
+  onMount(() => {
+    if (!isDemoRoute() && !hasSeenTour()) startTour();
+  });
+
+  /**
+   * Steps 5 and 6 point at the detail panel, which only exists once a part
+   * is selected. Rather than have every such step open and close it, one
+   * effect keeps `store.selectedPartId` matching what the current step
+   * needs and puts it back to `tourPriorSelection` the moment it doesn't —
+   * the tour opens `store.parts[0]`, the same part `part-node` (step 2)
+   * resolves to via `document.querySelector`, so the highlighted node in one
+   * step is the one whose panel opens in the next.
+   */
+  $effect(() => {
+    if (!tourActive) return;
+    const step = TOUR_STEPS[tourStepIndex];
+    if (!step) return;
+
+    if (step.requiresPart) {
+      const demoId = store.parts[0]?.id;
+      if (demoId !== undefined && store.selectedPartId !== demoId) {
+        store.select(demoId);
+      }
+    } else if (store.selectedPartId !== tourPriorSelection) {
+      if (tourPriorSelection !== null) store.select(tourPriorSelection);
+      else store.clearSelection();
+    }
+  });
+
+  /**
    * Escape is the keyboard equivalent of clicking the canvas to deselect —
    * except while the modal is open, where the dialog owns Escape and closing
    * the form should not also drop the selection behind it.
@@ -251,6 +322,15 @@
   }
 
   function handleWindowKey(event: KeyboardEvent): void {
+    // The tour's own Escape-to-skip, rather than falling through to
+    // deselect-the-part below — `.shell` is `inert` while it's open (see
+    // the markup), so nothing there could hold focus for Escape to reach
+    // anyway.
+    if (tourActive) {
+      if (event.key === "Escape") endTour();
+      return;
+    }
+
     // `ExportProgressModal`'s own inertness stops pointer interaction, but a
     // window-level keydown listener isn't scoped to it — Escape clearing the
     // export loop's own selection out from under it is exactly the race the
@@ -277,7 +357,11 @@
 
 <svelte:window onkeydown={handleWindowKey} />
 
-<div class="shell">
+<!-- `inert` while the tour is open: it's the simplest way to make the whole
+     app un-clickable and un-tabbable behind the overlay at once, matching
+     the "purely observational" MVP — no separate full-viewport click
+     shield needed in TourOverlay itself. -->
+<div class="shell" inert={tourActive}>
   {#if store.showingExample}
     <DemoBanner />
   {/if}
@@ -321,6 +405,7 @@
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
+        onStartTour={startTour}
         exporting={exportingPdf}
       />
     </div>
@@ -334,7 +419,7 @@
     <hr class="rule" />
 
     <section class="workspace" bind:this={workspaceEl}>
-      <div class="canvas">
+      <div class="canvas" data-tour="canvas">
         <Diagram
           bind:element={diagramSvg}
           parts={store.parts}
@@ -422,6 +507,15 @@
 
 {#if exportProgress}
   <ExportProgressModal current={exportProgress.current} total={exportProgress.total} />
+{/if}
+
+{#if tourActive}
+  <TourOverlay
+    stepIndex={tourStepIndex}
+    onNext={tourNext}
+    onBack={tourBack}
+    onClose={endTour}
+  />
 {/if}
 
 <style>

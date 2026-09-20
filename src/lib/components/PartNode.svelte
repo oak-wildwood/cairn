@@ -236,6 +236,7 @@
   tabindex="0"
   aria-label={ariaLabel}
   aria-pressed={selected}
+  data-tour="part-node"
   bind:this={element}
   onclick={handleClick}
   onkeydown={handleKey}
