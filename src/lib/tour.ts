@@ -70,13 +70,6 @@ export const TOUR_STEPS: readonly TourStep[] = [
     requiresPart: true,
   },
   {
-    id: "export",
-    title: "Take it with you",
-    body: "Save the map as an image, or export a per-part PDF worksheet.",
-    target: "export",
-    placement: "bottom",
-  },
-  {
     id: "connection",
     title: "How parts connect",
     body: "A line between two parts is a connection — click it to read or change what it means, or drag from one part to another to draw a new one. It also shows up in the part's own panel, on the right.",
@@ -112,6 +105,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: "Narrow the map down to the parts carrying a particular feeling.",
     target: "feelings-filter",
     placement: "top",
+  },
+  {
+    id: "export",
+    title: "Take it with you",
+    body: "Save the map as an image, or export a per-part PDF worksheet.",
+    target: "export",
+    placement: "bottom",
   },
   {
     id: "start-fresh",
