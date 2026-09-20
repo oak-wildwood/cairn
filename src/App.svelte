@@ -279,7 +279,7 @@
   });
 
   /**
-   * Steps 5 and 6 point at the detail panel, which only exists once a part
+   * Steps 3 and 4 point at the detail panel, which only exists once a part
    * is selected. Rather than have every such step open and close it, one
    * effect keeps `store.selectedPartId` matching what the current step
    * needs and puts it back to `tourPriorSelection` the moment it doesn't —
@@ -419,7 +419,7 @@
     <hr class="rule" />
 
     <section class="workspace" bind:this={workspaceEl}>
-      <div class="canvas" data-tour="canvas">
+      <div class="canvas">
         <Diagram
           bind:element={diagramSvg}
           parts={store.parts}

@@ -30,9 +30,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "map",
     title: "Your map",
-    body: "Self sits at the centre, with your parts placed around it by role. Drag to pan, and scroll or pinch to zoom in and out.",
-    target: "canvas",
-    placement: "top",
+    body: "Self sits at the center, with your parts placed around it by role. Drag to pan — or use the buttons in the corner, your mouse wheel, or a trackpad — to zoom in and out.",
+    target: "zoom-controls",
+    placement: "left",
   },
   {
     id: "select-part",
@@ -40,20 +40,6 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: "Click any part to open everything you've recorded about it.",
     target: "part-node",
     placement: "right",
-  },
-  {
-    id: "start-fresh",
-    title: "Make the map yours",
-    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
-    target: "map-menu-trigger",
-    placement: "bottom",
-  },
-  {
-    id: "add-part",
-    title: "Add a part",
-    body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
-    target: "add-part",
-    placement: "bottom",
   },
   {
     id: "feelings",
@@ -70,6 +56,20 @@ export const TOUR_STEPS: readonly TourStep[] = [
     target: "detail-fields",
     placement: "left",
     requiresPart: true,
+  },
+  {
+    id: "start-fresh",
+    title: "Make the map yours",
+    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
+    target: "map-menu-trigger",
+    placement: "bottom",
+  },
+  {
+    id: "add-part",
+    title: "Add a part",
+    body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
+    target: "add-part",
+    placement: "bottom",
   },
   {
     id: "feelings-filter",

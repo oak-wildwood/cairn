@@ -739,7 +739,7 @@
   {/each}
 </svg>
 
-  <div class="zoom-controls" role="group" aria-label="Zoom">
+  <div class="zoom-controls" data-tour="zoom-controls" role="group" aria-label="Zoom">
     <button
       type="button"
       class="zoom-button"
