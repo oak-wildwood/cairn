@@ -70,10 +70,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
     requiresPart: true,
   },
   {
-    id: "start-fresh",
-    title: "Make the map yours",
-    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
-    target: "map-menu-trigger",
+    id: "export",
+    title: "Take it with you",
+    body: "Save the map as an image, or export a per-part PDF worksheet.",
+    target: "export",
     placement: "bottom",
   },
   {
@@ -114,10 +114,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
     placement: "top",
   },
   {
-    id: "export",
-    title: "Take it with you",
-    body: "Save the map as an image, or export a per-part PDF worksheet.",
-    target: "export",
+    id: "start-fresh",
+    title: "Make the map yours",
+    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
+    target: "map-menu-trigger",
     placement: "bottom",
   },
 ];
