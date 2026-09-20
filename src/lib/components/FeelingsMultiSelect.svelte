@@ -67,8 +67,26 @@
   const hasVocabulary = $derived(tagCounts.size > 0);
   const canOpen = $derived(hasVocabulary || allowCreate);
 
+  /**
+   * `tagCounts` is the vocabulary that's actually been saved — for the
+   * add/edit modal it's built from the *other* parts, not this draft, so a
+   * feeling just typed and created here via `allowCreate` hasn't round-
+   * tripped through the store yet and isn't in it. Without merging
+   * `selected` in, that new tag vanishes from its own list the moment the
+   * search that created it clears: `filteredTags` comes up empty and the
+   * popover claims "No matching feelings" for a tag it's simultaneously
+   * showing as a selected chip on the trigger.
+   */
+  const knownTags = $derived.by(() => {
+    const merged = new Map(tagCounts);
+    for (const tag of selected) {
+      if (!merged.has(tag)) merged.set(tag, 1);
+    }
+    return merged;
+  });
+
   const sortedTags = $derived(
-    [...tagCounts.entries()].sort(
+    [...knownTags.entries()].sort(
       (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
     ),
   );
