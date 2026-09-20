@@ -209,9 +209,15 @@
     clearConfirmOpen = false;
   }
 
+  /**
+   * Lowercased so a feeling typed as "Anxious" here and "anxious" somewhere
+   * else become the same tag rather than forking the vocabulary — `canCreate`
+   * already dedupes case-insensitively against what exists, but without this
+   * the first person to type a feeling fixes its case for everyone after.
+   */
   function createFromSearch(): void {
     if (!canCreate) return;
-    onChange([...selected, trimmedSearch]);
+    onChange([...selected, trimmedSearch.toLowerCase()]);
     search = "";
   }
 
