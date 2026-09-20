@@ -48,18 +48,14 @@
     >
       + Add a part
     </button>
-    <button
-      type="button"
-      class="button"
-      data-tour="export"
-      onclick={onExport}
-      disabled={exporting}
-    >
-      Save image
-    </button>
-    <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
-      Export PDF
-    </button>
+    <div class="export-group" data-tour="export">
+      <button type="button" class="button" onclick={onExport} disabled={exporting}>
+        Save image
+      </button>
+      <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
+        Export PDF
+      </button>
+    </div>
     <MapMenu {onBackUp} {onRestore} {onStartFresh} {onStartTour} disabled={exporting} />
   </div>
 </div>
@@ -73,6 +69,14 @@
   }
 
   .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  /* Groups the two export buttons only so the tour has one element to
+     spotlight for both — no visual difference from ungrouped buttons. */
+  .export-group {
     display: flex;
     align-items: center;
     gap: 0.625rem;
