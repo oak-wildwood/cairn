@@ -65,6 +65,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     requiresPart: true,
   },
   {
+    id: "start-fresh",
+    title: "Make the map yours",
+    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
+    target: "map-menu-trigger",
+    placement: "bottom",
+  },
+  {
     id: "connection",
     title: "How parts connect",
     body: "A line between two parts is a connection — click it to read or change what it means, or drag from one part to another to draw a new one.",
@@ -98,13 +105,6 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: "Narrow the map down to the parts carrying a particular feeling.",
     target: "feelings-filter",
     placement: "top",
-  },
-  {
-    id: "start-fresh",
-    title: "Make the map yours",
-    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
-    target: "map-menu-trigger",
-    placement: "bottom",
   },
   {
     id: "export",
