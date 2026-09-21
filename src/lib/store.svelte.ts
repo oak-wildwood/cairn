@@ -1,6 +1,6 @@
 import { fixtureFromQuery } from "./devFixtures";
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
-import { connectionEdgeKey } from "./layout";
+import { connectionEdgeKey, survivesFilters } from "./layout";
 import { loadState } from "./persistence";
 import type {
   Connection,
@@ -101,6 +101,33 @@ class MapStore {
   setTagFilter(tags: string[]): void {
     this.tagFilter = tags;
   }
+
+  /** Whether the legend has anything narrowed right now, across all three filters. */
+  readonly hasActiveFilter = $derived(
+    this.activeFilter !== null || this.activeOnlyFilter || this.tagFilter.length > 0,
+  );
+
+  /**
+   * The ids of the parts the current filters are showing — what a PDF
+   * export's "only the parts shown" scope walks. Lives here rather than
+   * beside that export: it is a pure function of fields this store already
+   * owns, and `Diagram.svelte`'s dimming asks the identical question of the
+   * identical fields (via `survivesFilters` directly, since the diagram is
+   * prop-driven and never reaches into the store) — a second hand-rolled
+   * copy of "which parts survive" is exactly the drift `survivesFilters` was
+   * pulled out to prevent.
+   */
+  readonly visiblePartIds = $derived(
+    this.parts
+      .filter((part) =>
+        survivesFilters(part.role, part.active, part.feelings, {
+          activeFilter: this.activeFilter,
+          activeOnlyFilter: this.activeOnlyFilter,
+          tagFilter: this.tagFilter,
+        }),
+      )
+      .map((part) => part.id),
+  );
 
   /** The part whose detail panel is open, or null when nothing is selected. */
   selectedPartId = $state<string | null>(null);

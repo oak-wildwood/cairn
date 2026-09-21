@@ -476,6 +476,13 @@
   });
 
   /**
+   * Bundled once per render rather than inline at each `survives()` call —
+   * `survives` runs once per part and twice per connection, and the three
+   * filters are the same for every one of those calls in a given render.
+   */
+  const currentFilters = $derived({ activeFilter, activeOnlyFilter, tagFilter });
+
+  /**
    * Whether an endpoint survives the current filters.
    *
    * Self always does, for every filter — it carries no `PartRole`, no
@@ -494,10 +501,7 @@
     tags: readonly string[],
   ): boolean {
     if (role === SELF_ID) return true;
-    return survivesFilters(
-      { role, active, feelings: tags },
-      { activeFilter, activeOnlyFilter, tagFilter },
-    );
+    return survivesFilters(role, active, tags, currentFilters);
   }
 
   /**

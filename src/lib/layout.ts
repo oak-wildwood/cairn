@@ -282,17 +282,24 @@ export interface MapFilters {
  * asked here — `Diagram.svelte` keeps that special case ("Self always
  * survives") local to itself rather than folding a non-`Part` case into this
  * signature.
+ *
+ * The part's own fields are positional rather than bundled into an object:
+ * `Diagram.svelte` calls this once per part and twice per connection on
+ * every render, so a wrapper object here would mean allocating one on every
+ * one of those calls for no reason — `filters`, the same for all of them in
+ * one render, is the one still worth bundling.
  */
 export function survivesFilters(
-  part: { role: Part["role"]; active: boolean; feelings: readonly string[] },
+  role: Part["role"],
+  active: boolean,
+  feelings: readonly string[],
   filters: MapFilters,
 ): boolean {
-  const survivesRole =
-    filters.activeFilter === null || part.role === filters.activeFilter;
-  const survivesActive = !filters.activeOnlyFilter || part.active;
+  const survivesRole = filters.activeFilter === null || role === filters.activeFilter;
+  const survivesActive = !filters.activeOnlyFilter || active;
   const survivesTags =
     filters.tagFilter.length === 0 ||
-    part.feelings.some((tag) => filters.tagFilter.includes(tag));
+    feelings.some((tag) => filters.tagFilter.includes(tag));
   return survivesRole && survivesActive && survivesTags;
 }
 

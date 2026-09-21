@@ -15,7 +15,6 @@
   import TourOverlay from "./lib/components/TourOverlay.svelte";
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
-  import { survivesFilters } from "./lib/layout";
   import { exportPartsPdf } from "./lib/pdfExport";
   import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
@@ -136,24 +135,17 @@
     }
   }
 
-  /** Whether the legend has anything narrowed right now, across all three filters. */
-  const hasActiveFilter = $derived(
-    store.activeFilter !== null ||
-      store.activeOnlyFilter ||
-      store.tagFilter.length > 0,
-  );
-
   /**
    * Whether `ExportPdfScopeModal` is open, asking all parts vs. only the
-   * filtered ones. Only reachable when `hasActiveFilter` — with nothing
-   * filtered, "all" and "filtered" are the same list, and asking would be a
-   * click in the way of a choice that doesn't exist yet.
+   * filtered ones. Only reachable when `store.hasActiveFilter` — with
+   * nothing filtered, "all" and "filtered" are the same list, and asking
+   * would be a click in the way of a choice that doesn't exist yet.
    */
   let showingExportPdfScope = $state(false);
 
   function handleExportPdf(): void {
     if (!workspaceEl || store.parts.length === 0) return;
-    if (hasActiveFilter) {
+    if (store.hasActiveFilter) {
       showingExportPdfScope = true;
       return;
     }
@@ -165,15 +157,7 @@
 
     const partIds =
       scope === "filtered"
-        ? store.parts
-            .filter((part) =>
-              survivesFilters(part, {
-                activeFilter: store.activeFilter,
-                activeOnlyFilter: store.activeOnlyFilter,
-                tagFilter: store.tagFilter,
-              }),
-            )
-            .map((part) => part.id)
+        ? store.visiblePartIds
         : store.parts.map((part) => part.id);
 
     // A filter narrow enough to exclude everything is a real, if unlikely,
