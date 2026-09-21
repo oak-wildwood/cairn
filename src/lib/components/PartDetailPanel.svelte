@@ -139,15 +139,16 @@
 <aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
   <div class="inner">
     <header class="head">
-      <div>
+      <div class="title">
         <p class="meta" style:color={accent}>
           {partCaption(part).toUpperCase()}
         </p>
         <h2 class="name">{part.name}</h2>
       </div>
-      <!-- data-export-hide: read by pdfExport.ts, which hides every element
-           carrying it before screenshotting this panel — a live control has
-           no click handler on a printed page. -->
+      <!-- data-export-hide: read by both export.ts and pdfExport.ts, which
+           hide every element carrying it before screenshotting this panel —
+           a live control has no click handler on a saved image or a printed
+           page. -->
       <button
         class="close"
         type="button"
@@ -160,9 +161,9 @@
     </header>
 
     {#if editingFeelings}
-      <!-- data-export-hide: the quick editor is a live control, and PDF
-           export always sees the panel in its default (closed) state
-           anyway. -->
+      <!-- data-export-hide: the quick editor is a live control, and both the
+           PDF and PNG exports always see the panel in its default (closed)
+           state anyway. -->
       <div data-export-hide>
         <FeelingsMultiSelect
           tagCounts={tagCounts}
@@ -297,6 +298,32 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  /*
+   * Fills the header row rather than shrink-wrapping the name. On screen the
+   * two are indistinguishable — the caption and the name are left-aligned
+   * either way, and `space-between` pins the close button to the right edge
+   * either way — but a shrink-wrapped box is exactly as wide as the name's
+   * own text, with no slack at all, and that is what breaks the exports.
+   *
+   * `export.ts` and `pdfExport.ts` both screenshot this panel through
+   * `html-to-image`, which copies every element's *resolved* computed style
+   * onto its clone — so a shrink-wrapped box arrives frozen at the `width`
+   * and `height` the live title happened to measure. Render the name a hair
+   * wider in that clone than it was live and it wraps to a second line inside
+   * a box still one line tall, and, because the frozen height cannot grow,
+   * that line lands on top of the feelings pills instead of pushing them
+   * down. A hair wider is not hypothetical: the title is set in Cormorant
+   * Garamond, and any capture that falls back to the wider Georgia (see
+   * `pdfExport.ts` on why the font embed has to run after the panel mounts)
+   * renders it well past a zero-slack box. Filling the row gives the name the
+   * panel's whole width instead, which no fallback for a name that fits on
+   * screen comes close to overflowing — and it does not change where a name
+   * wraps live, since a shrink-wrapped box was already capped at that width.
+   */
+  .title {
+    flex-grow: 1;
   }
 
   .meta {
@@ -475,11 +502,38 @@
     color: var(--text-bright);
   }
 
+  /*
+   * The direction and the part on the other end keep their size; the label is
+   * the only one of the three that gives.
+   *
+   * All three are flex items in one row, and flex hands a shortfall out in
+   * proportion to how wide each item wants to be — so a label long enough to
+   * overflow the row takes the arrow and the name down with it, and a name as
+   * short as "The Kid" gets squeezed under its own one-line width and breaks
+   * into "The" / "Kid" alongside a label that is already wrapping. Which rows
+   * in a panel break is not obvious from looking at the panel as a whole: it
+   * turns on each row's own label and its own name, so one connection can
+   * read cleanly while the next one staggers. A label is free text and reads fine
+   * wrapped; a part's name is the thing being named and does not, so the
+   * whole shortfall belongs to the label, which stops at its longest word.
+   *
+   * `white-space: nowrap` is the export's share of the same problem. With
+   * nothing left to shrink it, the name's box ends up exactly as wide as its
+   * own text, and `export.ts` and `pdfExport.ts` freeze that width onto the
+   * clone they screenshot — the trap `.title` above is written up for. Let
+   * the clone render the name a hair wider than it measured, as it does
+   * whenever the web font embed falls back, and it would break in two in the
+   * picture and nowhere else. Overrunning its box by a pixel is the better
+   * failure of the two.
+   */
   .arrow {
+    flex-shrink: 0;
     color: var(--text-muted);
   }
 
   .relation-other {
+    flex-shrink: 0;
+    white-space: nowrap;
     color: var(--text-muted);
   }
 
