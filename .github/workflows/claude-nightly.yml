@@ -1,0 +1,101 @@
+name: Claude Nightly
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # ~2am Pacific; GitHub cron runs in UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: claude-nightly
+  cancel-in-progress: false
+
+jobs:
+  pick-work:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    outputs:
+      issue_number: ${{ steps.pick.outputs.issue_number }}
+    steps:
+      - name: Find the oldest unclaimed claude-task issue
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label claude-task --state open \
+            --json number,createdAt \
+            --jq 'sort_by(.createdAt) | .[0].number // empty')
+          echo "issue_number=$issue" >> "$GITHUB_OUTPUT"
+
+      - name: Claim it
+        if: steps.pick.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue edit "${{ steps.pick.outputs.issue_number }}" \
+            --repo "$GITHUB_REPOSITORY" --add-label claude-in-progress
+
+  claude:
+    needs: pick-work
+    if: needs.pick-work.outputs.issue_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Node must be on the runner, with npm's cache warmed from
+      # package-lock.json, before Claude can usefully run npm install,
+      # npm run check (svelte-check), or npm run build itself.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          additional_permissions: |
+            actions: read
+
+          prompt: |
+            Work autonomously on issue #${{ needs.pick-work.outputs.issue_number }}.
+            Read AGENTS.md and PLAN.md first, and follow them.
+            Open a PR when done, following AGENTS.md's PR title convention.
+            Never modify anything under .github/workflows.
+
+          # AGENTS.md requires `npm run check` at 0 errors/warnings and a
+          # passing `npm run build` before a milestone counts as done, so
+          # Claude needs to be able to install and run them itself.
+          claude_args: '--allowed-tools "Bash(npm install),Bash(npm ci),Bash(npm run check),Bash(npm run build)"'
+
+      - name: Clear the claim on success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue edit "${{ needs.pick-work.outputs.issue_number }}" \
+            --repo "$GITHUB_REPOSITORY" --remove-label claude-in-progress
+
+      - name: Release the claim on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue edit "${{ needs.pick-work.outputs.issue_number }}" \
+            --repo "$GITHUB_REPOSITORY" --remove-label claude-in-progress
+          gh issue comment "${{ needs.pick-work.outputs.issue_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "Nightly run failed — unclaimed for retry tomorrow. Check the [job run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) log: a usage/rate-limit message needs no action, an auth/token message means \`CLAUDE_CODE_OAUTH_TOKEN\` needs refreshing."
