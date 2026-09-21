@@ -87,7 +87,7 @@
 
 <style>
   dialog {
-    width: min(26rem, calc(100vw - 2rem));
+    width: min(28rem, calc(100vw - 2rem));
     padding: 0;
     border: 1px solid var(--pill-border);
     border-radius: 14px;
@@ -118,8 +118,8 @@
   .body {
     margin: 0 0 1.25rem;
     color: var(--text-muted);
-    font-size: 13px;
-    line-height: 1.55;
+    font-size: var(--body-text-size);
+    line-height: var(--body-text-line-height);
   }
 
   .label {

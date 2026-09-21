@@ -405,6 +405,40 @@ export const TYPE_SCALE = {
   // DERIVED: the source design's sector labels are 12px; bumped a step for legibility.
   sectorLabel: { size: 13, letterSpacing: 3, weight: 600, opacity: 0.75 },
   footer: { size: 16 },
+  /**
+   * DERIVED: prose someone actually reads — a dialog's explanation, a
+   * screen's intro copy — rather than compact chrome like a button, a
+   * label, or a hint. Matches `PartDetailPanel`'s own `.fields dd` (a
+   * part's description, trigger, notes, and so on), the one place the
+   * original design already had text this long to size. Exposed as the
+   * `--body-text-size`/`--body-text-line-height` custom properties on
+   * `:root` (see `App.svelte`) so any component reaches it with plain CSS —
+   * `font-size: var(--body-text-size)` — with no import or wiring needed.
+   */
+  bodyText: { size: 14, lineHeight: 1.5 },
+} as const;
+
+/* -------------------------------------------------------------------------- */
+/* Tour                                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * DERIVED: the guided tour is new UI the original design never had reason to
+ * cover — a static comp has nothing to onboard anyone into. The scrim reuses
+ * the background gradient's own darkest stop (`BACKGROUND_GRADIENT`'s 100%
+ * stop, `#0B0C12`) rather than inventing a new near-black, and the spotlight
+ * ring borrows Self's gold stroke (`SELF.stroke`) — already the one color in
+ * this palette that means "look here" — so a highlighted element reads as an
+ * extension of the existing language rather than a new one. 0.7 rather than
+ * a heavier value keeps the dimmed map legible as a backdrop while it's
+ * being talked about, rather than reading as fully occluded.
+ */
+export const TOUR = {
+  scrimColor: "rgba(11, 12, 18, 0.7)",
+  spotlightPadding: 10,
+  spotlightRadius: 14,
+  spotlightRing: "#E8C98C",
+  spotlightRingWidth: 1,
 } as const;
 
 /* -------------------------------------------------------------------------- */

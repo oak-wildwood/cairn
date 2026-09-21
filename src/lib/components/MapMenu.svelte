@@ -16,10 +16,24 @@
      * menu deliberately owns no destructive action of its own.
      */
     onStartFresh: () => void;
+    /**
+     * Launches the guided tour. It lives here as an interim home — this menu
+     * is currently "map file actions" and a walkthrough isn't quite one of
+     * those, but it needs a menu to sit behind now, and splitting this into
+     * separate tools/user menus is tracked as follow-on work rather than
+     * done here.
+     */
+    onStartTour: () => void;
     disabled?: boolean;
   }
 
-  const { onBackUp, onRestore, onStartFresh, disabled = false }: Props = $props();
+  const {
+    onBackUp,
+    onRestore,
+    onStartFresh,
+    onStartTour,
+    disabled = false,
+  }: Props = $props();
 
   let open = $state(false);
   let trigger = $state<HTMLButtonElement | null>(null);
@@ -87,7 +101,8 @@
     bind:this={trigger}
     class="trigger"
     type="button"
-    aria-label="Map file actions"
+    data-tour="map-menu-trigger"
+    aria-label="Menu"
     aria-haspopup="menu"
     aria-expanded={open}
     {disabled}
@@ -102,6 +117,15 @@
 
   {#if open}
     <div bind:this={panel} class="panel" role="menu">
+      <button class="item" type="button" role="menuitem" onclick={() => {
+        close();
+        onStartTour();
+      }}>
+        Take a tour
+      </button>
+
+      <hr class="separator" />
+
       <button class="item" type="button" role="menuitem" onclick={() => {
         close();
         onBackUp();

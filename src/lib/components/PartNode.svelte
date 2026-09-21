@@ -236,6 +236,7 @@
   tabindex="0"
   aria-label={ariaLabel}
   aria-pressed={selected}
+  data-tour="part-node"
   bind:this={element}
   onclick={handleClick}
   onkeydown={handleKey}
@@ -342,6 +343,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <g
     class="active-toggle"
+    data-tour="node-active-toggle"
     transform="translate({ACTIVE_TOGGLE_POSITION.x}, {ACTIVE_TOGGLE_POSITION.y})"
     aria-hidden="true"
     onpointerdown={(event) => event.stopPropagation()}
