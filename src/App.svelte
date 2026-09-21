@@ -117,8 +117,14 @@
 
   async function handleExport(): Promise<void> {
     if (!diagramSvg) return;
+    // Only when a part is actually selected — `store.selectedPart` and the
+    // panel `workspaceEl` renders are the same condition, so this is never
+    // null while the other is truthy.
+    const panel = store.selectedPart
+      ? (workspaceEl?.querySelector<HTMLElement>("aside") ?? null)
+      : null;
     try {
-      await exportMapPng(diagramSvg);
+      await exportMapPng(diagramSvg, panel);
       fileNotice = { tone: "ok", text: "Saved a PNG to your downloads." };
     } catch {
       // Rasterising is the browser's to do and can fail for reasons this app

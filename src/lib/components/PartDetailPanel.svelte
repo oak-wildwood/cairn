@@ -145,9 +145,10 @@
         </p>
         <h2 class="name">{part.name}</h2>
       </div>
-      <!-- data-export-hide: read by pdfExport.ts, which hides every element
-           carrying it before screenshotting this panel — a live control has
-           no click handler on a printed page. -->
+      <!-- data-export-hide: read by both export.ts and pdfExport.ts, which
+           hide every element carrying it before screenshotting this panel —
+           a live control has no click handler on a saved image or a printed
+           page. -->
       <button
         class="close"
         type="button"
@@ -160,9 +161,9 @@
     </header>
 
     {#if editingFeelings}
-      <!-- data-export-hide: the quick editor is a live control, and PDF
-           export always sees the panel in its default (closed) state
-           anyway. -->
+      <!-- data-export-hide: the quick editor is a live control, and both the
+           PDF and PNG exports always see the panel in its default (closed)
+           state anyway. -->
       <div data-export-hide>
         <FeelingsMultiSelect
           tagCounts={tagCounts}
