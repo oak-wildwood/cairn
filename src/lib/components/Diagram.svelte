@@ -3,6 +3,7 @@
     computeLayout,
     computeViewBox,
     connectionEdgeKey,
+    survivesFilters,
   } from "../layout";
   import {
     BACKDROP,
@@ -477,28 +478,26 @@
   /**
    * Whether an endpoint survives the current filters.
    *
-   * Self always does, for every filter. It carries no `PartRole`, no `active`
-   * field and no `feelings` — but it is the fixed centre every connector runs
-   * to, and fading it would leave the map a ring around nothing. A part with
-   * role "unknown" matches no sector, so it fades under a role filter, which
-   * is correct: it is not yet a manager, firefighter or exile. The three
-   * filters are independent — "active" managers tagged "shame" is a valid
-   * combination — so all three have to pass; tags themselves are OR'd against
-   * each other, since a part usually carries more than one.
+   * Self always does, for every filter — it carries no `PartRole`, no
+   * `active` field and no `feelings`, but it is the fixed centre every
+   * connector runs to, and fading it would leave the map a ring around
+   * nothing. That's the one case kept local to the diagram; the actual
+   * per-part rule lives in `layout.ts`'s `survivesFilters`, shared with the
+   * PDF export's "only the parts shown" scope so the two can't disagree
+   * about which parts that means. A part with role "unknown" matches no
+   * sector, so it fades under a role filter, which is correct: it is not yet
+   * a manager, firefighter or exile.
    */
   function survives(
     role: Part["role"] | typeof SELF_ID,
     active: boolean,
     tags: readonly string[],
   ): boolean {
-    const survivesRole =
-      activeFilter === null || role === SELF_ID || role === activeFilter;
-    const survivesActive = !activeOnlyFilter || role === SELF_ID || active;
-    const survivesTags =
-      tagFilter.length === 0 ||
-      role === SELF_ID ||
-      tags.some((t) => tagFilter.includes(t));
-    return survivesRole && survivesActive && survivesTags;
+    if (role === SELF_ID) return true;
+    return survivesFilters(
+      { role, active, feelings: tags },
+      { activeFilter, activeOnlyFilter, tagFilter },
+    );
   }
 
   /**

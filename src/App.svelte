@@ -4,6 +4,8 @@
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
+  import ExportPdfScopeModal from "./lib/components/ExportPdfScopeModal.svelte";
+  import type { ExportPdfScope } from "./lib/components/ExportPdfScopeModal.svelte";
   import ExportProgressModal from "./lib/components/ExportProgressModal.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
@@ -13,6 +15,7 @@
   import TourOverlay from "./lib/components/TourOverlay.svelte";
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
+  import { survivesFilters } from "./lib/layout";
   import { exportPartsPdf } from "./lib/pdfExport";
   import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
@@ -133,8 +136,53 @@
     }
   }
 
-  async function handleExportPdf(): Promise<void> {
+  /** Whether the legend has anything narrowed right now, across all three filters. */
+  const hasActiveFilter = $derived(
+    store.activeFilter !== null ||
+      store.activeOnlyFilter ||
+      store.tagFilter.length > 0,
+  );
+
+  /**
+   * Whether `ExportPdfScopeModal` is open, asking all parts vs. only the
+   * filtered ones. Only reachable when `hasActiveFilter` — with nothing
+   * filtered, "all" and "filtered" are the same list, and asking would be a
+   * click in the way of a choice that doesn't exist yet.
+   */
+  let showingExportPdfScope = $state(false);
+
+  function handleExportPdf(): void {
     if (!workspaceEl || store.parts.length === 0) return;
+    if (hasActiveFilter) {
+      showingExportPdfScope = true;
+      return;
+    }
+    runExportPdf("all");
+  }
+
+  async function runExportPdf(scope: ExportPdfScope): Promise<void> {
+    if (!workspaceEl) return;
+
+    const partIds =
+      scope === "filtered"
+        ? store.parts
+            .filter((part) =>
+              survivesFilters(part, {
+                activeFilter: store.activeFilter,
+                activeOnlyFilter: store.activeOnlyFilter,
+                tagFilter: store.tagFilter,
+              }),
+            )
+            .map((part) => part.id)
+        : store.parts.map((part) => part.id);
+
+    // A filter narrow enough to exclude everything is a real, if unlikely,
+    // choice — nothing for `exportPartsPdf` to walk, so say so rather than
+    // claiming a download that never happened.
+    if (partIds.length === 0) {
+      fileNotice = { tone: "bad", text: "No parts match the current filters." };
+      return;
+    }
 
     // Snapshotted so the user's own filter and selection come back exactly
     // as they left them, regardless of what the export itself selects.
@@ -142,11 +190,12 @@
     const priorFilter = store.activeFilter;
     const priorActiveOnly = store.activeOnlyFilter;
     const priorTags = [...store.tagFilter];
-    const partIds = store.parts.map((part) => part.id);
 
     // A filtered-out part would render dimmed or hidden on its own page
     // otherwise — every page should show its part in full regardless of
-    // whatever filter happens to be on in the legend.
+    // whatever filter happens to be on in the legend. The filter's only say
+    // in the outcome is which parts made it into `partIds` above; once the
+    // walk starts, every page it visits renders unfiltered.
     store.setFilter(null);
     if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
     if (store.tagFilter.length > 0) store.setTagFilter([]);
@@ -178,6 +227,11 @@
       store.setTagFilter(priorTags);
       exportProgress = null;
     }
+  }
+
+  function handleExportPdfScope(scope: ExportPdfScope): void {
+    showingExportPdfScope = false;
+    runExportPdf(scope);
   }
 
   function handleBackUp(): void {
@@ -527,6 +581,13 @@
       }}
     />
   {/key}
+{/if}
+
+{#if showingExportPdfScope}
+  <ExportPdfScopeModal
+    onsubmit={handleExportPdfScope}
+    oncancel={() => (showingExportPdfScope = false)}
+  />
 {/if}
 
 {#if exportProgress}

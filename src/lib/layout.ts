@@ -263,6 +263,39 @@ export function partCaption(part: Pick<Part, "role" | "status" | "active">): str
   return segments.join(" · ");
 }
 
+/** The legend's three filters, bundled — see `MapStore`'s fields of the same names. */
+export interface MapFilters {
+  activeFilter: SectorRole | null;
+  activeOnlyFilter: boolean;
+  tagFilter: readonly string[];
+}
+
+/**
+ * Whether a part survives the legend's filters — the one place this is
+ * decided, so `Diagram.svelte`'s dimming and a PDF export's "only the parts
+ * shown" scope can't quietly disagree about which parts that means. The
+ * three filters are independent — "active" managers tagged "shame" is a
+ * valid combination — so all three have to pass; tags themselves are OR'd
+ * against each other, since a part usually carries more than one.
+ *
+ * Self has no role, no `active` field and no `feelings`, so it is never
+ * asked here — `Diagram.svelte` keeps that special case ("Self always
+ * survives") local to itself rather than folding a non-`Part` case into this
+ * signature.
+ */
+export function survivesFilters(
+  part: { role: Part["role"]; active: boolean; feelings: readonly string[] },
+  filters: MapFilters,
+): boolean {
+  const survivesRole =
+    filters.activeFilter === null || part.role === filters.activeFilter;
+  const survivesActive = !filters.activeOnlyFilter || part.active;
+  const survivesTags =
+    filters.tagFilter.length === 0 ||
+    part.feelings.some((tag) => filters.tagFilter.includes(tag));
+  return survivesRole && survivesActive && survivesTags;
+}
+
 /**
  * Split a part name across at most two lines, the way the design wraps "The
  * Fixer" and "The Unseen One".
