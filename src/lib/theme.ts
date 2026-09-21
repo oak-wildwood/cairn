@@ -405,6 +405,17 @@ export const TYPE_SCALE = {
   // DERIVED: the source design's sector labels are 12px; bumped a step for legibility.
   sectorLabel: { size: 13, letterSpacing: 3, weight: 600, opacity: 0.75 },
   footer: { size: 16 },
+  /**
+   * DERIVED: prose someone actually reads — a dialog's explanation, a
+   * screen's intro copy — rather than compact chrome like a button, a
+   * label, or a hint. Matches `PartDetailPanel`'s own `.fields dd` (a
+   * part's description, trigger, notes, and so on), the one place the
+   * original design already had text this long to size. Exposed as the
+   * `--body-text-size`/`--body-text-line-height` custom properties on
+   * `:root` (see `App.svelte`) so any component reaches it with plain CSS —
+   * `font-size: var(--body-text-size)` — with no import or wiring needed.
+   */
+  bodyText: { size: 14, lineHeight: 1.5 },
 } as const;
 
 /* -------------------------------------------------------------------------- */

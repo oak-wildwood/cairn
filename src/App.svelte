@@ -281,13 +281,14 @@
   });
 
   /**
-   * The "feelings" and "fields" steps point at the detail panel, which only
-   * exists once a part is selected. Rather than have every such step open
-   * and close it, one effect keeps `store.selectedPartId` matching what the
-   * current step needs and puts it back to `tourPriorSelection` the moment
-   * it doesn't — the tour opens `store.parts[0]`, the same part `part-node`
-   * ("select-part") resolves to via `document.querySelector`, so the
-   * highlighted node in one step is the one whose panel opens in the next.
+   * Several steps ("select-part" on, through "connection") point at the
+   * detail panel, which only exists once a part is selected. Rather than
+   * have every such step open and close it, one effect keeps
+   * `store.selectedPartId` matching what the current step needs and puts it
+   * back to `tourPriorSelection` the moment it doesn't — the tour always
+   * opens `store.parts[0]`, the same part `part-node` ("select-part")
+   * resolves to via `document.querySelector`, so it's one consistent part
+   * throughout rather than whichever one a real click happened to land on.
    */
   $effect(() => {
     if (!tourActive) return;
@@ -415,7 +416,6 @@
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
         onStartTour={startTour}
-        onShowDataInfo={() => (showingDataInfo = true)}
         exporting={exportingPdf}
       />
     </div>
@@ -479,7 +479,15 @@
         tagFilter={store.tagFilter}
         onTagFilterChange={(tags) => store.setTagFilter(tags)}
       />
-      <div class="footer-spacer" aria-hidden="true"></div>
+      <!-- Balances `.footer-note`'s width so `Legend` stays centered, the
+           same job the old empty spacer did — but the classic bottom-right
+           spot for exactly this kind of link means it earns its keep rather
+           than sitting there as dead weight. -->
+      <p class="footer-data">
+        <button type="button" onclick={() => (showingDataInfo = true)}>
+          About your data
+        </button>
+      </p>
     </footer>
   </main>
 </div>
@@ -549,6 +557,13 @@
     --surface-raised: #12141f;
     --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
     --font-ui: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    /* Mirrors `theme.ts`'s `TYPE_SCALE.bodyText` — kept in sync by hand, the
+       same as every other token above. This is the size for prose someone
+       reads (a dialog's explanation, a screen's intro copy), not compact
+       chrome — any new dialog or screen should reach for these two rather
+       than picking its own body size. */
+    --body-text-size: 14px;
+    --body-text-line-height: 1.5;
   }
 
   :global(html),
@@ -713,7 +728,7 @@
   }
 
   .footer-note,
-  .footer-spacer {
+  .footer-data {
     flex: 1 1 0;
     margin: 0;
   }
@@ -725,14 +740,40 @@
     font-style: italic;
   }
 
+  .footer-data {
+    text-align: right;
+  }
+
+  .footer-data button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: color 160ms ease;
+  }
+
+  .footer-data button:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .footer-data button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
   @media (max-width: 720px) {
     .footer {
       flex-direction: column;
       align-items: stretch;
     }
 
-    .footer-spacer {
-      display: none;
+    .footer-data {
+      text-align: center;
     }
   }
 </style>

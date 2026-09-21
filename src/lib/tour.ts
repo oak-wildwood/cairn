@@ -55,9 +55,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "select-part",
     title: "Open a part",
-    body: "Click any part to open everything you've recorded about it.",
+    body: "Click any part to open everything you've recorded about it — its panel opens on the right.",
     target: "part-node",
+    secondaryTarget: "detail-panel",
     placement: "right",
+    requiresPart: true,
   },
   {
     id: "feelings",

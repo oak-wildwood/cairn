@@ -24,10 +24,6 @@
      * done here.
      */
     onStartTour: () => void;
-    /** Opens `DataStorageModal` — same "your data never leaves this
-     * browser" explanation the tour's last step links to, kept reachable
-     * here for anyone who skipped or has already finished the tour. */
-    onShowDataInfo: () => void;
     disabled?: boolean;
   }
 
@@ -36,7 +32,6 @@
     onRestore,
     onStartFresh,
     onStartTour,
-    onShowDataInfo,
     disabled = false,
   }: Props = $props();
 
@@ -145,13 +140,6 @@
         onclick={() => fileInput?.click()}
       >
         Restore from a file
-      </button>
-
-      <button class="item" type="button" role="menuitem" onclick={() => {
-        close();
-        onShowDataInfo();
-      }}>
-        About your data
       </button>
 
       <hr class="separator" />

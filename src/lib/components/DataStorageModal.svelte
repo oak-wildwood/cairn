@@ -78,13 +78,14 @@
   .body {
     margin: 0 0 1rem;
     color: var(--text-muted);
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: var(--body-text-size);
+    line-height: var(--body-text-line-height);
   }
 
   .body strong {
     color: var(--text-primary);
     font-weight: 600;
+    font-style: italic;
   }
 
   .actions {
