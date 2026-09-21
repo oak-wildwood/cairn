@@ -4,6 +4,8 @@
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
+  import ExportPdfScopeModal from "./lib/components/ExportPdfScopeModal.svelte";
+  import type { ExportPdfScope } from "./lib/components/ExportPdfScopeModal.svelte";
   import ExportProgressModal from "./lib/components/ExportProgressModal.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
@@ -133,8 +135,38 @@
     }
   }
 
-  async function handleExportPdf(): Promise<void> {
+  /**
+   * Whether `ExportPdfScopeModal` is open, asking all parts vs. only the
+   * filtered ones. Only reachable when `store.hasActiveFilter` — with
+   * nothing filtered, "all" and "filtered" are the same list, and asking
+   * would be a click in the way of a choice that doesn't exist yet.
+   */
+  let showingExportPdfScope = $state(false);
+
+  function handleExportPdf(): void {
     if (!workspaceEl || store.parts.length === 0) return;
+    if (store.hasActiveFilter) {
+      showingExportPdfScope = true;
+      return;
+    }
+    runExportPdf("all");
+  }
+
+  async function runExportPdf(scope: ExportPdfScope): Promise<void> {
+    if (!workspaceEl) return;
+
+    const partIds =
+      scope === "filtered"
+        ? store.visiblePartIds
+        : store.parts.map((part) => part.id);
+
+    // A filter narrow enough to exclude everything is a real, if unlikely,
+    // choice — nothing for `exportPartsPdf` to walk, so say so rather than
+    // claiming a download that never happened.
+    if (partIds.length === 0) {
+      fileNotice = { tone: "bad", text: "No parts match the current filters." };
+      return;
+    }
 
     // Snapshotted so the user's own filter and selection come back exactly
     // as they left them, regardless of what the export itself selects.
@@ -142,14 +174,18 @@
     const priorFilter = store.activeFilter;
     const priorActiveOnly = store.activeOnlyFilter;
     const priorTags = [...store.tagFilter];
-    const partIds = store.parts.map((part) => part.id);
 
-    // A filtered-out part would render dimmed or hidden on its own page
-    // otherwise — every page should show its part in full regardless of
-    // whatever filter happens to be on in the legend.
-    store.setFilter(null);
-    if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
-    if (store.tagFilter.length > 0) store.setTagFilter([]);
+    // "Every part" clears the filters, so a page never shows its own part
+    // dimmed by a filter this scope is deliberately overriding. "Only the
+    // parts shown" leaves them on instead: `partIds` above already excludes
+    // anything that wouldn't survive them, so a page's own part is never the
+    // one greyed out, and the rest of each page's diagram renders exactly as
+    // filtered on screen — which is the point of choosing that scope.
+    if (scope === "all") {
+      store.setFilter(null);
+      if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
+      if (store.tagFilter.length > 0) store.setTagFilter([]);
+    }
 
     exportProgress = { current: 1, total: partIds.length };
     try {
@@ -178,6 +214,11 @@
       store.setTagFilter(priorTags);
       exportProgress = null;
     }
+  }
+
+  function handleExportPdfScope(scope: ExportPdfScope): void {
+    showingExportPdfScope = false;
+    runExportPdf(scope);
   }
 
   function handleBackUp(): void {
@@ -527,6 +568,13 @@
       }}
     />
   {/key}
+{/if}
+
+{#if showingExportPdfScope}
+  <ExportPdfScopeModal
+    onsubmit={handleExportPdfScope}
+    oncancel={() => (showingExportPdfScope = false)}
+  />
 {/if}
 
 {#if exportProgress}
