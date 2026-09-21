@@ -229,6 +229,11 @@
   }
 
   /**
+   * Lowercased so a feeling typed as "Anxious" here and "anxious" somewhere
+   * else become the same tag rather than forking the vocabulary — `canCreate`
+   * already dedupes case-insensitively against what exists, but without this
+   * the first person to type a feeling fixes its case for everyone after.
+   *
    * A freshly created tag always sorts in by count last (it starts at 1,
    * same as any other rarely-used tag) and alphabetically wherever its
    * spelling lands, so on a part with an existing feelings vocabulary it can
@@ -239,7 +244,7 @@
    */
   async function createFromSearch(): Promise<void> {
     if (!canCreate) return;
-    const tag = trimmedSearch;
+    const tag = trimmedSearch.toLowerCase();
     onChange([...selected, tag]);
     search = "";
     await tick();

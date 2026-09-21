@@ -189,6 +189,23 @@ function withResolvableConnections(state: PersistedState): PersistedState {
 }
 
 /**
+ * Lowercase every feeling. `FeelingsMultiSelect` normalizes new feelings the
+ * same way, but a blob written before that existed, or hand-edited, can still
+ * carry "Anxious" and "anxious" as if they were two different feelings —
+ * `feelingCounts` would then show both, splitting one tag's count in two. The
+ * `Set` also collapses a part that already held both spellings into one.
+ */
+function withNormalizedFeelings(state: PersistedState): PersistedState {
+  return {
+    ...state,
+    parts: state.parts.map((part) => ({
+      ...part,
+      feelings: [...new Set(part.feelings.map((feeling) => feeling.toLowerCase()))],
+    })),
+  };
+}
+
+/**
  * Parse a map out of JSON text, or null when it isn't one.
  *
  * A file the user picked off disk is exactly as untrusted as a hand-edited
@@ -212,9 +229,13 @@ export function parseMap(text: string): PersistedState | null {
  * file and a loaded blob go through the exact same checks.
  */
 function readPersistedState(parsed: unknown): PersistedState | null {
-  if (isPersistedState(parsed)) return withResolvableConnections(parsed);
+  if (isPersistedState(parsed)) {
+    return withNormalizedFeelings(withResolvableConnections(parsed));
+  }
   if (isLegacyPersistedState(parsed)) {
-    return withResolvableConnections(migrateState(parsed));
+    return withNormalizedFeelings(
+      withResolvableConnections(migrateState(parsed)),
+    );
   }
   return null;
 }
