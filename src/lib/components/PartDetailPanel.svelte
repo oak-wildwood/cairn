@@ -502,11 +502,38 @@
     color: var(--text-bright);
   }
 
+  /*
+   * The direction and the part on the other end keep their size; the label is
+   * the only one of the three that gives.
+   *
+   * All three are flex items in one row, and flex hands a shortfall out in
+   * proportion to how wide each item wants to be — so a label long enough to
+   * overflow the row takes the arrow and the name down with it, and a name as
+   * short as "The Kid" gets squeezed under its own one-line width and breaks
+   * into "The" / "Kid" alongside a label that is already wrapping. Which rows
+   * in a panel break is not obvious from looking at the panel as a whole: it
+   * turns on each row's own label and its own name, so one connection can
+   * read cleanly while the next one staggers. A label is free text and reads fine
+   * wrapped; a part's name is the thing being named and does not, so the
+   * whole shortfall belongs to the label, which stops at its longest word.
+   *
+   * `white-space: nowrap` is the export's share of the same problem. With
+   * nothing left to shrink it, the name's box ends up exactly as wide as its
+   * own text, and `export.ts` and `pdfExport.ts` freeze that width onto the
+   * clone they screenshot — the trap `.title` above is written up for. Let
+   * the clone render the name a hair wider than it measured, as it does
+   * whenever the web font embed falls back, and it would break in two in the
+   * picture and nowhere else. Overrunning its box by a pixel is the better
+   * failure of the two.
+   */
   .arrow {
+    flex-shrink: 0;
     color: var(--text-muted);
   }
 
   .relation-other {
+    flex-shrink: 0;
+    white-space: nowrap;
     color: var(--text-muted);
   }
 
