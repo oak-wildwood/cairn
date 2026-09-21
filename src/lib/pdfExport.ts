@@ -24,6 +24,12 @@ import { downloadBlob, fileStamp } from "./backup";
  * silently drops the font from every page's embed, not just the first.
  * Computed once there and reused for the rest (no new network request — the
  * browser already fetched the font to render the page — and no repeat scan).
+ *
+ * That fallback is worse than an ugly wrap, because `html-to-image` freezes
+ * each element's computed size onto its clone: a box sized to its exact
+ * content live has no room for the wider fallback and the extra line spills
+ * over whatever sits below it. See `PartDetailPanel.svelte`'s `.title`, which
+ * fills its row so the name keeps slack even when this embed does fail.
  */
 
 /** `cairn-map-parts-2026-08-31.pdf`. Shares its stem with the PNG/JSON exports. */
@@ -94,7 +100,7 @@ const EXPORT_PANEL_WIDTH = "26rem";
  */
 function overrideStyle(
   elements: readonly HTMLElement[],
-  property: "display" | "width",
+  property: "display" | "flex" | "width",
   value: string,
 ): () => void {
   const previous = elements.map((el) => el.style.getPropertyValue(property));
@@ -154,6 +160,37 @@ function prepareWorkspaceForCapture(workspace: HTMLElement): () => void {
 }
 
 /**
+ * Give the workspace the height *this* part's panel actually needs, for the
+ * moment of one capture.
+ *
+ * On screen the panel never has its own height: `.workspace` is a flex row
+ * sized by `App.svelte` to the viewport, so the panel is stretched to the
+ * diagram beside it and `.inner` scrolls off anything longer. A screenshot
+ * has no scrollbar — `html-to-image` sizes its `<foreignObject>` viewport
+ * from one `clientHeight` reading of the node it is given — so a part that
+ * has answered more of the worksheet than fits on screen lands on its page
+ * cut off mid-sentence. Growing the *workspace* rather than the panel is
+ * what keeps the page whole: the capture is the workspace, so its own height
+ * is the one being measured, and the panel goes on stretching to fill it.
+ * `export.ts` captures the panel on its own, so it sets that height on the
+ * panel directly instead.
+ *
+ * Re-measured per page and put back after each one, unlike
+ * `prepareWorkspaceForCapture`'s one-time overrides: how much a part has
+ * answered is exactly what differs from part to part, and leaving one page's
+ * height in place would make it the floor for every page after it.
+ */
+function fitWorkspaceHeight(workspace: HTMLElement): () => void {
+  const inner = workspace.querySelector<HTMLElement>(".panel .inner");
+  if (!inner) return () => {};
+
+  // The larger of the two, so a part with little to say still fills the
+  // viewport-height page the export has always produced.
+  const needed = Math.max(workspace.clientHeight, inner.scrollHeight);
+  return overrideStyle([workspace], "flex", `0 0 ${needed}px`);
+}
+
+/**
  * Render one page per part into a multi-page PDF and hand it to the browser
  * as a download.
  *
@@ -201,7 +238,13 @@ export async function exportPartsPdf(
       await nextFrame();
     }
 
-    const canvas = await toCanvas(workspace, { pixelRatio: SCALE, fontEmbedCSS });
+    const restoreHeight = fitWorkspaceHeight(workspace);
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await toCanvas(workspace, { pixelRatio: SCALE, fontEmbedCSS });
+    } finally {
+      restoreHeight();
+    }
     const width = (canvas.width / SCALE) * PX_TO_PT;
     const height = (canvas.height / SCALE) * PX_TO_PT;
     // JPEG rather than PNG: the workspace is full of soft radial glows behind

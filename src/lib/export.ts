@@ -133,11 +133,15 @@ const PAGE_BACKGROUND = "#0b0c12";
  * mutate the live, on-screen element for the moment of the capture and are
  * put back immediately after, `setProperty(property, "")` restoring "no
  * inline value at all" when that's what was there before.
+ *
+ * What is *not* overridden here is the panel's own layout: `html-to-image`
+ * freezes each element's computed size onto its clone, so anything the live
+ * panel sizes to its exact content comes out with no room to reflow in. See
+ * `PartDetailPanel.svelte`'s `.title`, which fills its row for that reason.
  */
 async function capturePanelCanvas(panel: HTMLElement): Promise<HTMLCanvasElement> {
-  const widened = [panel, panel.querySelector<HTMLElement>(".inner")].filter(
-    (el): el is HTMLElement => el !== null,
-  );
+  const inner = panel.querySelector<HTMLElement>(".inner");
+  const widened = [panel, inner].filter((el): el is HTMLElement => el !== null);
   const previousWidths = widened.map((el) => el.style.getPropertyValue("width"));
   for (const el of widened) el.style.setProperty("width", EXPORT_PANEL_WIDTH);
 
@@ -145,10 +149,34 @@ async function capturePanelCanvas(panel: HTMLElement): Promise<HTMLCanvasElement
   const previousDisplay = hidden.map((el) => el.style.getPropertyValue("display"));
   for (const el of hidden) el.style.setProperty("display", "none");
 
+  // The panel's on-screen height is not its content's height: `.workspace`
+  // is a flex row, so the panel is stretched to whatever the diagram beside
+  // it happens to be and `.inner` scrolls off whatever doesn't fit. That is
+  // right on screen and wrong in a picture — `html-to-image` sizes its
+  // `<foreignObject>` viewport from one `clientHeight` reading taken up
+  // front, so a part with more to say than that height exports cut off
+  // mid-sentence, with nothing left to scroll. Taking the larger of the two
+  // lets all of it through, while a part with less to say still fills the
+  // diagram's height the way it does on screen.
+  //
+  // Read last, because both overrides above change how much room the content
+  // needs: the wider panel rewraps every paragraph, and hiding the controls
+  // takes a row of buttons out. `pdfExport.ts` needs the same room and gets
+  // it a different way, since it captures the whole workspace rather than
+  // the panel alone.
+  const previousHeight = panel.style.getPropertyValue("height");
+  if (inner) {
+    panel.style.setProperty(
+      "height",
+      `${Math.max(panel.clientHeight, inner.scrollHeight)}px`,
+    );
+  }
+
   try {
     const fontEmbedCSS = await getFontEmbedCSS(panel);
     return await toCanvas(panel, { pixelRatio: SCALE, fontEmbedCSS });
   } finally {
+    panel.style.setProperty("height", previousHeight);
     widened.forEach((el, index) => el.style.setProperty("width", previousWidths[index]));
     hidden.forEach((el, index) => el.style.setProperty("display", previousDisplay[index]));
   }

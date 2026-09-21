@@ -139,7 +139,7 @@
 <aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
   <div class="inner">
     <header class="head">
-      <div>
+      <div class="title">
         <p class="meta" style:color={accent}>
           {partCaption(part).toUpperCase()}
         </p>
@@ -298,6 +298,32 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  /*
+   * Fills the header row rather than shrink-wrapping the name. On screen the
+   * two are indistinguishable — the caption and the name are left-aligned
+   * either way, and `space-between` pins the close button to the right edge
+   * either way — but a shrink-wrapped box is exactly as wide as the name's
+   * own text, with no slack at all, and that is what breaks the exports.
+   *
+   * `export.ts` and `pdfExport.ts` both screenshot this panel through
+   * `html-to-image`, which copies every element's *resolved* computed style
+   * onto its clone — so a shrink-wrapped box arrives frozen at the `width`
+   * and `height` the live title happened to measure. Render the name a hair
+   * wider in that clone than it was live and it wraps to a second line inside
+   * a box still one line tall, and, because the frozen height cannot grow,
+   * that line lands on top of the feelings pills instead of pushing them
+   * down. A hair wider is not hypothetical: the title is set in Cormorant
+   * Garamond, and any capture that falls back to the wider Georgia (see
+   * `pdfExport.ts` on why the font embed has to run after the panel mounts)
+   * renders it well past a zero-slack box. Filling the row gives the name the
+   * panel's whole width instead, which no fallback for a name that fits on
+   * screen comes close to overflowing — and it does not change where a name
+   * wraps live, since a shrink-wrapped box was already capped at that width.
+   */
+  .title {
+    flex-grow: 1;
   }
 
   .meta {
