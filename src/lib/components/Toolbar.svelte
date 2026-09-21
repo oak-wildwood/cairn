@@ -21,6 +21,7 @@
     onRestore: (file: File) => void;
     onStartFresh: () => void;
     onStartTour: () => void;
+    onShowDataInfo: () => void;
     /** True while a PDF export is walking every part's selection in turn. */
     exporting?: boolean;
   }
@@ -33,6 +34,7 @@
     onRestore,
     onStartFresh,
     onStartTour,
+    onShowDataInfo,
     exporting = false,
   }: Props = $props();
 </script>
@@ -56,7 +58,14 @@
         Export PDF
       </button>
     </div>
-    <MapMenu {onBackUp} {onRestore} {onStartFresh} {onStartTour} disabled={exporting} />
+    <MapMenu
+      {onBackUp}
+      {onRestore}
+      {onStartFresh}
+      {onStartTour}
+      {onShowDataInfo}
+      disabled={exporting}
+    />
   </div>
 </div>
 

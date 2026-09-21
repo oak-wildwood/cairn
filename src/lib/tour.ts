@@ -29,6 +29,12 @@ export interface TourStep {
   /** This step points at the detail panel, so it needs a part selected —
    * `App.svelte` opens one of the user's own parts for the duration. */
   readonly requiresPart?: boolean;
+  /** Shows a "Where's my data stored?" link under the body, opening
+   * `DataStorageModal`. True only for the closing step — that's the one
+   * telling someone to make the map theirs, which is exactly where "and
+   * here's where that data actually lives" belongs, made explicit rather
+   * than left for the README to say. */
+  readonly showDataStorageLink?: boolean;
 }
 
 export const TOUR_STEPS: readonly TourStep[] = [
@@ -119,6 +125,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts.",
     target: "map-menu-trigger",
     placement: "bottom",
+    showDataStorageLink: true,
   },
 ];
 
