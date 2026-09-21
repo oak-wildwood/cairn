@@ -175,14 +175,17 @@
     const priorActiveOnly = store.activeOnlyFilter;
     const priorTags = [...store.tagFilter];
 
-    // A filtered-out part would render dimmed or hidden on its own page
-    // otherwise — every page should show its part in full regardless of
-    // whatever filter happens to be on in the legend. The filter's only say
-    // in the outcome is which parts made it into `partIds` above; once the
-    // walk starts, every page it visits renders unfiltered.
-    store.setFilter(null);
-    if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
-    if (store.tagFilter.length > 0) store.setTagFilter([]);
+    // "Every part" clears the filters, so a page never shows its own part
+    // dimmed by a filter this scope is deliberately overriding. "Only the
+    // parts shown" leaves them on instead: `partIds` above already excludes
+    // anything that wouldn't survive them, so a page's own part is never the
+    // one greyed out, and the rest of each page's diagram renders exactly as
+    // filtered on screen — which is the point of choosing that scope.
+    if (scope === "all") {
+      store.setFilter(null);
+      if (store.activeOnlyFilter) store.toggleActiveOnlyFilter();
+      if (store.tagFilter.length > 0) store.setTagFilter([]);
+    }
 
     exportProgress = { current: 1, total: partIds.length };
     try {
