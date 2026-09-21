@@ -427,7 +427,7 @@ export const TOUR = {
   spotlightPadding: 10,
   spotlightRadius: 14,
   spotlightRing: "#E8C98C",
-  spotlightRingWidth: 2,
+  spotlightRingWidth: 1,
 } as const;
 
 /* -------------------------------------------------------------------------- */

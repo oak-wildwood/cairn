@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import DataStorageModal from "./lib/components/DataStorageModal.svelte";
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
@@ -213,6 +214,7 @@
   }
 
   let startingFresh = $state(false);
+  let showingDataInfo = $state(false);
 
   function handleStartFresh(ownerName: string): void {
     store.startFresh(ownerName);
@@ -322,6 +324,13 @@
   }
 
   function handleWindowKey(event: KeyboardEvent): void {
+    // `DataStorageModal` can be open on top of the tour (the last step
+    // links to it) as well as on its own from the map menu. Either way its
+    // own Escape should just close it — falling through to the tour branch
+    // below would end the tour behind it as a side effect of dismissing an
+    // informational dialog.
+    if (showingDataInfo) return;
+
     // The tour's own Escape-to-skip, rather than falling through to
     // deselect-the-part below — `.shell` is `inert` while it's open (see
     // the markup), so nothing there could hold focus for Escape to reach
@@ -406,6 +415,7 @@
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
         onStartTour={startTour}
+        onShowDataInfo={() => (showingDataInfo = true)}
         exporting={exportingPdf}
       />
     </div>
@@ -515,7 +525,12 @@
     onNext={tourNext}
     onBack={tourBack}
     onClose={endTour}
+    onShowDataInfo={() => (showingDataInfo = true)}
   />
+{/if}
+
+{#if showingDataInfo}
+  <DataStorageModal onclose={() => (showingDataInfo = false)} />
 {/if}
 
 <style>
