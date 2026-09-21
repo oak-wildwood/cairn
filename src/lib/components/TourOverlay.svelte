@@ -8,9 +8,12 @@
     onNext: () => void;
     onBack: () => void;
     onClose: () => void;
+    /** Opens `DataStorageModal`, for the one step whose `showDataStorageLink`
+     * is set. */
+    onShowDataInfo: () => void;
   }
 
-  const { stepIndex, onNext, onBack, onClose }: Props = $props();
+  const { stepIndex, onNext, onBack, onClose, onShowDataInfo }: Props = $props();
 
   const step = $derived(TOUR_STEPS[stepIndex]);
   const isFirst = $derived(stepIndex === 0);
@@ -266,6 +269,12 @@
     <h2 id="tour-title" class="tour-title">{step.title}</h2>
     <p id="tour-body" class="tour-body">{step.body}</p>
 
+    {#if step.showDataStorageLink}
+      <button type="button" class="tour-data-link" onclick={onShowDataInfo}>
+        Where's my data stored?
+      </button>
+    {/if}
+
     <div class="tour-dots" aria-hidden="true">
       {#each TOUR_STEPS as dotStep, i (dotStep.id)}
         <span class="dot" class:active={i === stepIndex}></span>
@@ -428,6 +437,30 @@
     color: var(--text-primary);
     font-size: 14px;
     line-height: 1.5;
+  }
+
+  .tour-data-link {
+    display: block;
+    margin: -0.5rem 0 1rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--tour-ring);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .tour-data-link:hover {
+    color: var(--text-bright);
+  }
+
+  .tour-data-link:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 
   .tour-dots {

@@ -136,7 +136,7 @@
   });
 </script>
 
-<aside class="panel" aria-label="Part details" transition:reveal>
+<aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
   <div class="inner">
     <header class="head">
       <div>
