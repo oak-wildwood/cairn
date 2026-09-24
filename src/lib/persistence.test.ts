@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// localStorage and history.pushState need a DOM; the rest of the suite does not.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isDemoRoute,
@@ -6,34 +8,14 @@ import {
   saveState,
   saveStateDebounced,
 } from "./persistence";
+import { makePart } from "./testParts";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
-import type { Part, PersistedState } from "./types";
-
-function makePart(overrides: Partial<Part> = {}): Part {
-  return {
-    id: "the-fixer",
-    name: "The Fixer",
-    role: "manager",
-    description: "",
-    feelings: [],
-    bodyLocation: "",
-    trigger: "",
-    positiveIntention: "",
-    fears: "",
-    origins: "",
-    notes: "",
-    status: "",
-    active: false,
-    x: null,
-    y: null,
-    ...overrides,
-  };
-}
+import type { PersistedState } from "./types";
 
 function makeState(overrides: Partial<PersistedState> = {}): PersistedState {
   return {
     schemaVersion: SCHEMA_VERSION,
-    parts: [makePart()],
+    parts: [makePart({ id: "the-fixer", name: "The Fixer" })],
     connections: [],
     ...overrides,
   };
@@ -76,7 +58,7 @@ describe("parseMap", () => {
 
   it("lowercases and dedupes feelings", () => {
     const state = makeState({
-      parts: [makePart({ feelings: ["Anxious", "anxious", "Sad"] })],
+      parts: [makePart({ id: "the-fixer", feelings: ["Anxious", "anxious", "Sad"] })],
     });
     const result = parseMap(JSON.stringify(state));
     expect(result?.parts[0].feelings).toEqual(["anxious", "sad"]);
@@ -137,7 +119,7 @@ describe("parseMap", () => {
   it("migrates a legacy schema-1 part with status 'active' into active:true", () => {
     const legacy = {
       schemaVersion: 1,
-      parts: [{ ...makePart(), status: "Active" }],
+      parts: [{ ...makePart({ id: "the-fixer" }), status: "Active" }],
       connections: [],
     };
     // Legacy parts never carried `active` — strip it to model schema 1 exactly.
@@ -152,7 +134,7 @@ describe("parseMap", () => {
   it("carries over a non-'active' legacy status untouched", () => {
     const legacy = {
       schemaVersion: 1,
-      parts: [{ ...makePart(), status: "emerging" }],
+      parts: [{ ...makePart({ id: "the-fixer" }), status: "emerging" }],
       connections: [],
     };
     delete (legacy.parts[0] as { active?: boolean }).active;
@@ -172,6 +154,14 @@ describe("loadState / saveState", () => {
     const state = makeState();
     saveState(state);
     expect(loadState()).toEqual(state);
+  });
+
+  // The key is written out rather than imported on purpose: it is where every
+  // existing user's map already lives, so renaming it orphans all of them.
+  // This test failing on a rename is the point.
+  it("stores under the key existing maps already live at", () => {
+    saveState(makeState());
+    expect(localStorage.getItem("cairn.map.v1")).not.toBeNull();
   });
 
   it("returns null for unparseable stored JSON", () => {

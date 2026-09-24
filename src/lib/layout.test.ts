@@ -9,33 +9,18 @@ import {
   partCaption,
   pointToBearing,
   polarToPoint,
+  SECTORS,
   survivesFilters,
   wrapLabel,
 } from "./layout";
+import { makePart } from "./testParts";
 import { VIEWBOX } from "./theme";
 import { SELF_ID } from "./types";
 import type { MapFilters } from "./layout";
-import type { Part } from "./types";
+import type { Point, SectorRole } from "./types";
 
-function makePart(overrides: Partial<Part> = {}): Part {
-  return {
-    id: "part-1",
-    name: "Part",
-    role: "manager",
-    description: "",
-    feelings: [],
-    bodyLocation: "",
-    trigger: "",
-    positiveIntention: "",
-    fears: "",
-    origins: "",
-    notes: "",
-    status: "",
-    active: false,
-    x: null,
-    y: null,
-    ...overrides,
-  };
+function bearingOf(positions: Map<string, Point>, id: string): number {
+  return pointToBearing(positions.get(id)!);
 }
 
 describe("polarToPoint / pointToBearing", () => {
@@ -66,7 +51,9 @@ describe("polarToPoint / pointToBearing", () => {
     }
   });
 
-  it("normalises bearing to [0, 360)", () => {
+  it("normalises a west-of-north point to [0, 360) rather than a negative angle", () => {
+    // atan2 alone gives -90 here.
+    expect(pointToBearing({ x: -1, y: 0 })).toBeCloseTo(270);
     expect(pointToBearing({ x: 0, y: -1 })).toBe(0);
   });
 });
@@ -87,15 +74,17 @@ describe("connectionEdgeKey", () => {
     expect(connectionEdgeKey("a", "b")).not.toBe(connectionEdgeKey("b", "a"));
   });
 
-  it("is identical for the same direction", () => {
-    expect(connectionEdgeKey("a", "b")).toBe(connectionEdgeKey("a", "b"));
+  it("keeps ids that concatenate the same apart", () => {
+    expect(connectionEdgeKey("a", "bc")).not.toBe(connectionEdgeKey("ab", "c"));
   });
 });
 
 describe("connectionOpacity", () => {
-  it("dims when either endpoint role is unknown", () => {
-    expect(connectionOpacity("unknown", "manager", 1)).toBeCloseTo(0.6);
-    expect(connectionOpacity("manager", "unknown", 1)).toBeCloseTo(0.6);
+  it("dims when either endpoint role is unknown, whichever end it is", () => {
+    const dimmed = connectionOpacity("unknown", "manager", 1);
+    expect(dimmed).toBeGreaterThan(0);
+    expect(dimmed).toBeLessThan(1);
+    expect(connectionOpacity("manager", "unknown", 1)).toBe(dimmed);
   });
 
   it("stays at base opacity when neither endpoint is unknown", () => {
@@ -193,28 +182,60 @@ describe("computeLayout", () => {
     expect(positions.get("p1")).toEqual({ x: 42, y: -17 });
   });
 
-  it("places each role within its own sector's bearing range", () => {
-    const parts = [
-      makePart({ id: "manager-1", role: "manager" }),
-      makePart({ id: "firefighter-1", role: "firefighter" }),
-      makePart({ id: "exile-1", role: "exile" }),
-    ];
+  // A full first ring per sector (2 managers, 4 firefighters, 4 exiles fit at
+  // BASE_RADIUS), so the first and last part of each sit as near its edges as
+  // the layout ever puts them. One part per sector would land mid-sector with
+  // or without padding and prove nothing.
+  it("keeps a full sector's end parts off its boundaries, and out of the manager/exile overlap", () => {
+    const counts: Record<SectorRole, number> = { manager: 2, firefighter: 4, exile: 4 };
+    const parts = (Object.keys(counts) as SectorRole[]).flatMap((role) =>
+      Array.from({ length: counts[role] }, (_, i) => makePart({ id: `${role}-${i}`, role })),
+    );
     const positions = computeLayout(parts);
 
-    const managerBearing = pointToBearing(positions.get("manager-1")!);
-    expect(managerBearing).toBeGreaterThan(270);
-    expect(managerBearing).toBeLessThan(350);
+    for (const part of parts) {
+      const { startDeg, endDeg } = SECTORS[part.role as SectorRole];
+      const bearing = bearingOf(positions, part.id);
+      expect(Math.hypot(positions.get(part.id)!.x, positions.get(part.id)!.y)).toBeCloseTo(BASE_RADIUS);
+      expect(bearing).toBeGreaterThan(startDeg + 1);
+      expect(bearing).toBeLessThan(endDeg - 1);
+    }
 
-    const firefighterBearing = pointToBearing(positions.get("firefighter-1")!);
-    expect(firefighterBearing).toBeGreaterThan(5);
-    expect(firefighterBearing).toBeLessThan(130);
-
-    const exileBearing = pointToBearing(positions.get("exile-1")!);
-    expect(exileBearing).toBeGreaterThan(140);
-    expect(exileBearing).toBeLessThan(275);
+    // Manager is 270–350 and exile 140–275: 270–275 belongs to both.
+    for (let i = 0; i < counts.manager; i += 1) {
+      expect(bearingOf(positions, `manager-${i}`)).toBeGreaterThan(275);
+    }
+    for (let i = 0; i < counts.exile; i += 1) {
+      expect(bearingOf(positions, `exile-${i}`)).toBeLessThan(270);
+    }
   });
 
-  it("places an unknown-role part further out than the base radius, off every sector", () => {
+  it("spills a sector's overflow onto a further ring, still inside the sector", () => {
+    const parts = ["a", "b", "c"].map((id) => makePart({ id, role: "manager" }));
+    const positions = computeLayout(parts);
+
+    const radii = parts.map(({ id }) => Math.hypot(positions.get(id)!.x, positions.get(id)!.y));
+    expect(radii.filter((r) => Math.abs(r - BASE_RADIUS) < 1e-6)).toHaveLength(2);
+    expect(Math.max(...radii)).toBeGreaterThan(BASE_RADIUS);
+
+    for (const { id } of parts) {
+      const bearing = bearingOf(positions, id);
+      expect(bearing).toBeGreaterThan(SECTORS.manager.startDeg);
+      expect(bearing).toBeLessThan(SECTORS.manager.endDeg);
+    }
+  });
+
+  it("auto-places a part with null x/y, but keeps an explicit (0, 0) as an override", () => {
+    const positions = computeLayout([
+      makePart({ id: "unset", x: null, y: null }),
+      makePart({ id: "at-self", x: 0, y: 0 }),
+    ]);
+    const unset = positions.get("unset")!;
+    expect(Math.hypot(unset.x, unset.y)).toBeCloseTo(BASE_RADIUS);
+    expect(positions.get("at-self")).toEqual({ x: 0, y: 0 });
+  });
+
+  it("puts an unknown-role part on its own ring outside the sectors' first ring", () => {
     const parts = [makePart({ id: "u1", role: "unknown" })];
     const positions = computeLayout(parts);
     const { x, y } = positions.get("u1")!;
