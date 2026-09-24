@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
@@ -24,5 +24,11 @@ export default defineConfig({
         demo: `${root}demo/index.html`,
       },
     },
+  },
+  test: {
+    // jsdom rather than node: persistence.ts reads localStorage and
+    // location, and both only exist in a DOM-like environment.
+    environment: "jsdom",
+    include: ["src/**/*.test.ts"],
   },
 });
