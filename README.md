@@ -45,6 +45,7 @@ Other scripts:
 | `npm run build`    | Production build, output to `dist/` |
 | `npm run preview`  | Serve the production build locally  |
 | `npm run check`    | Type-check the whole project (`svelte-check`) |
+| `npm test`         | Run the unit test suite (`vitest`)  |
 
 ## Stack
 
