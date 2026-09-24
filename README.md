@@ -45,6 +45,7 @@ Other scripts:
 | `npm run build`    | Production build, output to `dist/` |
 | `npm run preview`  | Serve the production build locally  |
 | `npm run check`    | Type-check the whole project (`svelte-check`) |
+| `npm run test`     | Run the unit test suite (Vitest)    |
 
 ## Stack
 
@@ -55,6 +56,7 @@ Other scripts:
 - No component library, no CSS framework — the diagram's look (SVG filters,
   gradients, hand-tuned curves) doesn't map cleanly onto an off-the-shelf UI kit
   anyway
+- **Vitest** for unit tests, sharing the same Vite config as the app
 
 The stack choice was deliberate: D3's usual pattern of selecting and mutating the DOM
 directly overlaps awkwardly with a UI framework doing the same thing, so this project
