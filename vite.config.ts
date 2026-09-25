@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+// `vitest/config`'s `defineConfig` is `vite`'s with a `test` key added, so this
+// stays the one Vite config for both the app and its tests rather than two
+// configs that could drift apart.
+import { defineConfig } from "vitest/config";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
@@ -24,5 +27,11 @@ export default defineConfig({
         demo: `${root}demo/index.html`,
       },
     },
+  },
+  test: {
+    // jsdom, not node: persistence.ts reads `localStorage` and `location`,
+    // and the store touches both at import time.
+    environment: "jsdom",
+    include: ["src/**/*.test.ts"],
   },
 });
