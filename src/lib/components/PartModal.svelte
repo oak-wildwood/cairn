@@ -66,7 +66,7 @@
     role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
   );
 
-  /** Short, role-specific status guidance shown in the tooltip next to the field. */
+  /** Short, role-specific status guidance shown in the popover next to the field. */
   const statusGuidance = $derived(
     role === "exile"
       ? "unwitnessed → emerging → witnessed, as Self gets to know its story."
@@ -74,6 +74,49 @@
         ? "“emerging” while it's not yet well known; free text once it is."
         : "Role isn't set yet, so status is open.",
   );
+
+  let statusHelpOpen = $state(false);
+  let statusHelpButton = $state<HTMLButtonElement | null>(null);
+  let statusHelpPos = $state({ top: 0, left: 0 });
+
+  function toggleStatusHelp(): void {
+    statusHelpOpen = !statusHelpOpen;
+  }
+
+  /**
+   * `position: fixed`, placed from the button's own rect, rather than an
+   * absolutely-positioned child: `.body` scrolls (`overflow-y: auto`), which
+   * per spec computes its `overflow-x` to `auto` too, so a centered child
+   * wide enough to cross the field's left edge got silently clipped there.
+   */
+  $effect(() => {
+    if (!statusHelpOpen || !statusHelpButton) return;
+    const rect = statusHelpButton.getBoundingClientRect();
+    const width = 220;
+    const margin = 8;
+    const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - margin));
+    statusHelpPos = { top: rect.top - margin, left };
+  });
+
+  $effect(() => {
+    if (!statusHelpOpen) return;
+    function handlePointerDown(event: PointerEvent): void {
+      if (statusHelpButton?.contains(event.target as Node)) return;
+      statusHelpOpen = false;
+    }
+    function handleKeydown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        statusHelpOpen = false;
+      }
+    }
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  });
   let feelings = $state<string[]>(initial?.feelings ?? []);
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
@@ -170,10 +213,25 @@
         <p class="field">
           <span class="field-label-row">
             <label for="part-status">Status</label>
-            <button type="button" class="help" aria-label="Status guidance">
+            <button
+              type="button"
+              class="help"
+              bind:this={statusHelpButton}
+              aria-label="Status guidance"
+              aria-expanded={statusHelpOpen}
+              onclick={toggleStatusHelp}
+            >
               <span aria-hidden="true">?</span>
-              <span class="tooltip" role="tooltip">{statusGuidance}</span>
             </button>
+            {#if statusHelpOpen}
+              <span
+                class="tooltip"
+                role="tooltip"
+                style="top: {statusHelpPos.top}px; left: {statusHelpPos.left}px;"
+              >
+                {statusGuidance}
+              </span>
+            {/if}
           </span>
           <input
             id="part-status"
@@ -396,7 +454,6 @@
   }
 
   .help {
-    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -413,16 +470,18 @@
     line-height: 1;
     text-transform: none;
     letter-spacing: normal;
-    cursor: help;
+    cursor: pointer;
   }
 
-  .help .tooltip {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    z-index: 1;
-    width: max-content;
-    max-width: 220px;
+  .help[aria-expanded="true"] {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+  }
+
+  .tooltip {
+    position: fixed;
+    z-index: 10;
+    width: 220px;
     padding: 0.5rem 0.625rem;
     border: 1px solid var(--rule);
     border-radius: 8px;
@@ -433,17 +492,8 @@
     line-height: 1.4;
     text-transform: none;
     letter-spacing: normal;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(-50%);
-    transition: opacity 0.1s ease;
-    pointer-events: none;
-  }
-
-  .help:hover .tooltip,
-  .help:focus-visible .tooltip {
-    visibility: visible;
-    opacity: 1;
+    transform: translateY(-100%);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
   }
 
   .checkbox-field {
