@@ -56,24 +56,45 @@
    * offered here — it's a separate flag now, since it describes whether a
    * part is currently showing up rather than how well it's known.
    *
-   * "Witnessed"/"unwitnessed" name a specific step in IFS exile-retrieval
-   * work — Self coming to know an exile's story — so they're only suggested
-   * for that role. "Emerging" describes a part not yet fully known or
-   * differentiated, which can be true before a role is even settled, so
-   * every role gets it.
+   * "Witnessed"/"unwitnessed" name a specific step in IFS exile work — Self
+   * hearing an exile's story — so they're only suggested for that role.
+   * Protectors are worked with differently: their trust-building step is
+   * "befriending" (one of the 6 F's), not witnessing, so managers and
+   * firefighters get "befriended" as their analog. "Emerging" describes a
+   * part not yet fully known or differentiated, which can be true before a
+   * role is even settled, so every role gets it.
    */
   const statusSuggestions = $derived(
-    role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
+    role === "exile"
+      ? ["emerging", "witnessed", "unwitnessed"]
+      : role === "manager" || role === "firefighter"
+        ? ["emerging", "befriended"]
+        : ["emerging"],
   );
 
-  /** Short, role-specific status guidance shown in the popover next to the field. */
-  const statusGuidance = $derived(
+  /**
+   * Role-specific popover copy: a one-line frame saying what status tracks
+   * for this role, plus the term progression the suggestions above offer.
+   */
+  const statusGuidance = $derived<{ lead: string; steps: string | null }>(
     role === "exile"
-      ? "unwitnessed → emerging → witnessed, as Self gets to know its story."
+      ? {
+          lead: "Tracks whether Self has heard this exile's story — IFS calls that witnessing.",
+          steps: "unwitnessed → emerging → witnessed",
+        }
       : role === "manager" || role === "firefighter"
-        ? "“emerging” while it's not yet well known; free text once it is."
-        : "Role isn't set yet, so status is open.",
+        ? {
+            lead: "Protectors aren't “witnessed” — Self earns their trust by befriending them.",
+            steps: "emerging → befriended",
+          }
+        : {
+            lead: "Open until the role is set: exiles get witnessed, protectors befriended.",
+            steps: null,
+          },
   );
+
+  /** Kept in step with the width the popover is rendered at, so clamping to the viewport stays exact. */
+  const STATUS_HELP_WIDTH = 260;
 
   let statusHelpOpen = $state(false);
   let statusHelpButton = $state<HTMLButtonElement | null>(null);
@@ -92,7 +113,7 @@
   $effect(() => {
     if (!statusHelpOpen || !statusHelpButton) return;
     const rect = statusHelpButton.getBoundingClientRect();
-    const width = 220;
+    const width = STATUS_HELP_WIDTH;
     const margin = 8;
     const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - margin));
     statusHelpPos = { top: rect.top - margin, left };
@@ -227,9 +248,12 @@
               <span
                 class="tooltip"
                 role="tooltip"
-                style="top: {statusHelpPos.top}px; left: {statusHelpPos.left}px;"
+                style="top: {statusHelpPos.top}px; left: {statusHelpPos.left}px; width: {STATUS_HELP_WIDTH}px;"
               >
-                {statusGuidance}
+                <span class="tooltip-lead">{statusGuidance.lead}</span>
+                {#if statusGuidance.steps}
+                  <span class="tooltip-steps">{statusGuidance.steps}</span>
+                {/if}
               </span>
             {/if}
           </span>
@@ -481,7 +505,10 @@
   .tooltip {
     position: fixed;
     z-index: 10;
-    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    box-sizing: border-box;
     padding: 0.5rem 0.625rem;
     border: 1px solid var(--rule);
     border-radius: 8px;
@@ -494,6 +521,13 @@
     letter-spacing: normal;
     transform: translateY(-100%);
     box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+  }
+
+  .tooltip-steps {
+    padding-top: 0.375rem;
+    border-top: 1px solid var(--rule);
+    color: var(--text-muted);
+    font-weight: 600;
   }
 
   .checkbox-field {
