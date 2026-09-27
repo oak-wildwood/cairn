@@ -73,22 +73,24 @@
   );
 
   /**
-   * Role-specific popover copy: a one-line frame saying what status tracks
-   * for this role, plus the term progression the suggestions above offer.
+   * Role-specific popover copy: advice on what to consider for this role's
+   * status, plus the term progression the suggestions above offer. Framed as
+   * what to look for, not as a correction of the other role's terms — a
+   * protector's guidance shouldn't be defined by what an exile's isn't.
    */
   const statusGuidance = $derived<{ lead: string; steps: string | null }>(
     role === "exile"
       ? {
-          lead: "Tracks whether Self has heard this exile's story — IFS calls that witnessing.",
+          lead: "Consider how much Self has heard this exile's story so far — IFS calls that witnessing.",
           steps: "unwitnessed → emerging → witnessed",
         }
       : role === "manager" || role === "firefighter"
         ? {
-            lead: "Protectors aren't “witnessed” — Self earns their trust by befriending them.",
+            lead: "Consider how much this protector trusts Self so far — built through befriending, one of the 6 F's.",
             steps: "emerging → befriended",
           }
         : {
-            lead: "Open until the role is set: exiles get witnessed, protectors befriended.",
+            lead: "Pick a role to see status options: exiles track witnessing, protectors track befriending.",
             steps: null,
           },
   );
