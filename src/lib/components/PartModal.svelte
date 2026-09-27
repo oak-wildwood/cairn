@@ -56,15 +56,90 @@
    * offered here — it's a separate flag now, since it describes whether a
    * part is currently showing up rather than how well it's known.
    *
-   * "Witnessed"/"unwitnessed" name a specific step in IFS exile-retrieval
-   * work — Self coming to know an exile's story — so they're only suggested
-   * for that role. "Emerging" describes a part not yet fully known or
-   * differentiated, which can be true before a role is even settled, so
-   * every role gets it.
+   * "Witnessed"/"unwitnessed" name a specific step in IFS exile work — Self
+   * hearing an exile's story — so they're only suggested for that role.
+   * Protectors are worked with differently: their trust-building step is
+   * "befriending" (one of the 6 F's), not witnessing, so managers and
+   * firefighters get "befriended" as their analog. "Emerging" describes a
+   * part not yet fully known or differentiated, which can be true before a
+   * role is even settled, so every role gets it.
    */
   const statusSuggestions = $derived(
-    role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
+    role === "exile"
+      ? ["emerging", "witnessed", "unwitnessed"]
+      : role === "manager" || role === "firefighter"
+        ? ["emerging", "befriended"]
+        : ["emerging"],
   );
+
+  /**
+   * Role-specific popover copy: advice on what to consider for this role's
+   * status, plus the term progression the suggestions above offer. Framed as
+   * what to look for, not as a correction of the other role's terms — a
+   * protector's guidance shouldn't be defined by what an exile's isn't.
+   */
+  const statusGuidance = $derived<{ lead: string; steps: string | null }>(
+    role === "exile"
+      ? {
+          lead: "Consider how much Self has heard this exile's story so far — IFS calls that witnessing.",
+          steps: "unwitnessed → emerging → witnessed",
+        }
+      : role === "manager" || role === "firefighter"
+        ? {
+            lead: "Consider how much this protector trusts Self so far — built through befriending, one of the 6 F's.",
+            steps: "emerging → befriended",
+          }
+        : {
+            lead: "Pick a role to see status options: exiles track witnessing, protectors track befriending.",
+            steps: null,
+          },
+  );
+
+  /** Kept in step with the width the popover is rendered at, so clamping to the viewport stays exact. */
+  const STATUS_HELP_WIDTH = 260;
+
+  let statusHelpOpen = $state(false);
+  let statusHelpButton = $state<HTMLButtonElement | null>(null);
+  let statusHelpPos = $state({ top: 0, left: 0 });
+
+  function toggleStatusHelp(): void {
+    statusHelpOpen = !statusHelpOpen;
+  }
+
+  /**
+   * `position: fixed`, placed from the button's own rect, rather than an
+   * absolutely-positioned child: `.body` scrolls (`overflow-y: auto`), which
+   * per spec computes its `overflow-x` to `auto` too, so a centered child
+   * wide enough to cross the field's left edge got silently clipped there.
+   */
+  $effect(() => {
+    if (!statusHelpOpen || !statusHelpButton) return;
+    const rect = statusHelpButton.getBoundingClientRect();
+    const width = STATUS_HELP_WIDTH;
+    const margin = 8;
+    const left = Math.max(margin, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - margin));
+    statusHelpPos = { top: rect.top - margin, left };
+  });
+
+  $effect(() => {
+    if (!statusHelpOpen) return;
+    function handlePointerDown(event: PointerEvent): void {
+      if (statusHelpButton?.contains(event.target as Node)) return;
+      statusHelpOpen = false;
+    }
+    function handleKeydown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        statusHelpOpen = false;
+      }
+    }
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  });
   let feelings = $state<string[]>(initial?.feelings ?? []);
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
@@ -159,7 +234,31 @@
 
       <div class="row">
         <p class="field">
-          <label for="part-status">Status</label>
+          <span class="field-label-row">
+            <label for="part-status">Status</label>
+            <button
+              type="button"
+              class="help"
+              bind:this={statusHelpButton}
+              aria-label="Status guidance"
+              aria-expanded={statusHelpOpen}
+              onclick={toggleStatusHelp}
+            >
+              <span aria-hidden="true">?</span>
+            </button>
+            {#if statusHelpOpen}
+              <span
+                class="tooltip"
+                role="tooltip"
+                style="top: {statusHelpPos.top}px; left: {statusHelpPos.left}px; width: {STATUS_HELP_WIDTH}px;"
+              >
+                <span class="tooltip-lead">{statusGuidance.lead}</span>
+                {#if statusGuidance.steps}
+                  <span class="tooltip-steps">{statusGuidance.steps}</span>
+                {/if}
+              </span>
+            {/if}
+          </span>
           <input
             id="part-status"
             bind:value={status}
@@ -372,6 +471,65 @@
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
+  }
+
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: 1px solid var(--pill-border);
+    border-radius: 50%;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .help[aria-expanded="true"] {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+  }
+
+  .tooltip {
+    position: fixed;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    box-sizing: border-box;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: #0e1019;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-transform: none;
+    letter-spacing: normal;
+    transform: translateY(-100%);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+  }
+
+  .tooltip-steps {
+    padding-top: 0.375rem;
+    border-top: 1px solid var(--rule);
+    color: var(--text-muted);
+    font-weight: 600;
   }
 
   .checkbox-field {
