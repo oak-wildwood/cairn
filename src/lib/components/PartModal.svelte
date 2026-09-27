@@ -65,6 +65,15 @@
   const statusSuggestions = $derived(
     role === "exile" ? ["emerging", "witnessed", "unwitnessed"] : ["emerging"],
   );
+
+  /** Short, role-specific status guidance shown in the tooltip next to the field. */
+  const statusGuidance = $derived(
+    role === "exile"
+      ? "unwitnessed → emerging → witnessed, as Self gets to know its story."
+      : role === "manager" || role === "firefighter"
+        ? "“emerging” while it's not yet well known; free text once it is."
+        : "Role isn't set yet, so status is open.",
+  );
   let feelings = $state<string[]>(initial?.feelings ?? []);
   let description = $state(initial?.description ?? "");
   let bodyLocation = $state(initial?.bodyLocation ?? "");
@@ -159,7 +168,13 @@
 
       <div class="row">
         <p class="field">
-          <label for="part-status">Status</label>
+          <span class="field-label-row">
+            <label for="part-status">Status</label>
+            <button type="button" class="help" aria-label="Status guidance">
+              <span aria-hidden="true">?</span>
+              <span class="tooltip" role="tooltip">{statusGuidance}</span>
+            </button>
+          </span>
           <input
             id="part-status"
             bind:value={status}
@@ -372,6 +387,63 @@
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
+  }
+
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .help {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: 1px solid var(--pill-border);
+    border-radius: 50%;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: help;
+  }
+
+  .help .tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    z-index: 1;
+    width: max-content;
+    max-width: 220px;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: #0e1019;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-transform: none;
+    letter-spacing: normal;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%);
+    transition: opacity 0.1s ease;
+    pointer-events: none;
+  }
+
+  .help:hover .tooltip,
+  .help:focus-visible .tooltip {
+    visibility: visible;
+    opacity: 1;
   }
 
   .checkbox-field {
