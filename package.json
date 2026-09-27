@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
   },
   "engines": {
     "node": ">=18"
@@ -28,10 +29,12 @@
     "@tsconfig/svelte": "^5.0.8",
     "@types/d3-scale": "^4.0.9",
     "@types/d3-shape": "^3.2.0",
+    "jsdom": "^29.1.1",
     "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
     "typescript": "^6.0.3",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "d3-scale": "^4.0.2",
