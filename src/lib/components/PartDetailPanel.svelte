@@ -395,12 +395,23 @@
     gap: 0.5rem;
   }
 
+  /*
+   * `display: contents` rather than `display: flex`: a flex `<ul>` sizes
+   * itself to exactly its pills' combined width (shrink-to-fit), and
+   * `pdfExport.ts`'s capture freezes that width as a literal pixel value on
+   * a clone it then re-rasterises. With zero slack between the frozen width
+   * and the frozen pills' own frozen widths, the sub-pixel rounding that
+   * survives that round trip is occasionally enough to tip the last pill
+   * onto a second row inside a box sized for one — which, because the box's
+   * own height was *also* frozen from the single-row live layout, lands the
+   * overflow line on top of whatever sits below it. `display: contents`
+   * removes the `<ul>` as a sizing box entirely, so its pills wrap against
+   * `.feelings-row`'s width instead — which has real slack (see `.title`
+   * above for the same fix against the same class of bug, for the name).
+   * The list semantics survive on the `<li>` elements themselves.
+   */
   .feelings {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0;
-    padding: 0;
+    display: contents;
     list-style: none;
   }
 
