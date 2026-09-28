@@ -138,100 +138,102 @@
 
 <aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
   <div class="inner">
-    <header class="head">
-      <div class="title">
-        <p class="meta" style:color={accent}>
-          {partCaption(part).toUpperCase()}
-        </p>
-        <h2 class="name">{part.name}</h2>
-      </div>
-      <!-- data-export-hide: read by both export.ts and pdfExport.ts, which
-           hide every element carrying it before screenshotting this panel —
-           a live control has no click handler on a saved image or a printed
-           page. -->
-      <button
-        class="close"
-        type="button"
-        onclick={onclose}
-        aria-label="Close"
-        data-export-hide
-      >
-        &times;
-      </button>
-    </header>
+    <div class="scroll">
+      <header class="head">
+        <div class="title">
+          <p class="meta" style:color={accent}>
+            {partCaption(part).toUpperCase()}
+          </p>
+          <h2 class="name">{part.name}</h2>
+        </div>
+        <!-- data-export-hide: read by both export.ts and pdfExport.ts, which
+             hide every element carrying it before screenshotting this panel —
+             a live control has no click handler on a saved image or a printed
+             page. -->
+        <button
+          class="close"
+          type="button"
+          onclick={onclose}
+          aria-label="Close"
+          data-export-hide
+        >
+          &times;
+        </button>
+      </header>
 
-    {#if editingFeelings}
-      <!-- data-export-hide: the quick editor is a live control, and both the
-           PDF and PNG exports always see the panel in its default (closed)
-           state anyway. -->
-      <div data-export-hide>
-        <FeelingsMultiSelect
-          tagCounts={tagCounts}
-          selected={part.feelings}
-          onChange={(feelings) => onfeelings(part.id, feelings)}
-          onClose={() => (editingFeelings = false)}
-          allowCreate
-          confirmClear
-          autoOpen
-          label="Add feelings"
-          eyebrow="Feelings"
-          dropDirection="down"
-        />
-      </div>
-    {:else}
-      <div class="feelings-row" data-tour="detail-feelings">
-        {#if part.feelings.length > 0}
-          <ul class="feelings">
-            {#each part.feelings as feeling (feeling)}
-              <li class="feeling" style:border-color={accent} style:color={accent}>
-                {feeling}
+      {#if editingFeelings}
+        <!-- data-export-hide: the quick editor is a live control, and both the
+             PDF and PNG exports always see the panel in its default (closed)
+             state anyway. -->
+        <div data-export-hide>
+          <FeelingsMultiSelect
+            tagCounts={tagCounts}
+            selected={part.feelings}
+            onChange={(feelings) => onfeelings(part.id, feelings)}
+            onClose={() => (editingFeelings = false)}
+            allowCreate
+            confirmClear
+            autoOpen
+            label="Add feelings"
+            eyebrow="Feelings"
+            dropDirection="down"
+          />
+        </div>
+      {:else}
+        <div class="feelings-row" data-tour="detail-feelings">
+          {#if part.feelings.length > 0}
+            <ul class="feelings">
+              {#each part.feelings as feeling (feeling)}
+                <li class="feeling" style:border-color={accent} style:color={accent}>
+                  {feeling}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <!-- data-export-hide: a live control, same as the close button. -->
+          <button
+            type="button"
+            class="edit-feelings"
+            class:cta={part.feelings.length === 0}
+            style:color={part.feelings.length === 0 ? accent : undefined}
+            data-export-hide
+            onclick={() => (editingFeelings = true)}
+          >
+            {part.feelings.length > 0 ? "Edit" : "+ feelings"}
+          </button>
+        </div>
+      {/if}
+
+      <dl class="fields" data-tour="detail-fields">
+        {#each fields as field (field.label)}
+          <dt>{field.label}</dt>
+          <dd class:empty={field.value.trim() === ""}>
+            {field.value.trim() === "" ? "Not recorded yet" : field.value}
+          </dd>
+        {/each}
+      </dl>
+
+      <section class="relations" data-tour="detail-connections">
+        <h3 class="section-title">Connections</h3>
+        {#if relations.length === 0}
+          <p class="empty">No connections yet.</p>
+        {:else}
+          <ul class="relation-list">
+            {#each relations as relation (relation.id)}
+              <li class="relation">
+                <span class="relation-label" class:empty={relation.label === ""}>
+                  {relation.label === "" ? "Unlabelled" : relation.label}
+                </span>
+                <span class="arrow" aria-hidden="true">
+                  {relation.outgoing ? "→" : "←"}
+                </span>
+                <span class="relation-other">{relation.other}</span>
               </li>
             {/each}
           </ul>
         {/if}
-        <!-- data-export-hide: a live control, same as the close button. -->
-        <button
-          type="button"
-          class="edit-feelings"
-          class:cta={part.feelings.length === 0}
-          style:color={part.feelings.length === 0 ? accent : undefined}
-          data-export-hide
-          onclick={() => (editingFeelings = true)}
-        >
-          {part.feelings.length > 0 ? "Edit" : "+ feelings"}
-        </button>
-      </div>
-    {/if}
-
-    <dl class="fields" data-tour="detail-fields">
-      {#each fields as field (field.label)}
-        <dt>{field.label}</dt>
-        <dd class:empty={field.value.trim() === ""}>
-          {field.value.trim() === "" ? "Not recorded yet" : field.value}
-        </dd>
-      {/each}
-    </dl>
-
-    <section class="relations" data-tour="detail-connections">
-      <h3 class="section-title">Connections</h3>
-      {#if relations.length === 0}
-        <p class="empty">No connections yet.</p>
-      {:else}
-        <ul class="relation-list">
-          {#each relations as relation (relation.id)}
-            <li class="relation">
-              <span class="relation-label" class:empty={relation.label === ""}>
-                {relation.label === "" ? "Unlabelled" : relation.label}
-              </span>
-              <span class="arrow" aria-hidden="true">
-                {relation.outgoing ? "→" : "←"}
-              </span>
-              <span class="relation-other">{relation.other}</span>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
+      </section>
+    </div>
 
     <!-- data-export-hide: see the close button above. -->
     <footer class="actions" data-export-hide>
@@ -285,9 +287,26 @@
   .inner {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
     width: 22rem;
     flex-shrink: 0;
+    box-sizing: border-box;
+    min-height: 0;
+  }
+
+  /*
+   * DERIVED: the original design has no detail panel, so it never had to say
+   * what happens once a worksheet's fields outgrow the space for them. Edit
+   * and Delete are the two controls a part's own page can't be read without,
+   * so `.scroll` carries the overflow alone and `.actions` sits outside it —
+   * a long worksheet scrolls under a footer that never moves, rather than
+   * carrying the controls out of view with it.
+   */
+  .scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    flex: 1 1 auto;
+    min-height: 0;
     box-sizing: border-box;
     padding: 1.5rem;
     overflow-y: auto;
@@ -539,9 +558,9 @@
 
   .actions {
     display: flex;
+    flex-shrink: 0;
     gap: 0.625rem;
-    margin-top: auto;
-    padding-top: 1.25rem;
+    padding: 1.25rem 1.5rem 1.5rem;
     border-top: 1px solid var(--rule);
   }
 
