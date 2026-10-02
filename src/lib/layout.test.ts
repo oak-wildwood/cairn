@@ -14,6 +14,7 @@ import {
 } from "./layout";
 import { VIEWBOX } from "./theme";
 import { SELF_ID } from "./types";
+import type { Point } from "./types";
 import { makePart } from "./testParts";
 
 describe("polarToPoint", () => {
@@ -245,6 +246,16 @@ describe("wrapLabel", () => {
 });
 
 describe("computeViewBox", () => {
+  const centreX = VIEWBOX.x + VIEWBOX.width / 2;
+  const centreY = VIEWBOX.y + VIEWBOX.height / 2;
+
+  /** `computeViewBox` rounds `x` and `width` separately, so a correct frame
+   * can sit up to half a unit off centre on each axis. */
+  function expectCentred(box: { x: number; y: number; width: number; height: number }) {
+    expect(Math.abs(box.x + box.width / 2 - centreX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(box.y + box.height / 2 - centreY)).toBeLessThanOrEqual(1);
+  }
+
   it("stays at the design's minimum frame when nothing pushes past it", () => {
     expect(computeViewBox([{ x: 0, y: 0 }])).toEqual({
       x: VIEWBOX.x,
@@ -265,16 +276,59 @@ describe("computeViewBox", () => {
 
   it("grows uniformly about the design's centre to hold a far-out node", () => {
     const box = computeViewBox([{ x: 2000, y: 0 }]);
-    const centreX = VIEWBOX.x + VIEWBOX.width / 2;
-    const centreY = VIEWBOX.y + VIEWBOX.height / 2;
 
     expect(box.width).toBeGreaterThan(VIEWBOX.width);
     expect(box.height).toBeGreaterThan(VIEWBOX.height);
     // Aspect ratio is preserved — this is a uniform scale, not a bounding-box fit.
     expect(box.width / box.height).toBeCloseTo(VIEWBOX.width / VIEWBOX.height, 1);
-    // The frame stands further back around the same centre; it doesn't slide
-    // (allowing a little slack for the independent rounding of x and width).
-    expect(Math.abs(box.x + box.width / 2 - centreX)).toBeLessThanOrEqual(1);
-    expect(Math.abs(box.y + box.height / 2 - centreY)).toBeLessThanOrEqual(1);
+    // The frame stands further back around the same centre; it doesn't slide.
+    expectCentred(box);
+  });
+
+  it("grows for a node far below Self too, not only to the side", () => {
+    // Directly below the centre, so only the vertical reach can force growth.
+    const box = computeViewBox([{ x: centreX, y: centreY + 1500 }]);
+    expect(box.height).toBeGreaterThan(VIEWBOX.height);
+    expect(box.width / box.height).toBeCloseTo(VIEWBOX.width / VIEWBOX.height, 1);
+    expectCentred(box);
+  });
+
+  it("grows in 5% steps - a point just past the frame gives exactly 1.05x", () => {
+    // Chosen so the point's horizontal reach (its offset plus the 90-unit
+    // caption allowance) is 2% past the frame: enough to force growth, not
+    // enough to reach the next 5% step after this one.
+    const point: Point = { x: centreX + (VIEWBOX.width / 2) * 1.02 - 90, y: centreY };
+    const box = computeViewBox([point]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 1.05));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 1.05));
+  });
+});
+
+describe("wrapLabel: edge cases", () => {
+  it("breaks ties toward the earlier split", () => {
+    // "Alpha" / "X" / "Omega": splitting after word 1 or after word 2 both
+    // leave a 7-character longest line, so the earlier split wins.
+    expect(wrapLabel("Alpha X Omega")).toEqual(["Alpha", "X Omega"]);
+  });
+
+  it("collapses repeated whitespace", () => {
+    expect(wrapLabel("The    Unseen     One")).toEqual(["The", "Unseen One"]);
+  });
+});
+
+describe("computeLayout: the unknown ring", () => {
+  it("spreads unknown parts around a ring outside the sectors, not on them", () => {
+    const unknowns = ["u1", "u2", "u3"].map((id) => makePart({ id, role: "unknown" }));
+    const manager = makePart({ id: "m", role: "manager" });
+    const positions = computeLayout([manager, ...unknowns]);
+    const radius = (id: string) => Math.hypot(positions.get(id)!.x, positions.get(id)!.y);
+
+    const points = unknowns.map((part) => positions.get(part.id)!);
+    expect(new Set(points.map(({ x, y }) => `${x},${y}`)).size).toBe(3);
+    // Unplaced parts have no sector, so they sit on their own ring further
+    // out than any sector's first ring rather than among the placed parts.
+    for (const part of unknowns) {
+      expect(radius(part.id)).toBeGreaterThan(radius(manager.id));
+    }
   });
 });
