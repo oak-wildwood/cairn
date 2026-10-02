@@ -5,6 +5,10 @@ dist/
 *.local
 npm-debug.log*
 
+# Stryker mutation testing (npm run test:mutation): reports and its sandbox.
+reports/
+.stryker-tmp/
+
 # Editor (per-machine)
 .vscode/
 

@@ -1,5 +1,9 @@
 import type { PartRole, SectorRole } from "./types";
 
+// Stryker disable all: design constants. A mutant that changes one can only be
+// killed by a test asserting the value equals its own copy, which proves
+// nothing. Only the logic further down is mutated; see stryker.config.mjs.
+
 /**
  * The Nocturnal palette and type tokens. **This file is the design spec.**
  *
@@ -260,6 +264,8 @@ export const NODE = {
   lineHeight: 17,
 } as const;
 
+// Stryker restore all
+
 /**
  * Statuses that render as a low-definition node — dashed stroke, no glow,
  * dimmed label. Matched case-insensitively because `status` is free text.
@@ -269,6 +275,8 @@ const LOW_DEFINITION_STATUSES: readonly string[] = ["emerging", "unwitnessed"];
 export function isLowDefinition(status: string): boolean {
   return LOW_DEFINITION_STATUSES.includes(status.trim().toLowerCase());
 }
+
+// Stryker disable all: design constants again, as at the top of the file.
 
 /**
  * DERIVED: the source design is a static render with no interaction, so it has no

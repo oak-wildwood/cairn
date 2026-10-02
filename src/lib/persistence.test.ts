@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadState, parseMap, saveState, saveStateDebounced } from "./persistence";
+import {
+  isDemoRoute,
+  loadState,
+  parseMap,
+  saveState,
+  saveStateDebounced,
+} from "./persistence";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
 import type { Connection, PersistedState } from "./types";
 import { makePart } from "./testParts";
@@ -150,6 +156,52 @@ describe("parseMap", () => {
       expect(result?.parts[0].y).toBeNull();
     });
 
+    it("rejects y as a string, as it does x", () => {
+      const state = emptyState({
+        parts: [{ ...makePart(), x: 0, y: "0" as never }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    // One bad part among good ones, so a check that only needs *some* part to
+    // be valid doesn't pass.
+    it.each(["id", "name", "role"])("rejects a part whose %s isn't a string", (field) => {
+      const state = validState({
+        parts: [makePart({ id: "a" }), { ...makePart({ id: "b" }), [field]: 7 }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    // Rejected, not silently dropped: a connection with no usable endpoint
+    // means the blob isn't one this app wrote.
+    it.each(["id", "sourceId", "targetId", "label"])(
+      "rejects a connection whose %s isn't a string",
+      (field) => {
+        const good: Connection = { id: "c1", sourceId: "a", targetId: "b", label: "" };
+        const state = validState({
+          connections: [good, { ...good, id: "c2", [field]: 7 } as never],
+        });
+        expect(parseMap(JSON.stringify(state))).toBeNull();
+      },
+    );
+
+    it.each([
+      ["the whole blob", "null"],
+      ["a part", JSON.stringify(validState({ parts: [null as never] }))],
+      ["a connection", JSON.stringify(validState({ connections: [null as never] }))],
+      ["a schema-1 part", JSON.stringify({ schemaVersion: 1, parts: [null], connections: [] })],
+    ])("returns null rather than throwing when %s is JSON null", (_what, text) => {
+      expect(parseMap(text)).toBeNull();
+    });
+
+    it("rejects active as anything but a boolean", () => {
+      // `active` is its own field, not one more value of `status`.
+      const state = validState({
+        parts: [makePart({ id: "a" }), { ...makePart({ id: "b" }), active: "true" as never }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
     it("rejects a non-string feeling", () => {
       const state = emptyState({
         parts: [{ ...makePart(), feelings: ["sad", 1] as never }],
@@ -207,6 +259,20 @@ describe("parseMap", () => {
       expect(result?.parts[0].status).toBe("Contemplative");
     });
 
+    it("rejects a schema-1 map with one malformed part among good ones", () => {
+      const legacy = {
+        schemaVersion: 1,
+        parts: [makeLegacyPart({ id: "a" }), makeLegacyPart({ id: "b", x: "0" })],
+        connections: [],
+      };
+      expect(parseMap(JSON.stringify(legacy))).toBeNull();
+    });
+
+    it("rejects a schema-1 map whose ownerName isn't a string", () => {
+      const legacy = { schemaVersion: 1, parts: [], connections: [], ownerName: 42 };
+      expect(parseMap(JSON.stringify(legacy))).toBeNull();
+    });
+
     it("also normalizes feelings and cleans up connections on the migrated map", () => {
       const partA = makeLegacyPart({ id: "a", feelings: ["Sad", "sad"] });
       const partB = makeLegacyPart({ id: "b" });
@@ -239,6 +305,15 @@ describe("loadState / saveState", () => {
     expect(loadState()).toEqual(state);
   });
 
+  // The key is a contract with every browser that already holds a map, not
+  // an implementation detail: renaming it would orphan all of them on the next
+  // load. Pinning the literal is deliberate (see AGENTS.md, Testing).
+  it("reads a map stored under the cairn.map.v1 key by an earlier session", () => {
+    const state = validState();
+    localStorage.setItem("cairn.map.v1", JSON.stringify(state));
+    expect(loadState()).toEqual(state);
+  });
+
   it("returns null for a corrupted blob rather than throwing", () => {
     localStorage.setItem("cairn.map.v1", "{not json");
     expect(loadState()).toBeNull();
@@ -254,6 +329,18 @@ describe("loadState / saveState", () => {
     saveState(validState());
     history.pushState({}, "", "/");
     expect(loadState()).toBeNull();
+  });
+
+  it.each([
+    ["/demo/", true],
+    ["/demo", true],
+    ["/cairn/demo/", true],
+    ["/", false],
+    ["/demonstration/", false],
+    ["/demo/elsewhere", false],
+  ])("treats %s as the demo route: %s", (path, expected) => {
+    history.pushState({}, "", path);
+    expect(isDemoRoute()).toBe(expected);
   });
 
   it("loadState returns null when getItem throws", () => {
@@ -278,12 +365,14 @@ describe("saveStateDebounced", () => {
   });
 
   it("coalesces a burst of writes into one, after the delay", () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     saveStateDebounced(validState({ ownerName: "first" }));
     saveStateDebounced(validState({ ownerName: "second" }));
     expect(loadState()).toBeNull();
 
     vi.runAllTimers();
 
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
     expect(loadState()?.ownerName).toBe("second");
   });
 

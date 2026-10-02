@@ -46,6 +46,7 @@ Other scripts:
 | `npm run preview`  | Serve the production build locally  |
 | `npm run check`    | Type-check the whole project (`svelte-check`) |
 | `npm test`         | Run the unit tests (`vitest`)       |
+| `npm run test:mutation` | Mutation-test the unit suite (StrykerJS); report in `reports/mutation/` |
 
 ## Stack
 
