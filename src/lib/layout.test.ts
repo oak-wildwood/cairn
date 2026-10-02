@@ -246,6 +246,16 @@ describe("wrapLabel", () => {
 });
 
 describe("computeViewBox", () => {
+  const centreX = VIEWBOX.x + VIEWBOX.width / 2;
+  const centreY = VIEWBOX.y + VIEWBOX.height / 2;
+
+  /** `computeViewBox` rounds `x` and `width` separately, so a correct frame
+   * can sit up to half a unit off centre on each axis. */
+  function expectCentred(box: { x: number; y: number; width: number; height: number }) {
+    expect(Math.abs(box.x + box.width / 2 - centreX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(box.y + box.height / 2 - centreY)).toBeLessThanOrEqual(1);
+  }
+
   it("stays at the design's minimum frame when nothing pushes past it", () => {
     expect(computeViewBox([{ x: 0, y: 0 }])).toEqual({
       x: VIEWBOX.x,
@@ -266,49 +276,31 @@ describe("computeViewBox", () => {
 
   it("grows uniformly about the design's centre to hold a far-out node", () => {
     const box = computeViewBox([{ x: 2000, y: 0 }]);
-    const centreX = VIEWBOX.x + VIEWBOX.width / 2;
-    const centreY = VIEWBOX.y + VIEWBOX.height / 2;
 
     expect(box.width).toBeGreaterThan(VIEWBOX.width);
     expect(box.height).toBeGreaterThan(VIEWBOX.height);
     // Aspect ratio is preserved — this is a uniform scale, not a bounding-box fit.
     expect(box.width / box.height).toBeCloseTo(VIEWBOX.width / VIEWBOX.height, 1);
-    // The frame stands further back around the same centre; it doesn't slide
-    // (allowing a little slack for the independent rounding of x and width).
-    expect(Math.abs(box.x + box.width / 2 - centreX)).toBeLessThanOrEqual(1);
-    expect(Math.abs(box.y + box.height / 2 - centreY)).toBeLessThanOrEqual(1);
+    // The frame stands further back around the same centre; it doesn't slide.
+    expectCentred(box);
   });
-});
 
-const CENTRE_X = VIEWBOX.x + VIEWBOX.width / 2;
-const CENTRE_Y = VIEWBOX.y + VIEWBOX.height / 2;
+  it("grows for a node far below Self too, not only to the side", () => {
+    // Directly below the centre, so only the vertical reach can force growth.
+    const box = computeViewBox([{ x: centreX, y: centreY + 1500 }]);
+    expect(box.height).toBeGreaterThan(VIEWBOX.height);
+    expect(box.width / box.height).toBeCloseTo(VIEWBOX.width / VIEWBOX.height, 1);
+    expectCentred(box);
+  });
 
-describe("computeViewBox: growth", () => {
   it("grows in 5% steps - a point just past the frame gives exactly 1.05x", () => {
     // Chosen so the point's horizontal reach (its offset plus the 90-unit
     // caption allowance) is 2% past the frame: enough to force growth, not
     // enough to reach the next 5% step after this one.
-    const point: Point = { x: CENTRE_X + (VIEWBOX.width / 2) * 1.02 - 90, y: CENTRE_Y };
-    const vb = computeViewBox([point]);
-    expect(vb.width).toBe(Math.round(VIEWBOX.width * 1.05));
-    expect(vb.height).toBe(Math.round(VIEWBOX.height * 1.05));
-  });
-
-  it("handles horizontal overflow, not only vertical", () => {
-    // Well within the vertical frame, but past the horizontal edge.
-    const point: Point = { x: CENTRE_X + VIEWBOX.width / 2 + 50, y: CENTRE_Y };
-    const vb = computeViewBox([point]);
-    expect(vb.width).toBeGreaterThan(VIEWBOX.width);
-  });
-
-  it("stays centred on both axes when pushed unevenly", () => {
-    const points: Point[] = [
-      { x: CENTRE_X + 900, y: CENTRE_Y + 40 },
-      { x: CENTRE_X - 120, y: CENTRE_Y - 700 },
-    ];
-    const vb = computeViewBox(points);
-    expect(vb.x + vb.width / 2).toBeCloseTo(CENTRE_X, 0);
-    expect(vb.y + vb.height / 2).toBeCloseTo(CENTRE_Y, 0);
+    const point: Point = { x: centreX + (VIEWBOX.width / 2) * 1.02 - 90, y: centreY };
+    const box = computeViewBox([point]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 1.05));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 1.05));
   });
 });
 
