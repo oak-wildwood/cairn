@@ -1,0 +1,47 @@
+name: CI
+
+# AGENTS.md says a change isn't done until `npm run check` is at 0 errors and
+# 0 warnings and `npm run build` succeeds, and the unit tests guard invariants
+# that break silently rather than loudly. Until now nothing ran any of that
+# before merge — deploy.yml type-checks and builds, but only after main has
+# already moved. This is the gate on the pull request itself.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run check
+
+      # `--if-present` so this workflow can land before the test runner does:
+      # the step is a no-op until package.json gains a `test` script, then
+      # starts gating without anyone having to come back and edit this file.
+      - name: Unit tests
+        run: npm run test --if-present
+
+      - name: Build
+        run: npm run build
