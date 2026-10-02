@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+// `vitest/config`'s `defineConfig` is `vite`'s with a `test` key added, so this
+// stays the one Vite config for both the app and its tests rather than two
+// configs that could drift apart.
+import { defineConfig } from "vitest/config";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
@@ -12,6 +15,11 @@ export default defineConfig({
   // regardless of which folder index.html sits in.
   base: "./",
   plugins: [svelte()],
+  // Under Vitest, resolve Svelte's client runtime rather than its server one.
+  // The server build turns `$effect` into a no-op and `mount` into an error,
+  // so without this a test of anything reactive would pass or fail for
+  // reasons that have nothing to do with how the app runs in a browser.
+  resolve: process.env.VITEST ? { conditions: ["browser"] } : undefined,
   build: {
     rollupOptions: {
       // The demo page (see demo/index.html) is a second static entry, not
@@ -24,5 +32,13 @@ export default defineConfig({
         demo: `${root}demo/index.html`,
       },
     },
+  },
+  test: {
+    // Node by default, so a module that quietly starts depending on the DOM
+    // fails loudly here instead of passing on jsdom's say-so. The files that
+    // genuinely need `localStorage`/`location` opt in with a
+    // `// @vitest-environment jsdom` docblock at the top.
+    environment: "node",
+    include: ["src/**/*.test.ts"],
   },
 });
