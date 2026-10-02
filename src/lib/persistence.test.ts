@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadState, parseMap, saveState, saveStateDebounced } from "./persistence";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
-import type { PersistedState } from "./types";
+import type { Connection, PersistedState } from "./types";
 import { makePart } from "./testParts";
 
 function validState(overrides: Partial<PersistedState> = {}): PersistedState {
@@ -14,9 +14,27 @@ function validState(overrides: Partial<PersistedState> = {}): PersistedState {
   };
 }
 
+function buildState(overrides: Partial<PersistedState> = {}): PersistedState {
+  return validState({ parts: [], ...overrides });
+}
+
+/** A schema-1 part: every `Part` field except `active`. */
+function makeLegacyPart(overrides: Record<string, unknown> = {}) {
+  const { active: _active, ...rest } = makePart();
+  return { ...rest, ...overrides };
+}
+
+// The URL is reset before every test, not at the end of the ones that change
+// it, so a failing demo-route test can't strand the rest of the file on
+// /demo/, where loadState and saveState silently do nothing.
 beforeEach(() => {
   localStorage.clear();
   history.pushState({}, "", "/");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("parseMap", () => {
@@ -146,5 +164,151 @@ describe("saveStateDebounced", () => {
     vi.runAllTimers();
 
     expect(loadState()?.ownerName).toBe("second");
+  });
+});
+
+describe("parseMap: field validation", () => {
+  it("rejects a role outside the four", () => {
+    const state = buildState({
+      parts: [makePart({ role: "protector" as never })],
+    });
+    expect(parseMap(JSON.stringify(state))).toBeNull();
+  });
+
+  it("rejects x as a string", () => {
+    const state = buildState({
+      parts: [{ ...makePart(), x: "0" as never, y: 0 }],
+    });
+    expect(parseMap(JSON.stringify(state))).toBeNull();
+  });
+
+  it("accepts x as a number, including 0", () => {
+    const state = buildState({ parts: [makePart({ x: 0, y: 0 })] });
+    const result = parseMap(JSON.stringify(state));
+    expect(result?.parts[0].x).toBe(0);
+    expect(result?.parts[0].y).toBe(0);
+  });
+
+  it("accepts x as null", () => {
+    const state = buildState({ parts: [makePart({ x: null, y: null })] });
+    const result = parseMap(JSON.stringify(state));
+    expect(result?.parts[0].x).toBeNull();
+    expect(result?.parts[0].y).toBeNull();
+  });
+
+  it("rejects a non-string feeling", () => {
+    const state = buildState({
+      parts: [{ ...makePart(), feelings: ["sad", 1] as never }],
+    });
+    expect(parseMap(JSON.stringify(state))).toBeNull();
+  });
+
+  it("rejects ownerName present but not a string", () => {
+    const state = { ...buildState(), ownerName: 42 as never };
+    expect(parseMap(JSON.stringify(state))).toBeNull();
+  });
+});
+
+describe("parseMap: schema version", () => {
+  it("rejects a future schemaVersion", () => {
+    const state = { ...buildState(), schemaVersion: 3 as never };
+    expect(parseMap(JSON.stringify(state))).toBeNull();
+  });
+});
+
+describe("parseMap: schema-1 migration", () => {
+  it('trims and ignores case, turning "  ACTIVE " into active:true, status:""', () => {
+    const legacy = {
+      schemaVersion: 1,
+      parts: [makeLegacyPart({ status: "  ACTIVE " })],
+      connections: [],
+    };
+    const result = parseMap(JSON.stringify(legacy));
+    expect(result?.parts[0].active).toBe(true);
+    expect(result?.parts[0].status).toBe("");
+  });
+
+  it("keeps a custom status's trimmed text and leaves active false", () => {
+    const legacy = {
+      schemaVersion: 1,
+      parts: [makeLegacyPart({ status: "  Contemplative  " })],
+      connections: [],
+    };
+    const result = parseMap(JSON.stringify(legacy));
+    expect(result?.parts[0].active).toBe(false);
+    expect(result?.parts[0].status).toBe("Contemplative");
+  });
+
+  it("also normalizes feelings and cleans up connections on the migrated map", () => {
+    const partA = makeLegacyPart({ id: "a", feelings: ["Sad", "sad"] });
+    const partB = makeLegacyPart({ id: "b" });
+    const connections: Connection[] = [
+      { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+      // Same direction twice - the second is dropped.
+      { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
+      // Dangling - "ghost" isn't a part.
+      { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
+    ];
+    const legacy = { schemaVersion: 1, parts: [partA, partB], connections };
+    const result = parseMap(JSON.stringify(legacy));
+
+    expect(result?.parts[0].feelings).toEqual(["sad"]);
+    expect(result?.connections).toEqual([
+      { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+    ]);
+  });
+});
+
+describe("parseMap: idempotence", () => {
+  it("parseMap(JSON.stringify(parseMap(x))) equals parseMap(x)", () => {
+    const raw = JSON.stringify(
+      buildState({
+        parts: [makePart({ id: "a", feelings: ["Sad", "sad"] }), makePart({ id: "b" })],
+        connections: [
+          { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+          { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
+          { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
+        ],
+      }),
+    );
+
+    const once = parseMap(raw);
+    // Without this, a parseMap that rejected the input would pass:
+    // null stringifies to "null", which parses back to null.
+    expect(once).not.toBeNull();
+    expect(once?.parts[0].feelings).toEqual(["sad"]);
+    expect(once?.connections.map((c) => c.id)).toEqual(["c1"]);
+
+    const twice = parseMap(JSON.stringify(once));
+    expect(twice).toEqual(once);
+  });
+});
+
+describe("loadState / saveState: a throwing localStorage", () => {
+  it("loadState returns null when getItem throws", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(loadState()).toBeNull();
+  });
+
+  it("saveState doesn't throw when setItem throws", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota full");
+    });
+    expect(() => saveState(buildState())).not.toThrow();
+  });
+});
+
+describe("saveStateDebounced: the demo route", () => {
+  it("doesn't save on the demo route, even after the timer fires", () => {
+    vi.useFakeTimers();
+    history.pushState({}, "", "/demo/");
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+    saveStateDebounced(buildState());
+    vi.runAllTimers();
+
+    expect(setItemSpy).not.toHaveBeenCalled();
   });
 });

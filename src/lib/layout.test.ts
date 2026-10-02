@@ -14,6 +14,7 @@ import {
 } from "./layout";
 import { VIEWBOX } from "./theme";
 import { SELF_ID } from "./types";
+import type { Point } from "./types";
 import { makePart } from "./testParts";
 
 describe("polarToPoint", () => {
@@ -276,5 +277,66 @@ describe("computeViewBox", () => {
     // (allowing a little slack for the independent rounding of x and width).
     expect(Math.abs(box.x + box.width / 2 - centreX)).toBeLessThanOrEqual(1);
     expect(Math.abs(box.y + box.height / 2 - centreY)).toBeLessThanOrEqual(1);
+  });
+});
+
+const CENTRE_X = VIEWBOX.x + VIEWBOX.width / 2;
+const CENTRE_Y = VIEWBOX.y + VIEWBOX.height / 2;
+
+describe("computeViewBox: growth", () => {
+  it("grows in 5% steps - a point just past the frame gives exactly 1.05x", () => {
+    // Chosen so the point's horizontal reach (its offset plus the 90-unit
+    // caption allowance) is 2% past the frame: enough to force growth, not
+    // enough to reach the next 5% step after this one.
+    const point: Point = { x: CENTRE_X + (VIEWBOX.width / 2) * 1.02 - 90, y: CENTRE_Y };
+    const vb = computeViewBox([point]);
+    expect(vb.width).toBe(Math.round(VIEWBOX.width * 1.05));
+    expect(vb.height).toBe(Math.round(VIEWBOX.height * 1.05));
+  });
+
+  it("handles horizontal overflow, not only vertical", () => {
+    // Well within the vertical frame, but past the horizontal edge.
+    const point: Point = { x: CENTRE_X + VIEWBOX.width / 2 + 50, y: CENTRE_Y };
+    const vb = computeViewBox([point]);
+    expect(vb.width).toBeGreaterThan(VIEWBOX.width);
+  });
+
+  it("stays centred on both axes when pushed unevenly", () => {
+    const points: Point[] = [
+      { x: CENTRE_X + 900, y: CENTRE_Y + 40 },
+      { x: CENTRE_X - 120, y: CENTRE_Y - 700 },
+    ];
+    const vb = computeViewBox(points);
+    expect(vb.x + vb.width / 2).toBeCloseTo(CENTRE_X, 0);
+    expect(vb.y + vb.height / 2).toBeCloseTo(CENTRE_Y, 0);
+  });
+});
+
+describe("wrapLabel: edge cases", () => {
+  it("breaks ties toward the earlier split", () => {
+    // "Alpha" / "X" / "Omega": splitting after word 1 or after word 2 both
+    // leave a 7-character longest line, so the earlier split wins.
+    expect(wrapLabel("Alpha X Omega")).toEqual(["Alpha", "X Omega"]);
+  });
+
+  it("collapses repeated whitespace", () => {
+    expect(wrapLabel("The    Unseen     One")).toEqual(["The", "Unseen One"]);
+  });
+});
+
+describe("computeLayout: the unknown ring", () => {
+  it("spreads unknown parts around a ring outside the sectors, not on them", () => {
+    const unknowns = ["u1", "u2", "u3"].map((id) => makePart({ id, role: "unknown" }));
+    const manager = makePart({ id: "m", role: "manager" });
+    const positions = computeLayout([manager, ...unknowns]);
+    const radius = (id: string) => Math.hypot(positions.get(id)!.x, positions.get(id)!.y);
+
+    const points = unknowns.map((part) => positions.get(part.id)!);
+    expect(new Set(points.map(({ x, y }) => `${x},${y}`)).size).toBe(3);
+    // Unplaced parts have no sector, so they sit on their own ring further
+    // out than any sector's first ring rather than among the placed parts.
+    for (const part of unknowns) {
+      expect(radius(part.id)).toBeGreaterThan(radius(manager.id));
+    }
   });
 });
