@@ -14,7 +14,8 @@ function validState(overrides: Partial<PersistedState> = {}): PersistedState {
   };
 }
 
-function buildState(overrides: Partial<PersistedState> = {}): PersistedState {
+/** A valid map with no parts, for tests that supply their own or need none. */
+function emptyState(overrides: Partial<PersistedState> = {}): PersistedState {
   return validState({ parts: [], ...overrides });
 }
 
@@ -92,29 +93,138 @@ describe("parseMap", () => {
     expect(result?.connections.map((c) => c.id)).toEqual(["c1", "c3"]);
   });
 
-  it("migrates a schema-1 blob, recovering status \"active\" into the active flag", () => {
-    const { active: _active, ...legacyPart } = makePart({
-      id: "a",
-      status: "Active",
-    });
-    const legacy = {
-      schemaVersion: 1,
-      parts: [legacyPart],
-      connections: [],
-    };
-    const result = parseMap(JSON.stringify(legacy));
-    expect(result?.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(result?.parts[0]).toMatchObject({ status: "", active: true });
+  it("rejects a future schemaVersion", () => {
+    const state = { ...emptyState(), schemaVersion: 3 as never };
+    expect(parseMap(JSON.stringify(state))).toBeNull();
   });
 
-  it("migrates a schema-1 blob, leaving any other status untouched and inactive", () => {
-    const { active: _active, ...legacyPart } = makePart({
-      id: "a",
-      status: "witnessed",
+  it("is idempotent: parsing its own output again changes nothing", () => {
+    const raw = JSON.stringify(
+      emptyState({
+        parts: [makePart({ id: "a", feelings: ["Sad", "sad"] }), makePart({ id: "b" })],
+        connections: [
+          { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+          { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
+          { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
+        ],
+      }),
+    );
+
+    const once = parseMap(raw);
+    // Without this, a parseMap that rejected the input would pass:
+    // null stringifies to "null", which parses back to null.
+    expect(once).not.toBeNull();
+    expect(once?.parts[0].feelings).toEqual(["sad"]);
+    expect(once?.connections.map((c) => c.id)).toEqual(["c1"]);
+
+    const twice = parseMap(JSON.stringify(once));
+    expect(twice).toEqual(once);
+  });
+
+  describe("field validation", () => {
+    it("rejects a role outside the four", () => {
+      const state = emptyState({
+        parts: [makePart({ role: "protector" as never })],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
     });
-    const legacy = { schemaVersion: 1, parts: [legacyPart], connections: [] };
-    const result = parseMap(JSON.stringify(legacy));
-    expect(result?.parts[0]).toMatchObject({ status: "witnessed", active: false });
+
+    it("rejects x as a string", () => {
+      const state = emptyState({
+        parts: [{ ...makePart(), x: "0" as never, y: 0 }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("accepts x as a number, including 0", () => {
+      const state = emptyState({ parts: [makePart({ x: 0, y: 0 })] });
+      const result = parseMap(JSON.stringify(state));
+      expect(result?.parts[0].x).toBe(0);
+      expect(result?.parts[0].y).toBe(0);
+    });
+
+    it("accepts x as null", () => {
+      const state = emptyState({ parts: [makePart({ x: null, y: null })] });
+      const result = parseMap(JSON.stringify(state));
+      expect(result?.parts[0].x).toBeNull();
+      expect(result?.parts[0].y).toBeNull();
+    });
+
+    it("rejects a non-string feeling", () => {
+      const state = emptyState({
+        parts: [{ ...makePart(), feelings: ["sad", 1] as never }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("rejects ownerName present but not a string", () => {
+      const state = { ...emptyState(), ownerName: 42 as never };
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+  });
+
+  describe("schema-1 migration", () => {
+    it("recovers status \"active\" into the active flag", () => {
+      const legacy = {
+        schemaVersion: 1,
+        parts: [makeLegacyPart({ id: "a", status: "Active" })],
+        connections: [],
+      };
+      const result = parseMap(JSON.stringify(legacy));
+      expect(result?.schemaVersion).toBe(SCHEMA_VERSION);
+      expect(result?.parts[0]).toMatchObject({ status: "", active: true });
+    });
+
+    it('trims and ignores case, turning "  ACTIVE " into active:true, status:""', () => {
+      const legacy = {
+        schemaVersion: 1,
+        parts: [makeLegacyPart({ status: "  ACTIVE " })],
+        connections: [],
+      };
+      const result = parseMap(JSON.stringify(legacy));
+      expect(result?.parts[0].active).toBe(true);
+      expect(result?.parts[0].status).toBe("");
+    });
+
+    it("leaves any other status untouched and inactive", () => {
+      const legacy = {
+        schemaVersion: 1,
+        parts: [makeLegacyPart({ id: "a", status: "witnessed" })],
+        connections: [],
+      };
+      const result = parseMap(JSON.stringify(legacy));
+      expect(result?.parts[0]).toMatchObject({ status: "witnessed", active: false });
+    });
+
+    it("keeps a custom status's trimmed text and leaves active false", () => {
+      const legacy = {
+        schemaVersion: 1,
+        parts: [makeLegacyPart({ status: "  Contemplative  " })],
+        connections: [],
+      };
+      const result = parseMap(JSON.stringify(legacy));
+      expect(result?.parts[0].active).toBe(false);
+      expect(result?.parts[0].status).toBe("Contemplative");
+    });
+
+    it("also normalizes feelings and cleans up connections on the migrated map", () => {
+      const partA = makeLegacyPart({ id: "a", feelings: ["Sad", "sad"] });
+      const partB = makeLegacyPart({ id: "b" });
+      const connections: Connection[] = [
+        { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+        // Same direction twice - the second is dropped.
+        { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
+        // Dangling - "ghost" isn't a part.
+        { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
+      ];
+      const legacy = { schemaVersion: 1, parts: [partA, partB], connections };
+      const result = parseMap(JSON.stringify(legacy));
+
+      expect(result?.parts[0].feelings).toEqual(["sad"]);
+      expect(result?.connections).toEqual([
+        { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+      ]);
+    });
   });
 });
 
@@ -145,146 +255,7 @@ describe("loadState / saveState", () => {
     history.pushState({}, "", "/");
     expect(loadState()).toBeNull();
   });
-});
 
-describe("saveStateDebounced", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("coalesces a burst of writes into one, after the delay", () => {
-    saveStateDebounced(validState({ ownerName: "first" }));
-    saveStateDebounced(validState({ ownerName: "second" }));
-    expect(loadState()).toBeNull();
-
-    vi.runAllTimers();
-
-    expect(loadState()?.ownerName).toBe("second");
-  });
-});
-
-describe("parseMap: field validation", () => {
-  it("rejects a role outside the four", () => {
-    const state = buildState({
-      parts: [makePart({ role: "protector" as never })],
-    });
-    expect(parseMap(JSON.stringify(state))).toBeNull();
-  });
-
-  it("rejects x as a string", () => {
-    const state = buildState({
-      parts: [{ ...makePart(), x: "0" as never, y: 0 }],
-    });
-    expect(parseMap(JSON.stringify(state))).toBeNull();
-  });
-
-  it("accepts x as a number, including 0", () => {
-    const state = buildState({ parts: [makePart({ x: 0, y: 0 })] });
-    const result = parseMap(JSON.stringify(state));
-    expect(result?.parts[0].x).toBe(0);
-    expect(result?.parts[0].y).toBe(0);
-  });
-
-  it("accepts x as null", () => {
-    const state = buildState({ parts: [makePart({ x: null, y: null })] });
-    const result = parseMap(JSON.stringify(state));
-    expect(result?.parts[0].x).toBeNull();
-    expect(result?.parts[0].y).toBeNull();
-  });
-
-  it("rejects a non-string feeling", () => {
-    const state = buildState({
-      parts: [{ ...makePart(), feelings: ["sad", 1] as never }],
-    });
-    expect(parseMap(JSON.stringify(state))).toBeNull();
-  });
-
-  it("rejects ownerName present but not a string", () => {
-    const state = { ...buildState(), ownerName: 42 as never };
-    expect(parseMap(JSON.stringify(state))).toBeNull();
-  });
-});
-
-describe("parseMap: schema version", () => {
-  it("rejects a future schemaVersion", () => {
-    const state = { ...buildState(), schemaVersion: 3 as never };
-    expect(parseMap(JSON.stringify(state))).toBeNull();
-  });
-});
-
-describe("parseMap: schema-1 migration", () => {
-  it('trims and ignores case, turning "  ACTIVE " into active:true, status:""', () => {
-    const legacy = {
-      schemaVersion: 1,
-      parts: [makeLegacyPart({ status: "  ACTIVE " })],
-      connections: [],
-    };
-    const result = parseMap(JSON.stringify(legacy));
-    expect(result?.parts[0].active).toBe(true);
-    expect(result?.parts[0].status).toBe("");
-  });
-
-  it("keeps a custom status's trimmed text and leaves active false", () => {
-    const legacy = {
-      schemaVersion: 1,
-      parts: [makeLegacyPart({ status: "  Contemplative  " })],
-      connections: [],
-    };
-    const result = parseMap(JSON.stringify(legacy));
-    expect(result?.parts[0].active).toBe(false);
-    expect(result?.parts[0].status).toBe("Contemplative");
-  });
-
-  it("also normalizes feelings and cleans up connections on the migrated map", () => {
-    const partA = makeLegacyPart({ id: "a", feelings: ["Sad", "sad"] });
-    const partB = makeLegacyPart({ id: "b" });
-    const connections: Connection[] = [
-      { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
-      // Same direction twice - the second is dropped.
-      { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
-      // Dangling - "ghost" isn't a part.
-      { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
-    ];
-    const legacy = { schemaVersion: 1, parts: [partA, partB], connections };
-    const result = parseMap(JSON.stringify(legacy));
-
-    expect(result?.parts[0].feelings).toEqual(["sad"]);
-    expect(result?.connections).toEqual([
-      { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
-    ]);
-  });
-});
-
-describe("parseMap: idempotence", () => {
-  it("parseMap(JSON.stringify(parseMap(x))) equals parseMap(x)", () => {
-    const raw = JSON.stringify(
-      buildState({
-        parts: [makePart({ id: "a", feelings: ["Sad", "sad"] }), makePart({ id: "b" })],
-        connections: [
-          { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
-          { id: "c2", sourceId: "a", targetId: "b", label: "protects again" },
-          { id: "c3", sourceId: "a", targetId: "ghost", label: "dangling" },
-        ],
-      }),
-    );
-
-    const once = parseMap(raw);
-    // Without this, a parseMap that rejected the input would pass:
-    // null stringifies to "null", which parses back to null.
-    expect(once).not.toBeNull();
-    expect(once?.parts[0].feelings).toEqual(["sad"]);
-    expect(once?.connections.map((c) => c.id)).toEqual(["c1"]);
-
-    const twice = parseMap(JSON.stringify(once));
-    expect(twice).toEqual(once);
-  });
-});
-
-describe("loadState / saveState: a throwing localStorage", () => {
   it("loadState returns null when getItem throws", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");
@@ -296,17 +267,31 @@ describe("loadState / saveState: a throwing localStorage", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota full");
     });
-    expect(() => saveState(buildState())).not.toThrow();
+    expect(() => saveState(emptyState())).not.toThrow();
   });
 });
 
-describe("saveStateDebounced: the demo route", () => {
-  it("doesn't save on the demo route, even after the timer fires", () => {
+describe("saveStateDebounced", () => {
+  // Real timers come back in the file-level afterEach.
+  beforeEach(() => {
     vi.useFakeTimers();
+  });
+
+  it("coalesces a burst of writes into one, after the delay", () => {
+    saveStateDebounced(validState({ ownerName: "first" }));
+    saveStateDebounced(validState({ ownerName: "second" }));
+    expect(loadState()).toBeNull();
+
+    vi.runAllTimers();
+
+    expect(loadState()?.ownerName).toBe("second");
+  });
+
+  it("doesn't save on the demo route, even after the timer fires", () => {
     history.pushState({}, "", "/demo/");
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
-    saveStateDebounced(buildState());
+    saveStateDebounced(emptyState());
     vi.runAllTimers();
 
     expect(setItemSpy).not.toHaveBeenCalled();
