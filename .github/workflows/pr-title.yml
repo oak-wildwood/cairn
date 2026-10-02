@@ -1,10 +1,10 @@
 name: PR title
 
 # The squashed commit takes its subject from the pull request title, so a title
-# that drifts from the convention lands in main permanently. AGENTS.md and
-# CONTRIBUTING.md both describe the convention, but instruction files are
-# advisory — agents author most pull requests here, and "please follow this"
-# is not the same as "cannot merge without". This is the binding half.
+# that drifts from the convention lands in main permanently. AGENTS.md
+# describes the convention, but instruction files are advisory — agents
+# author most pull requests here, and "please follow this" is not the same
+# as "cannot merge without". This is the binding half.
 
 on:
   pull_request:
@@ -27,7 +27,7 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          # Keep this list in step with your AGENTS.md / CONTRIBUTING.md.
+          # Keep this list in step with AGENTS.md.
           # These seven are a sensible default; edit to taste.
           TYPES='feat|fix|refactor|test|docs|ci|chore'
 
