@@ -49,8 +49,8 @@ describe("pointToBearing", () => {
   });
 
   it("normalises to [0, 360)", () => {
-    expect(pointToBearing({ x: 0, y: -1 })).toBeGreaterThanOrEqual(0);
-    expect(pointToBearing({ x: 0, y: -1 })).toBeLessThan(360);
+    // Due west: atan2 alone returns -90 here.
+    expect(pointToBearing({ x: -1, y: 0 })).toBeCloseTo(270);
   });
 });
 
