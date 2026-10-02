@@ -117,8 +117,9 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
 
 ## Working in this repo
 
-- `npm run check` must finish at **0 errors and 0 warnings**, and `npm run build` must
-  succeed, before a milestone counts as done — not "looks right in the dev server".
+- `npm run check` (**0 errors and 0 warnings**), `npm test` and `npm run build` must all
+  pass before a milestone counts as done — not "looks right in the dev server". CI
+  (`ci.yml`) enforces the same three steps.
 - `design/` is gitignored apart from the three `cairn-icon-*` files, so anything
   dropped in there is local scratch: it will not be committed and will not exist for
   anyone else. Nothing in it is a spec, and no doc or comment should cite it as one.
@@ -126,6 +127,47 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
   that starts relying on it.
 - Regenerate the logos with `python3 tools/make-logo.py` from the repo root; see
   `tools/README.md` for why each step of the keying is what it is.
+
+## Testing
+
+A suite that passes while the code it covers is broken reads as protection and gives
+none, which is worse than no suite. These rules exist because a review of the first
+Vitest PRs (#73, #84) found exactly that.
+
+- **Every test must be able to fail.** Before adding a test, break the code it covers
+  and watch the test fail; say in the PR what you broke. The anti-patterns, all found
+  in that review:
+  - *Passing when the unit returns `null` or a constant.* A `parseMap` idempotence
+    test passed when `parseMap` returned `null` (`null` → `"null"` → `null`), and the
+    tour tests passed with `hasSeenTour` hard-coded to `true` because nothing checked
+    the `false` case. Assert the specific output, and cover both sides of every boolean.
+  - *Asserting a constant equals its own copy.* Allowed only to guard a documented
+    policy (the six generic demo names in `exampleData.ts`), and it must carry a
+    comment saying so.
+  - *Mocking the unit under test.* Mock its dependencies, never the thing being tested.
+- **Every invariant has a test.** Each item under "Invariants that are easy to break by
+  accident" needs a test that fails when it is violated, and changing an invariant
+  updates its test in the same PR. The review found that rotating the whole diagram 90°
+  (breaking the bearing convention) still passed the suite.
+- **Environment.** Node by default. Add `// @vitest-environment jsdom` to a file only if
+  it needs `localStorage`, `document` or `location`.
+- **Mocks and cleanup.** Use `vi.spyOn` or `vi.stubGlobal`; never assign to a global
+  directly. Restore in `afterEach`, never at the end of a test body — a failing
+  assertion skips the rest of the body and the leak hits the next test. That includes
+  URL changes made with `history.pushState`.
+- **Svelte.** Tests that use runes are named `*.svelte.test.ts`. Test an `$effect`
+  inside `$effect.root` and call `flushSync`. Component tests use the harness chosen in
+  #69. Prefer putting logic in modules over components so it can be tested without one.
+- **Fixtures.** Use the shared `makePart` helper in `src/lib/testParts.ts` and the six
+  generic names. The no-real-data and no-network hard rules apply to tests, fixtures
+  and snapshots as much as to app code.
+- **Agents must be able to run the tests.** `claude.yml` and `claude-nightly.yml` list
+  `allowed_tools` explicitly; both need `Bash(npm test)` (and `Bash(npm run test:*)` if
+  a variant is added), or the definition of done above can't be met by the agents that
+  author most PRs here.
+- **PR body.** `.github/pull_request_template.md` only pre-fills the web UI, and
+  `gh pr create --body` skips it. Include its checklist in your PR body yourself. The
+  title is what becomes the commit message; the body does not survive the squash.
 
 ### PR titles become commit messages
 
