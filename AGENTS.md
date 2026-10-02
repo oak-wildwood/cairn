@@ -185,8 +185,10 @@ Vitest PRs (#73, #84) found exactly that.
   at the end of a test body — a failing assertion skips the rest of the body and the
   leak hits the next test. That includes URL changes made with `history.pushState`.
 - **Svelte.** Tests that use runes are named `*.svelte.test.ts`. Test an `$effect`
-  inside `$effect.root` and call `flushSync`. Component tests use the harness chosen in
-  #69. Prefer putting logic in modules over components so it can be tested without one.
+  inside `$effect.root` and call `flushSync`. Component tests use
+  `@testing-library/svelte` on jsdom (not Vitest browser mode; real-browser coverage
+  belongs to Playwright), and call its `cleanup` in `afterEach`. Prefer putting logic
+  in modules over components so it can be tested without one.
 - **Fixtures.** Use the shared `makePart` helper in `src/lib/testParts.ts` and the six
   generic names. The no-real-data and no-network hard rules apply to tests, fixtures
   and snapshots as much as to app code.
