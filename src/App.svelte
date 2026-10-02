@@ -16,11 +16,11 @@
   import { downloadMap } from "./lib/backup";
   import { exportMapPng } from "./lib/export";
   import { exportPartsPdf } from "./lib/pdfExport";
-  import { isDemoRoute, parseMap, saveState, saveStateDebounced } from "./lib/persistence";
+  import { autosaveMap, snapshotState } from "./lib/autosave.svelte";
+  import { isDemoRoute, parseMap, saveState } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
-  import { hasSeenTour, markTourSeen, TOUR_STEPS } from "./lib/tour";
-  import { SCHEMA_VERSION } from "./lib/types";
-  import type { PersistedState } from "./lib/types";
+  import { hasSeenTour } from "./lib/tour";
+  import { TourState } from "./lib/tourState.svelte";
 
   /**
    * The store owns the data; this component reads it and hands the diagram
@@ -59,30 +59,10 @@
   );
 
   /**
-   * Write the map back to localStorage whenever it settles.
-   *
-   * `$state.snapshot` does the deep read that registers every part and
-   * connection as a dependency, and hands back plain objects for JSON in the
-   * same step — serialising the reactive proxies directly would be both
-   * untracked and wrong.
+   * Write the map back to localStorage whenever it settles, except while the
+   * untouched sample is on screen — see `autosave.svelte.ts`.
    */
-  function snapshotState(): PersistedState {
-    return {
-      schemaVersion: SCHEMA_VERSION,
-      parts: $state.snapshot(store.parts),
-      connections: $state.snapshot(store.connections),
-      ownerName: store.ownerName,
-    };
-  }
-
-  $effect(() => {
-    // An untouched sample map is never written. Persisting it would make the
-    // seed indistinguishable from a real map on the next load — the banner
-    // would drop, and `exampleData.ts` would quietly become the user's own.
-    if (store.showingExample) return;
-
-    saveStateDebounced(snapshotState());
-  });
+  autosaveMap();
 
   /**
    * What the last map-file action did, shown beside the toolbar and cleared on
@@ -284,74 +264,21 @@
     };
   }
 
-  /**
-   * The guided tour's own state. `tourPriorSelection` snapshots whatever was
-   * selected (or nothing) before the tour started, so the `requiresPart`
-   * effect below can drive `store.selectedPartId` for its own steps without
-   * losing whatever the user had open when they launched it from the menu.
-   */
-  let tourActive = $state(false);
-  let tourStepIndex = $state(0);
-  let tourPriorSelection: string | null = null;
-
-  function startTour(): void {
-    tourPriorSelection = store.selectedPartId;
-    tourStepIndex = 0;
-    tourActive = true;
-  }
-
-  function endTour(): void {
-    tourActive = false;
-    markTourSeen();
-    if (tourPriorSelection !== null) store.select(tourPriorSelection);
-    else store.clearSelection();
-  }
-
-  function tourNext(): void {
-    if (tourStepIndex >= TOUR_STEPS.length - 1) {
-      endTour();
-      return;
-    }
-    tourStepIndex += 1;
-  }
-
-  function tourBack(): void {
-    if (tourStepIndex === 0) return;
-    tourStepIndex -= 1;
-  }
+  /** The guided tour's own state — see `tourState.svelte.ts`. */
+  const tour = new TourState();
 
   // The demo page is a second static entry for looking at the seed map
   // alongside a real one (see `isDemoRoute` in persistence.ts) — it isn't a
   // first visit to the real app, so it shouldn't offer the tour either.
   onMount(() => {
-    if (!isDemoRoute() && !hasSeenTour()) startTour();
+    if (!isDemoRoute() && !hasSeenTour()) tour.start();
   });
 
   /**
-   * Several steps ("select-part" on, through "connection") point at the
-   * detail panel, which only exists once a part is selected. Rather than
-   * have every such step open and close it, one effect keeps
-   * `store.selectedPartId` matching what the current step needs and puts it
-   * back to `tourPriorSelection` the moment it doesn't — the tour always
-   * opens `store.parts[0]`, the same part `part-node` ("select-part")
-   * resolves to via `document.querySelector`, so it's one consistent part
-   * throughout rather than whichever one a real click happened to land on.
+   * Keeps a part selected for the steps that point at the detail panel, and
+   * puts the user's own selection back for the rest.
    */
-  $effect(() => {
-    if (!tourActive) return;
-    const step = TOUR_STEPS[tourStepIndex];
-    if (!step) return;
-
-    if (step.requiresPart) {
-      const demoId = store.parts[0]?.id;
-      if (demoId !== undefined && store.selectedPartId !== demoId) {
-        store.select(demoId);
-      }
-    } else if (store.selectedPartId !== tourPriorSelection) {
-      if (tourPriorSelection !== null) store.select(tourPriorSelection);
-      else store.clearSelection();
-    }
-  });
+  tour.trackSelection();
 
   /**
    * Escape is the keyboard equivalent of clicking the canvas to deselect —
@@ -383,8 +310,8 @@
     // deselect-the-part below — `.shell` is `inert` while it's open (see
     // the markup), so nothing there could hold focus for Escape to reach
     // anyway.
-    if (tourActive) {
-      if (event.key === "Escape") endTour();
+    if (tour.active) {
+      if (event.key === "Escape") tour.end();
       return;
     }
 
@@ -418,7 +345,7 @@
      app un-clickable and un-tabbable behind the overlay at once, matching
      the "purely observational" MVP — no separate full-viewport click
      shield needed in TourOverlay itself. -->
-<div class="shell" inert={tourActive}>
+<div class="shell" inert={tour.active}>
   {#if store.showingExample}
     <DemoBanner />
   {/if}
@@ -462,7 +389,7 @@
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
-        onStartTour={startTour}
+        onStartTour={() => tour.start()}
         exporting={exportingPdf}
       />
     </div>
@@ -581,12 +508,12 @@
   <ExportProgressModal current={exportProgress.current} total={exportProgress.total} />
 {/if}
 
-{#if tourActive}
+{#if tour.active}
   <TourOverlay
-    stepIndex={tourStepIndex}
-    onNext={tourNext}
-    onBack={tourBack}
-    onClose={endTour}
+    stepIndex={tour.stepIndex}
+    onNext={() => tour.next()}
+    onBack={() => tour.back()}
+    onClose={() => tour.end()}
     onShowDataInfo={() => (showingDataInfo = true)}
   />
 {/if}

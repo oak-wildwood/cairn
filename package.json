@@ -26,6 +26,7 @@
   "homepage": "https://github.com/oak-wildwood/cairn#readme",
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@testing-library/svelte": "^5.4.2",
     "@tsconfig/svelte": "^5.0.8",
     "@types/d3-scale": "^4.0.9",
     "@types/d3-shape": "^3.2.0",

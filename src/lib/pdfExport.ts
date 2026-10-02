@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { getFontEmbedCSS, toCanvas } from "html-to-image";
 import { downloadBlob, fileStamp } from "./backup";
+import { captureHeight, EXPORT_SCALE, pdfPageSize } from "./exportGeometry";
 
 /**
  * Rendering one PDF page per part, each a screenshot of the live workspace
@@ -36,16 +37,6 @@ import { downloadBlob, fileStamp } from "./backup";
 export function pdfExportFileName(now: Date): string {
   return `cairn-map-parts-${fileStamp(now)}.pdf`;
 }
-
-/**
- * Matches `export.ts`'s `SCALE`: rendered at 2x so a page stands up to being
- * printed or zoomed into, rather than at the CSS size where the type would
- * go soft.
- */
-const SCALE = 2;
-
-/** CSS px -> PDF pt, at the standard 96 CSS px per 72pt inch. */
-const PX_TO_PT = 72 / 96;
 
 /**
  * How long to wait for `PartDetailPanel`'s `reveal` transition to settle
@@ -186,7 +177,7 @@ function fitWorkspaceHeight(workspace: HTMLElement): () => void {
 
   // The larger of the two, so a part with little to say still fills the
   // viewport-height page the export has always produced.
-  const needed = Math.max(workspace.clientHeight, inner.scrollHeight);
+  const needed = captureHeight(workspace.clientHeight, inner.scrollHeight);
   return overrideStyle([workspace], "flex", `0 0 ${needed}px`);
 }
 
@@ -241,12 +232,11 @@ export async function exportPartsPdf(
     const restoreHeight = fitWorkspaceHeight(workspace);
     let canvas: HTMLCanvasElement;
     try {
-      canvas = await toCanvas(workspace, { pixelRatio: SCALE, fontEmbedCSS });
+      canvas = await toCanvas(workspace, { pixelRatio: EXPORT_SCALE, fontEmbedCSS });
     } finally {
       restoreHeight();
     }
-    const width = (canvas.width / SCALE) * PX_TO_PT;
-    const height = (canvas.height / SCALE) * PX_TO_PT;
+    const { width, height } = pdfPageSize(canvas);
     // JPEG rather than PNG: the workspace is full of soft radial glows behind
     // each node, and lossless PNG compresses that gradient noise so poorly
     // that a handful of pages ran to well over 100MB. JPEG's lossy encoding

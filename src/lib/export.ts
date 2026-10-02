@@ -1,5 +1,11 @@
 import { getFontEmbedCSS, toCanvas } from "html-to-image";
 import { downloadBlob, fileStamp } from "./backup";
+import {
+  captureHeight,
+  compositeLayout,
+  EXPORT_SCALE,
+  rasterSize,
+} from "./exportGeometry";
 
 /**
  * Rendering the map as a PNG the user can keep or share.
@@ -28,12 +34,6 @@ import { downloadBlob, fileStamp } from "./backup";
 export function exportFileName(now: Date): string {
   return `cairn-map-${fileStamp(now)}.png`;
 }
-
-/**
- * Rendered at 2x so the PNG stands up to a retina screen and to being zoomed
- * into, rather than at the CSS size where the type would go soft.
- */
-const SCALE = 2;
 
 /**
  * The properties the cascade contributes to how the diagram *rasterises*.
@@ -168,13 +168,13 @@ async function capturePanelCanvas(panel: HTMLElement): Promise<HTMLCanvasElement
   if (inner) {
     panel.style.setProperty(
       "height",
-      `${Math.max(panel.clientHeight, inner.scrollHeight)}px`,
+      `${captureHeight(panel.clientHeight, inner.scrollHeight)}px`,
     );
   }
 
   try {
     const fontEmbedCSS = await getFontEmbedCSS(panel);
-    return await toCanvas(panel, { pixelRatio: SCALE, fontEmbedCSS });
+    return await toCanvas(panel, { pixelRatio: EXPORT_SCALE, fontEmbedCSS });
   } finally {
     panel.style.setProperty("height", previousHeight);
     widened.forEach((el, index) => el.style.setProperty("width", previousWidths[index]));
@@ -193,15 +193,16 @@ function compositeWithPanel(
   panel: HTMLCanvasElement,
   gap: number,
 ): HTMLCanvasElement {
+  const layout = compositeLayout(diagram, panel, gap);
   const canvas = document.createElement("canvas");
-  canvas.width = diagram.width + gap + panel.width;
-  canvas.height = Math.max(diagram.height, panel.height);
+  canvas.width = layout.width;
+  canvas.height = layout.height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas 2D is unavailable.");
   context.fillStyle = PAGE_BACKGROUND;
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(diagram, 0, 0);
-  context.drawImage(panel, diagram.width + gap, 0);
+  context.drawImage(panel, layout.panelX, 0);
   return canvas;
 }
 
@@ -257,9 +258,10 @@ export async function exportMapPng(
   // fire and leave this hanging.
   await image.decode();
 
+  const size = rasterSize({ width, height });
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(width * SCALE);
-  canvas.height = Math.round(height * SCALE);
+  canvas.width = size.width;
+  canvas.height = size.height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas 2D is unavailable.");
   // No background fill: the diagram's own backdrop rect spans 3000 units from
@@ -270,7 +272,7 @@ export async function exportMapPng(
   if (panel) {
     const panelCanvas = await capturePanelCanvas(panel);
     const gap = panel.parentElement
-      ? parseFloat(getComputedStyle(panel.parentElement).columnGap) * SCALE
+      ? parseFloat(getComputedStyle(panel.parentElement).columnGap) * EXPORT_SCALE
       : 0;
     output = compositeWithPanel(canvas, panelCanvas, gap);
   }

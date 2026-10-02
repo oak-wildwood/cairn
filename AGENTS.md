@@ -77,8 +77,8 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
   everywhere for consistency is a regression against the settled design, and dropping them
   from reciprocal pairs makes those two arcs unreadable.
 - **Reciprocal arcs separate because one term skips the `away` flip.** In
-  `Connection.svelte`, `perp` and `away` both flip with direction, so they cancel
-  and two opposite connectors would otherwise bow onto the same point. The
+  `layout.ts`'s `connectorCurve`, `perp` and `away` both flip with direction, so they
+  cancel and two opposite connectors would otherwise bow onto the same point. The
   `reciprocalSpread` term is added *without* `away` on purpose — `perp` alone flips
   it, and that is what splits the pair. Multiplying it by `away` for symmetry puts
   the two arcs back on top of each other.

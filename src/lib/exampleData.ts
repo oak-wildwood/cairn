@@ -161,7 +161,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
  * suppress the exile: both directions, at once, between the same pair. So The
  * Kid triggers The Fixer *and* The Fixer protects The Kid; The Kid triggers The
  * Avoider *and* The Avoider protects The Kid. Rendering these as reciprocal
- * pairs is what earns them arrowheads (see Connection.svelte).
+ * pairs is what earns them arrowheads (see `connectorMarkerEnd` in layout.ts).
  *
  * Polarization is the exception and stays a single connector: The Fixer and The
  * Analyst are in a mutual standoff, which is symmetric, so one line states it.

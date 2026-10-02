@@ -1,7 +1,9 @@
 import { scalePoint } from "d3-scale";
-import { NODE, VIEWBOX } from "./theme";
+import { CONNECTION, isLowDefinition, NODE, VIEWBOX } from "./theme";
+import type { ConnectorColorKey } from "./theme";
 import { SELF_ID } from "./types";
 import type {
+  Connection,
   ConnectionStyle,
   EndpointId,
   EndpointRole,
@@ -203,7 +205,7 @@ export function computeLayout(parts: readonly Part[]): Map<string, Point> {
  * `connectionOpacity` below dims unsurfaced connectors instead. That keeps the
  * three dashed treatments in this app distinct rather than overloaded:
  *   - connector dash "1 6"  -> edge kind (here)
- *   - node stroke dash "3 4" -> status is emerging/unwitnessed (theme.ts)
+ *   - node stroke dash "3 4" -> status is emerging/unwitnessed (`nodeStrokeDashArray`)
  *   - dimmed connector       -> an endpoint's role is still "unknown"
  */
 export function connectionStyle(
@@ -247,6 +249,131 @@ export function connectionOpacity(
 ): number {
   const unsurfaced = sourceRole === "unknown" || targetRole === "unknown";
   return unsurfaced ? base * 0.6 : base;
+}
+
+/**
+ * A node's stroke dash, which encodes *status* alone: "emerging" and
+ * "unwitnessed" parts are drawn low-definition, whatever their role and
+ * whatever connects to them. Takes only the status so that neither of the
+ * other two treatments above can leak into this one.
+ */
+export function nodeStrokeDashArray(status: string): string | undefined {
+  return isLowDefinition(status) ? NODE.mutedDashArray : undefined;
+}
+
+/**
+ * The ids of connections whose pair also holds the reverse edge. Only these
+ * get arrowheads, and only these are spread apart — see `connectorCurve`.
+ */
+export function reciprocalConnectionIds(
+  connections: readonly Pick<Connection, "id" | "sourceId" | "targetId">[],
+): Set<string> {
+  const edges = new Set(
+    connections.map((connection) =>
+      connectionEdgeKey(connection.sourceId, connection.targetId),
+    ),
+  );
+  return new Set(
+    connections
+      .filter((connection) =>
+        edges.has(connectionEdgeKey(connection.targetId, connection.sourceId)),
+      )
+      .map((connection) => connection.id),
+  );
+}
+
+/**
+ * An arrowhead only where direction is otherwise unreadable. A lone
+ * connector between two nodes needs none — there is nothing to confuse it
+ * with, and the original design drew none — but the two arcs of a reciprocal
+ * pair look identical apart from their labels, so each names which end it
+ * points at. The marker ids are the ones `Diagram.svelte` defines.
+ */
+export function connectorMarkerEnd(
+  reciprocal: boolean,
+  colorKey: ConnectorColorKey,
+): string | undefined {
+  return reciprocal ? `url(#arrow-${colorKey})` : undefined;
+}
+
+/** One end of a connector: where its node sits and how big it is. */
+export interface ConnectorEndpoint {
+  id: EndpointId;
+  point: Point;
+  /** Node radius, so the line stops at the circle's edge rather than centre. */
+  radius: number;
+}
+
+/**
+ * The three points a connector's curve passes through. `bow` is on the curve,
+ * so it doubles as the label anchor.
+ */
+export interface ConnectorCurve {
+  start: Point;
+  bow: Point;
+  end: Point;
+}
+
+/**
+ * Trim the chord by each node's radius so the line meets the circles' edges,
+ * then bow it off that chord. The bow always pushes away from Self, so
+ * connectors arc around the centre instead of cutting across it.
+ *
+ * Null when the nodes overlap and there is nothing to draw.
+ */
+export function connectorCurve(
+  source: ConnectorEndpoint,
+  target: ConnectorEndpoint,
+  reciprocal: boolean,
+): ConnectorCurve | null {
+  const dx = target.point.x - source.point.x;
+  const dy = target.point.y - source.point.y;
+  const length = Math.hypot(dx, dy);
+
+  // Overlapping nodes leave nothing to draw.
+  if (length <= source.radius + target.radius) return null;
+
+  const ux = dx / length;
+  const uy = dy / length;
+
+  const start: Point = {
+    x: source.point.x + ux * source.radius,
+    y: source.point.y + uy * source.radius,
+  };
+  const end: Point = {
+    x: target.point.x - ux * target.radius,
+    y: target.point.y - uy * target.radius,
+  };
+
+  const mid: Point = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const perp: Point = { x: uy, y: -ux };
+
+  // When an endpoint is Self, `mid` sits on the origin and is always
+  // collinear with the chord, so the dot product below is exactly zero and
+  // its sign is floating-point noise — flipping every pointer-move mid-drag
+  // reads as the curve flickering between mirror images. Key off which
+  // field holds Self instead; that's fixed for the connection's lifetime.
+  const touchesSelf = source.id === SELF_ID || target.id === SELF_ID;
+  const away = touchesSelf
+    ? source.id === SELF_ID ? 1 : -1
+    : mid.x * perp.x + mid.y * perp.y >= 0 ? 1 : -1;
+  // A reciprocal pair would otherwise draw one arc twice. `perp` flips with
+  // direction and so does `away`, so the two flips cancel and both bows land
+  // on exactly the same point — which is what made a second connection
+  // useless before. A term that does *not* carry `away` breaks the symmetry,
+  // because `perp` alone still flips it: the two arcs then split evenly
+  // either side of the single bow they used to share, and the shared one
+  // stays where it was for every non-reciprocal connector.
+  const chord = Math.hypot(end.x - start.x, end.y - start.y);
+  const spread = reciprocal ? CONNECTION.reciprocalSpread : 0;
+  const offset = chord * (CONNECTION.bowRatio * away + spread);
+
+  const bow: Point = {
+    x: mid.x + perp.x * offset,
+    y: mid.y + perp.y * offset,
+  };
+
+  return { start, bow, end };
 }
 
 /**
