@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { feelingCounts } from "./feelings";
-import { makePart } from "./testSupport";
+import { makePart } from "./testParts";
 
 describe("feelingCounts", () => {
   it("returns an empty map for no parts", () => {

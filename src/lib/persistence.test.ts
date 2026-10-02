@@ -1,8 +1,9 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadState, parseMap, saveState, saveStateDebounced } from "./persistence";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
 import type { PersistedState } from "./types";
-import { makePart } from "./testSupport";
+import { makePart } from "./testParts";
 
 function validState(overrides: Partial<PersistedState> = {}): PersistedState {
   return {

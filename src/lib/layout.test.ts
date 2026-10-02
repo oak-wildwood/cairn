@@ -8,12 +8,13 @@ import {
   partCaption,
   pointToBearing,
   polarToPoint,
+  SECTORS,
   survivesFilters,
   wrapLabel,
 } from "./layout";
 import { VIEWBOX } from "./theme";
 import { SELF_ID } from "./types";
-import { makePart } from "./testSupport";
+import { makePart } from "./testParts";
 
 describe("polarToPoint", () => {
   it("puts 0 degrees due north of Self (negative y, per the SVG convention)", () => {
@@ -89,6 +90,30 @@ describe("computeLayout", () => {
     expect(overridden.get("a")).toEqual(baseline.get("a"));
     expect(overridden.get("c")).toEqual(baseline.get("c"));
     expect(overridden.get("b")).toEqual({ x: 999, y: 999 });
+  });
+
+  it("insets every part from its sector's edges, keeping it out of the overlaps", () => {
+    // Manager (270–350) and exile (140–275) share 270–275. Only scalePoint's
+    // padding(0.5) keeps the first and last part of each ring off the
+    // boundary; without it the last exile lands on 275 and the first manager
+    // on 270, both inside the other's sector.
+    const roles = ["manager", "firefighter", "exile"] as const;
+    const parts = roles.flatMap((role) =>
+      [1, 2].map((n) => makePart({ id: `${role}-${n}`, role })),
+    );
+    const positions = computeLayout(parts);
+
+    for (const part of parts) {
+      const { startDeg, endDeg } = SECTORS[part.role as (typeof roles)[number]];
+      const bearing = pointToBearing(positions.get(part.id)!);
+      expect(bearing).toBeGreaterThan(startDeg + 5);
+      expect(bearing).toBeLessThan(endDeg - 5);
+    }
+  });
+
+  it("puts a lone part in the middle of its sector, not at its start", () => {
+    const positions = computeLayout([makePart({ id: "m", role: "manager" })]);
+    expect(pointToBearing(positions.get("m")!)).toBeCloseTo(310);
   });
 
   it("spills onto an outer ring when a sector can't fit everyone at once", () => {

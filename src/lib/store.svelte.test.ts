@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { store } from "./store.svelte";
 import { SELF_ID } from "./types";
-import { makePart } from "./testSupport";
+import { makePart } from "./testParts";
 
 /**
  * `store` is a module-level singleton (see store.svelte.ts), so every test
