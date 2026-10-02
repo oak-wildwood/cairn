@@ -4,10 +4,11 @@ import { connectionEdgeKey } from "./layout";
 import { SELF_ID } from "./types";
 
 /**
- * The seed map is the first thing a visitor sees, and its connections are
- * meant to model real IFS relationships (see AGENTS.md's note on
- * protector/exile bonds), not just look plausible. These guard the two ways
- * that could quietly stop being true as the data is edited.
+ * The seed map is the first thing a visitor sees, so a hand edit to it must
+ * not ship a connection the loader would drop. These check the structure:
+ * every endpoint resolves, and no direction appears twice. Whether each bond
+ * is drawn in the right direction (AGENTS.md's note on protector/exile
+ * pairs) is a judgment about IFS, and these tests don't check it.
  */
 describe("EXAMPLE_CONNECTIONS", () => {
   it("only names parts that exist, or Self", () => {
