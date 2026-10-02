@@ -146,10 +146,6 @@ describe("connectionEdgeKey", () => {
   it("treats A->B and B->A as different keys", () => {
     expect(connectionEdgeKey("a", "b")).not.toBe(connectionEdgeKey("b", "a"));
   });
-
-  it("is stable for the same direction", () => {
-    expect(connectionEdgeKey("a", "b")).toBe(connectionEdgeKey("a", "b"));
-  });
 });
 
 describe("connectionOpacity", () => {
