@@ -19,7 +19,9 @@ on:
       - "stryker.config.mjs"
   schedule:
     # Weekly, for drift no path filter sees, such as a Vitest or Stryker bump.
-    # Sunday 03:17 UTC, clear of the 10:00 UTC Nightly.
+    # Sunday 03:17 UTC, clear of the 10:00 UTC Nightly. GitHub evicts caches
+    # unused for 7 days, so after a quiet week a run may start cold. That
+    # costs a full run (about 6 minutes), not a wrong result.
     - cron: "17 3 * * 0"
   workflow_dispatch:
 
