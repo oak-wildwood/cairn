@@ -55,7 +55,8 @@ export default {
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
   clearTextReporter: { allowColor: false, reportTests: false, logTests: false },
 
-  // Re-test only the mutants a change could affect; CI caches this file.
+  // Re-test only the mutants a change could affect. Local runs reuse this
+  // file, and the mutation workflow (#97) caches it between CI runs.
   incremental: true,
   incrementalFile: "reports/stryker-incremental.json",
 
@@ -64,12 +65,14 @@ export default {
   // are killed; never lower it without saying why in the PR.
   //
   // Baseline history (overall score, all files in scope):
-  //   #88  75.27%  floor 72. Most of the gap is store.svelte.ts (93 mutants no
-  //                test reaches) and layout.ts's ring-capacity, label-wrap and
-  //                viewBox arithmetic; both are filed as follow-ups.
-  //   #69  84.37%  floor 81. #92's store, effect and export-geometry tests,
-  //                measured with this config on main after both merged.
-  //                What's left is #94 (store) and #95 (layout).
+  //   #88 (PR #96)  75.27%  floor 72. Most of the gap is store.svelte.ts
+  //                         (93 mutants no test reaches) and layout.ts's
+  //                         ring-capacity, label-wrap and viewBox arithmetic;
+  //                         both are filed as follow-ups.
+  //   #69 (PR #92)  84.37%  floor 81. #92's store, effect and export-geometry
+  //                         tests, measured with this config on main after
+  //                         both merged. What's left is #94 (store) and #95
+  //                         (layout).
   //
   // The ten persistence.ts survivors at that baseline are all equivalent:
   //   - `typeof value !== "object"` -> false in the five shape guards: the
