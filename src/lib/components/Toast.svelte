@@ -1,6 +1,7 @@
 <script lang="ts">
   /**
-   * A transient message floated over the bottom of the canvas, so reporting
+   * A transient message floated over the bottom-left of the canvas (it
+   * positions against the nearest positioned ancestor), so reporting
    * what a file action did costs the layout no space. A failure uses
    * `role="alert"` so it is announced at once; a success is a polite status.
    */
@@ -25,15 +26,14 @@
      the colour the inline notice already used. Nothing in the original design
      covered transient messages. */
   .toast {
-    position: fixed;
-    left: 50%;
-    bottom: 1.5rem;
-    transform: translateX(-50%);
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
     z-index: 50;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    max-width: min(32rem, calc(100vw - 2rem));
+    max-width: min(32rem, calc(100% - 2rem));
     padding: 0.625rem 0.875rem 0.625rem 1.125rem;
     border: 1px solid var(--pill-border);
     border-radius: 12px;

@@ -420,6 +420,13 @@
           activeOnlyFilter={store.activeOnlyFilter}
           tagFilter={store.tagFilter}
         />
+        {#if fileNotice}
+          <Toast
+            tone={fileNotice.tone}
+            text={fileNotice.text}
+            ondismiss={() => (fileNotice = null)}
+          />
+        {/if}
       </div>
 
       {#if store.selectedPart}
@@ -511,14 +518,6 @@
     onBack={() => tour.back()}
     onClose={() => tour.end()}
     onShowDataInfo={() => (showingDataInfo = true)}
-  />
-{/if}
-
-{#if fileNotice}
-  <Toast
-    tone={fileNotice.tone}
-    text={fileNotice.text}
-    ondismiss={() => (fileNotice = null)}
   />
 {/if}
 
@@ -665,6 +664,7 @@
   }
 
   .canvas {
+    position: relative;
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
