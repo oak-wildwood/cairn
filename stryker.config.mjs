@@ -74,9 +74,25 @@ export default {
   //                         both merged. What's left is #94 (store) and #95
   //                         (layout).
   //
-  // The ten persistence.ts survivors at that baseline are all equivalent:
-  //   - `typeof value !== "object"` -> false in the five shape guards: the
-  //     field checks after it reject a primitive anyway.
+  //   #95           88.18%  floor 85. layout.ts at 98.83%. Its three survivors
+  //                         are equivalent (see below); what's left overall is
+  //                         #94 (store).
+  //
+  // The three layout.ts survivors at the #95 baseline are all equivalent:
+  //   - `bowRatio * away` -> `bowRatio / away` in connectorCurve: `away` is
+  //     only ever 1 or -1, so the quotient is the product.
+  //   - `i < words.length` -> `i <= words.length` in wrapLabel: the extra
+  //     pass has an empty tail, so its longest line is the whole name,
+  //     which no real split can beat.
+  //   - `x - centreX` -> `x + centreX` in computeViewBox: `VIEWBOX` is centred
+  //     on x = 0, so centreX is 0.
+  // They are left surviving for the same reason as the ones below: each line
+  // also holds a mutant the suite kills, and a disable would hide it.
+  //
+  // The nine persistence.ts survivors at the #95 baseline are all equivalent
+  // (ten at #88; isPart's guard has been killed since):
+  //   - `typeof value !== "object"` -> false in the other four shape guards:
+  //     the field checks after it reject a primitive anyway.
   //   - the three `catch {}` bodies in parseMap and loadState, and
   //     `raw === null` -> false: each fall-through hands readPersistedState
   //     an undefined or null that it rejects one step later.
@@ -86,7 +102,7 @@ export default {
   // `Stryker disable next-line` can only name a mutator for the whole line,
   // and on each of those lines that would also hide a sibling mutant the
   // suite does kill.
-  thresholds: { high: 90, low: 80, break: 81 },
+  thresholds: { high: 90, low: 80, break: 85 },
 
   tempDirName: ".stryker-tmp",
   cleanTempDir: true,

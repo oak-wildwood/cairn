@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BASE_RADIUS,
   computeLayout,
   computeViewBox,
   connectionEdgeKey,
@@ -163,6 +164,39 @@ describe("computeLayout", () => {
   });
 });
 
+describe("computeLayout: ring capacity", () => {
+  // The manager sector is 80 degrees wide. At MIN_ARC_SPACING 130 the first
+  // ring (radius 255) holds floor(255 * 80deg / 130) = 2 parts, the second
+  // (radius 375) 4 and the third (radius 495) 5.
+  const managers = (count: number) =>
+    Array.from({ length: count }, (_, index) =>
+      makePart({ id: `m${index}`, role: "manager" }),
+    );
+  const radiusOf = (positions: Map<string, Point>, id: string) => {
+    const { x, y } = positions.get(id)!;
+    return Math.round(Math.hypot(x, y));
+  };
+
+  it("fits exactly two managers on the first ring, then one more spills outward", () => {
+    const positions = computeLayout(managers(3));
+    expect(radiusOf(positions, "m0")).toBe(BASE_RADIUS);
+    expect(radiusOf(positions, "m1")).toBe(BASE_RADIUS);
+    expect(radiusOf(positions, "m2")).toBe(BASE_RADIUS + 120);
+  });
+
+  it("fills each ring to capacity, in order, and every ring sits further out", () => {
+    const positions = computeLayout(managers(7));
+    const radii = Array.from({ length: 7 }, (_, index) => radiusOf(positions, `m${index}`));
+    expect(radii).toEqual([255, 255, 375, 375, 375, 375, 495]);
+    // The second ring holds four, spread evenly over the sector with half a
+    // step of margin at each end: 20 degrees apart from 280 to 340.
+    const bearings = [2, 3, 4, 5].map((index) =>
+      pointToBearing(positions.get(`m${index}`)!),
+    );
+    bearings.forEach((bearing, index) => expect(bearing).toBeCloseTo(280 + 20 * index));
+  });
+});
+
 describe("connectionStyle", () => {
   it("is solid when either endpoint is Self", () => {
     expect(connectionStyle(SELF_ID, "a")).toBe("solid");
@@ -206,6 +240,12 @@ describe("partCaption", () => {
     expect(
       partCaption({ role: "exile", status: "witnessed", active: true }),
     ).toBe("exile · witnessed · active");
+  });
+
+  it("trims padding around a status that has something to say", () => {
+    expect(partCaption({ role: "exile", status: "  witnessed ", active: false })).toBe(
+      "exile · witnessed",
+    );
   });
 
   it("trims a blank status rather than leaving a dangling separator", () => {
@@ -271,6 +311,20 @@ describe("wrapLabel", () => {
     expect(wrapLabel("The Unseen One")).toEqual(["The", "Unseen One"]);
   });
 
+  it("keeps a name of exactly maxChars on one line, but wraps one char longer", () => {
+    expect(wrapLabel("Twelve Chars")).toEqual(["Twelve Chars"]);
+    expect(wrapLabel("Thirteen Char")).toEqual(["Thirteen", "Char"]);
+    expect(wrapLabel("ab cd ef", 8)).toEqual(["ab cd ef"]);
+    expect(wrapLabel("ab cd efg", 8)).toEqual(["ab cd", "efg"]);
+  });
+
+  it("searches every split point, not just the first", () => {
+    // Splits leave longest lines of 17, 13 and 12: only the third is best.
+    expect(wrapLabel("An Old Quiet Watcher")).toEqual(["An Old Quiet", "Watcher"]);
+    // Both inner splits leave 13 as the longest line; the earlier one wins.
+    expect(wrapLabel("The Old Quiet Watcher")).toEqual(["The Old", "Quiet Watcher"]);
+  });
+
   it("trims before measuring", () => {
     expect(wrapLabel("  Self  ")).toEqual(["Self"]);
   });
@@ -322,6 +376,32 @@ describe("computeViewBox", () => {
     expect(box.height).toBeGreaterThan(VIEWBOX.height);
     expect(box.width / box.height).toBeCloseTo(VIEWBOX.width / VIEWBOX.height, 1);
     expectCentred(box);
+  });
+
+  it("measures a node above Self by its upward reach alone", () => {
+    // Reach is 15 + 731 + 54 = 800 past the frame's half-height of 385, so
+    // 2.08x: the next 5% step is 2.10x. Adding rather than subtracting the
+    // node's up-extent, or measuring from the wrong edge, lands elsewhere.
+    // A 2.10x step, not 2.05x: 770 x 2.05 is exactly 1578.5, where rounding
+    // would depend on float error in the stepped scale.
+    const box = computeViewBox([{ x: 0, y: -731 }]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.1));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 2.1));
+  });
+
+  it("measures a node below Self by its caption's downward reach alone", () => {
+    // Reach is 741 + 73.5 - 15 = 799.5: 2.08x, so 2.10x.
+    const box = computeViewBox([{ x: 0, y: 741 }]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.1));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 2.1));
+  });
+
+  it("measures a node to either side by its offset from the centre", () => {
+    // 819 + 90 = 909 against a half-width of 450: 2.02x, so 2.05x.
+    for (const x of [819, -819]) {
+      const box = computeViewBox([{ x, y: 0 }]);
+      expect(box.width).toBe(Math.round(VIEWBOX.width * 2.05));
+    }
   });
 
   it("grows in 5% steps - a point just past the frame gives exactly 1.05x", () => {
@@ -434,6 +514,60 @@ describe("connectorCurve", () => {
 
   it("draws nothing for overlapping nodes", () => {
     expect(connectorCurve(a, { ...b, point: { x: -180, y: -150 } }, false)).toBeNull();
+  });
+
+  it("draws nothing when the circles exactly touch, and something just past that", () => {
+    const left = { id: "a", point: { x: 0, y: 0 }, radius };
+    expect(connectorCurve(left, { id: "b", point: { x: 2 * radius, y: 0 }, radius }, false)).toBeNull();
+    expect(
+      connectorCurve(left, { id: "b", point: { x: 2 * radius + 1, y: 0 }, radius }, false),
+    ).not.toBeNull();
+  });
+
+  it("bows a chord that passes through Self towards its perp, not away from it", () => {
+    // Collinear with Self, so the dot product is exactly zero: ties go to
+    // `away` = 1, which for an eastward chord bows to the north.
+    const west = { id: "a", point: { x: -200, y: 0 }, radius };
+    const east = { id: "b", point: { x: 200, y: 0 }, radius };
+    const { bow } = connectorCurve(west, east, false)!;
+    expect(bow.x).toBeCloseTo(0);
+    expect(bow.y).toBeCloseTo(-CONNECTION.bowRatio * (400 - 2 * radius));
+  });
+
+  it("bows every part-to-part connector away from Self, wherever the pair sits", () => {
+    for (let bearing = 0; bearing < 360; bearing += 40) {
+      for (const offset of [-60, 25, 90]) {
+        const first = { id: "a", point: polarToPoint(bearing, 250), radius };
+        const second = { id: "b", point: polarToPoint(bearing + offset + 80, 300), radius };
+        for (const [from, to] of [[first, second], [second, first]]) {
+          const { start, bow, end } = connectorCurve(from, to, false)!;
+          const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+          // Only meaningful when the chord is off-centre enough to have a side.
+          if (Math.abs(mid.x * (end.y - start.y) - mid.y * (end.x - start.x)) < 1) continue;
+          expect(Math.hypot(bow.x, bow.y)).toBeGreaterThan(Math.hypot(mid.x, mid.y));
+        }
+      }
+    }
+  });
+
+  it("bows out of Self counter-clockwise from either end", () => {
+    // Self to a part due north: the bow lands west of the line (negative x),
+    // and the reverse connector shares that arc.
+    const self = { id: SELF_ID, point: { x: 0, y: 0 }, radius: 40 };
+    const north = { id: "a", point: { x: 0, y: -255 }, radius };
+    expect(connectorCurve(self, north, false)!.bow.x).toBeLessThan(0);
+    expect(connectorCurve(north, self, false)!.bow.x).toBeLessThan(0);
+  });
+
+  it("pushes the forward arc of a reciprocal pair along its own perp by the spread", () => {
+    const shared = connectorCurve(a, b, false)!;
+    const there = connectorCurve(a, b, true)!;
+    const chord = distance(shared.start, shared.end);
+    // a -> b runs (ux, uy); perp is (uy, -ux).
+    const ux = (b.point.x - a.point.x) / distance(a.point, b.point);
+    const uy = (b.point.y - a.point.y) / distance(a.point, b.point);
+    expect(there.bow.x - shared.bow.x).toBeCloseTo(uy * chord * CONNECTION.reciprocalSpread);
+    expect(there.bow.y - shared.bow.y).toBeCloseTo(-ux * chord * CONNECTION.reciprocalSpread);
   });
 
   it("bows away from Self rather than across it", () => {
