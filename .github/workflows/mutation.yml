@@ -29,9 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 22, not the 20 that ci.yml uses: StrykerJS refuses to start below it.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
