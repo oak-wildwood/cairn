@@ -73,12 +73,18 @@ export default {
   //                         tests, measured with this config on main after
   //                         both merged. What's left is #94 (store) and #95
   //                         (layout).
-  //
-  //   #95           88.18%  floor 85. layout.ts at 98.83%. Its three survivors
+  //   #95 (PR #101) 88.18%  floor 85. layout.ts at 98.83%. Its three survivors
   //                         are equivalent (see below); what's left overall is
   //                         #94 (store).
+  //   #94 (PR #102) 97.97%  floor 95. store.svelte.ts from 56% to 100%: its
+  //                         import-time precedence is tested against a fresh
+  //                         module per case, and the derived lookups, editing
+  //                         flow and filters are now reached. Measured on main
+  //                         with #101 merged. What's left is the layout.ts and
+  //                         persistence.ts equivalents below, and four in
+  //                         tourState.svelte.ts.
   //
-  // The three layout.ts survivors at the #95 baseline are all equivalent:
+  // The three layout.ts survivors are all equivalent:
   //   - `bowRatio * away` -> `bowRatio / away` in connectorCurve: `away` is
   //     only ever 1 or -1, so the quotient is the product.
   //   - `i < words.length` -> `i <= words.length` in wrapLabel: the extra
@@ -89,10 +95,11 @@ export default {
   // They are left surviving for the same reason as the ones below: each line
   // also holds a mutant the suite kills, and a disable would hide it.
   //
-  // The nine persistence.ts survivors at the #95 baseline are all equivalent
-  // (ten at #88; isPart's guard has been killed since):
-  //   - `typeof value !== "object"` -> false in the other four shape guards:
-  //     the field checks after it reject a primitive anyway.
+  // The ten persistence.ts survivors are all equivalent. A run can report
+  // fewer, because an equivalent mutant sometimes times out and Stryker
+  // counts a timeout as detected; that's noise, not a kill.
+  //   - `typeof value !== "object"` -> false in the five shape guards: the
+  //     field checks after it reject a primitive anyway.
   //   - the three `catch {}` bodies in parseMap and loadState, and
   //     `raw === null` -> false: each fall-through hands readPersistedState
   //     an undefined or null that it rejects one step later.
@@ -102,7 +109,7 @@ export default {
   // `Stryker disable next-line` can only name a mutator for the whole line,
   // and on each of those lines that would also hide a sibling mutant the
   // suite does kill.
-  thresholds: { high: 90, low: 80, break: 85 },
+  thresholds: { high: 90, low: 80, break: 95 },
 
   tempDirName: ".stryker-tmp",
   cleanTempDir: true,
