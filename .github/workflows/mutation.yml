@@ -38,9 +38,11 @@ jobs:
 
       # Stryker's incremental file: a PR run only re-tests mutants its diff
       # can affect. Saved under a per-run key and restored by prefix, so the
-      # newest result from main (or this branch) seeds the next run.
+      # newest result from main (or this branch) seeds the next run. Restore
+      # and save are split because actions/cache only saves on success, and a
+      # run that falls below thresholds.break still has results worth keeping.
       - name: Restore incremental results
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: reports/stryker-incremental.json
           key: stryker-incremental-${{ github.ref_name }}-${{ github.run_id }}
@@ -53,6 +55,13 @@ jobs:
         run: |
           set -o pipefail
           npm run test:mutation 2>&1 | tee stryker.log
+
+      - name: Save incremental results
+        if: always() && hashFiles('reports/stryker-incremental.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Survivors to the job summary
         if: always()
