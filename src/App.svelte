@@ -6,6 +6,7 @@
   import Diagram from "./lib/components/Diagram.svelte";
   import ExportPdfScopeModal from "./lib/components/ExportPdfScopeModal.svelte";
   import type { ExportPdfScope } from "./lib/components/ExportPdfScopeModal.svelte";
+  import Toast from "./lib/components/Toast.svelte";
   import ExportProgressModal from "./lib/components/ExportProgressModal.svelte";
   import Legend from "./lib/components/Legend.svelte";
   import PartDetailPanel from "./lib/components/PartDetailPanel.svelte";
@@ -65,12 +66,21 @@
   autosaveMap();
 
   /**
-   * What the last map-file action did, shown beside the toolbar and cleared on
-   * the next one. A restore that quietly does nothing is indistinguishable
+   * What the last map-file action did, shown as a toast that dismisses itself
+   * and is replaced by the next one. A restore that quietly does nothing is indistinguishable
    * from a restore that worked on an empty map, and a rejected file needs to
    * say so — there is no other signal that the pick went nowhere.
    */
   let fileNotice = $state<{ tone: "ok" | "bad"; text: string } | null>(null);
+
+  $effect(() => {
+    if (fileNotice === null) return;
+    const timer = setTimeout(
+      () => (fileNotice = null),
+      fileNotice.tone === "bad" ? 8000 : 4000,
+    );
+    return () => clearTimeout(timer);
+  });
 
   /** The diagram's live `<svg>`, bound out of `Diagram` so it can be exported. */
   let diagramSvg = $state<SVGSVGElement | null>(null);
@@ -358,23 +368,11 @@
           src="{logoBase}logo-96.png"
           srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
           alt="Cairn"
-          width="44"
-          height="44"
+          width="36"
+          height="36"
         />
         <p class="wordmark">Cairn</p>
       </div>
-      <div class="counts">
-        <p class="count">
-          {store.parts.length}
-          {store.parts.length === 1 ? "part" : "parts"}
-        </p>
-        <p class="count-meta">{activeCount} active this week</p>
-      </div>
-    </header>
-
-    <hr class="rule" />
-
-    <div class="page-heading">
       <h1 class="title">
         {#if owner === ""}
           My Parts Map
@@ -382,6 +380,10 @@
           Parts Map for <span class="owner">{owner}</span>
         {/if}
       </h1>
+      <p class="counts">
+        {store.parts.length}
+        {store.parts.length === 1 ? "part" : "parts"} · {activeCount} active this week
+      </p>
       <Toolbar
         onAddPart={() => store.startAdding()}
         onExport={handleExport}
@@ -392,13 +394,7 @@
         onStartTour={() => tour.start()}
         exporting={exportingPdf}
       />
-    </div>
-
-    {#if fileNotice}
-      <p class="file-notice" class:bad={fileNotice.tone === "bad"} role="status">
-        {fileNotice.text}
-      </p>
-    {/if}
+    </header>
 
     <hr class="rule" />
 
@@ -518,6 +514,14 @@
   />
 {/if}
 
+{#if fileNotice}
+  <Toast
+    tone={fileNotice.tone}
+    text={fileNotice.text}
+    ondismiss={() => (fileNotice = null)}
+  />
+{/if}
+
 {#if showingDataInfo}
   <DataStorageModal onclose={() => (showingDataInfo = false)} />
 {/if}
@@ -576,11 +580,11 @@
   .app {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.75rem;
     flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
-    padding: 2.25rem clamp(1.25rem, 5vw, 3.75rem);
+    padding: 1rem clamp(1.25rem, 5vw, 3.75rem);
     box-sizing: border-box;
     color: var(--text-primary);
   }
@@ -588,8 +592,8 @@
   .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
   }
 
   /**
@@ -606,8 +610,8 @@
   .mark {
     display: block;
     flex-shrink: 0;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
   }
 
   .wordmark {
@@ -619,27 +623,11 @@
     font-weight: 500;
   }
 
-  .page-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-  }
-
-  .file-notice {
-    margin: 0.75rem 0 0;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  .file-notice.bad {
-    color: #e38f6b;
-  }
-
   .title {
+    flex: 1 1 auto;
     margin: 0;
     font-family: var(--font-display);
-    font-size: 42px;
+    font-size: 30px;
     font-style: italic;
     font-weight: 500;
     line-height: 1;
@@ -658,18 +646,7 @@
   }
 
   .counts {
-    text-align: right;
-  }
-
-  .count {
     margin: 0;
-    color: var(--text-bright);
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  .count-meta {
-    margin: 0.375rem 0 0;
     color: var(--text-muted);
     font-size: 13px;
   }
