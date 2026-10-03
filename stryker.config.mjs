@@ -83,7 +83,7 @@ export default {
   //                         with #101 merged. What's left is the layout.ts and
   //                         persistence.ts equivalents below, and four in
   //                         tourState.svelte.ts.
-  //   #103          98.22%  floor stays 95. tourState.svelte.ts to 96.23%:
+  //   #103 (PR #105) 98.22%  floor stays 95. tourState.svelte.ts to 96.23%:
   //                         two of its four survivors killed, the other two
   //                         equivalent. Every survivor left is documented
   //                         below, so further gains come only from new code.
