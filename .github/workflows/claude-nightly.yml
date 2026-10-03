@@ -27,6 +27,8 @@ jobs:
       actions: read
     uses: oak-wildwood/gh-repo-init/.github/workflows/nightly.yml@v1
     with:
+      # 22, not the shared default of 20: StrykerJS (test:mutation) needs it.
+      node_version: "22"
       allowed_tools: "Write,Edit,Bash(npm install),Bash(npm ci),Bash(npm run check),Bash(npm test:*),Bash(npm run test:mutation:*),Bash(npm run build),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(gh issue view:*),Bash(gh pr create:*),Bash(gh pr view:*)"
       issue_number: ${{ inputs.issue_number }}
     secrets:
