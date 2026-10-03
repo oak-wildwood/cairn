@@ -82,6 +82,24 @@ describe("TourState.trackSelection", () => {
     expect(store.selectedPartId).toBeNull();
   });
 
+  it("puts the tour's part back if the user opens another one on a panel step", () => {
+    startTracking();
+    tour.start();
+    stepTo(FIRST_PANEL_STEP);
+    store.select("mine");
+    flushSync();
+    expect(store.selectedPartId).toBe("first");
+  });
+
+  it("puts the user's selection back if they open a part on a non-panel step", () => {
+    startTracking();
+    tour.start();
+    flushSync();
+    store.select("mine");
+    flushSync();
+    expect(store.selectedPartId).toBeNull();
+  });
+
   it("leaves the selection alone on a panel step when the map has no parts", () => {
     store.parts = [];
     startTracking();

@@ -83,6 +83,10 @@ export default {
   //                         with #101 merged. What's left is the layout.ts and
   //                         persistence.ts equivalents below, and four in
   //                         tourState.svelte.ts.
+  //   #103          98.22%  floor stays 95. tourState.svelte.ts to 96.23%:
+  //                         two of its four survivors killed, the other two
+  //                         equivalent. Every survivor left is documented
+  //                         below, so further gains come only from new code.
   //
   // The three layout.ts survivors are all equivalent:
   //   - `bowRatio * away` -> `bowRatio / away` in connectorCurve: `away` is
@@ -94,6 +98,14 @@ export default {
   //     on x = 0, so centreX is 0.
   // They are left surviving for the same reason as the ones below: each line
   // also holds a mutant the suite kills, and a disable would hide it.
+  //
+  // The two tourState.svelte.ts survivors are equivalent:
+  //   - `this.priorSelection !== null` -> true in restoreSelection:
+  //     `store.select(null)` writes exactly what `clearSelection()` does.
+  //   - `!step` -> false in trackSelection: next() and back() keep stepIndex
+  //     in range, so the guard never fires while the tour is active.
+  // Each line also holds a ConditionalExpression mutant the suite kills, so
+  // disabling that mutator would hide it, as with the ones below.
   //
   // The ten persistence.ts survivors are all equivalent. A run can report
   // fewer, because an equivalent mutant sometimes times out and Stryker
