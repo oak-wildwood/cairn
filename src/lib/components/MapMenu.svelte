@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clampPopoverLeft } from "../touchGeometry";
   /**
    * The map-file actions — back up, restore, start fresh — folded behind one
    * control beside Export.
@@ -39,6 +40,24 @@
   let trigger = $state<HTMLButtonElement | null>(null);
   let panel = $state<HTMLDivElement | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
+
+  /**
+   * How far the panel is nudged right to stay on screen. It opens
+   * right-aligned to the trigger, growing inward from the edge the trigger
+   * usually sits against — but on a phone the toolbar wraps under the title,
+   * the trigger lands near the left edge instead, and a panel growing
+   * leftward from it would run off the screen.
+   */
+  const PANEL_MARGIN = 8;
+  let nudge = $state(0);
+
+  $effect(() => {
+    if (!open || !panel) return;
+    const rect = panel.getBoundingClientRect();
+    nudge =
+      clampPopoverLeft(rect.left, rect.width, window.innerWidth, PANEL_MARGIN) - rect.left;
+    return () => (nudge = 0);
+  });
 
   function close(options: { refocus: boolean } = { refocus: false }): void {
     open = false;
@@ -116,7 +135,12 @@
   </button>
 
   {#if open}
-    <div bind:this={panel} class="panel" role="menu">
+    <div
+      bind:this={panel}
+      class="panel"
+      role="menu"
+      style:translate={nudge === 0 ? undefined : `${nudge}px 0`}
+    >
       <button class="item" type="button" role="menuitem" onclick={() => {
         close();
         onStartTour();

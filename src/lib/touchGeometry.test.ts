@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampPopoverLeft, pinchView } from "./touchGeometry";
+import { clampPopoverLeft, overlapsVertically, pinchView } from "./touchGeometry";
 import type { PinchStart } from "./touchGeometry";
 
 const LIMITS = { min: 0.5, max: 2.5 };
@@ -117,5 +117,21 @@ describe("clampPopoverLeft", () => {
 
   it("pins the left edge when the viewport is narrower than the popover", () => {
     expect(clampPopoverLeft(100, 290, 250, 8)).toBe(8);
+  });
+});
+
+describe("overlapsVertically", () => {
+  it("is true when the trigger is inside the visible span", () => {
+    expect(overlapsVertically(100, 140, 50, 500)).toBe(true);
+  });
+
+  it("is true when the trigger is only partly in view", () => {
+    expect(overlapsVertically(30, 70, 50, 500)).toBe(true);
+    expect(overlapsVertically(480, 520, 50, 500)).toBe(true);
+  });
+
+  it("is false once the trigger is fully above or below the span", () => {
+    expect(overlapsVertically(10, 50, 50, 500)).toBe(false);
+    expect(overlapsVertically(500, 540, 50, 500)).toBe(false);
   });
 });

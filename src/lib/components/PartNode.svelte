@@ -2,6 +2,7 @@
   import { nodeStrokeDashArray, partCaption, polarToPoint, wrapLabel } from "../layout";
   import { ACTIVE_TOGGLE, HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
+  import ActiveBadge from "./ActiveBadge.svelte";
 
   interface Props {
     part: Part;
@@ -360,22 +361,7 @@
     <!-- Wider than the drawn circle below, so a small badge doesn't also
          have to be a precise click. -->
     <circle class="hit-area" r={ACTIVE_TOGGLE.hitRadius} fill="transparent" />
-    <circle
-      r={ACTIVE_TOGGLE.radius}
-      fill={part.active ? tokens.accent : "none"}
-      stroke={tokens.accent}
-      stroke-width={ACTIVE_TOGGLE.strokeWidth}
-    />
-    {#if part.active}
-      <path
-        d={ACTIVE_TOGGLE.checkPath}
-        fill="none"
-        stroke={tokens.nodeFill}
-        stroke-width={ACTIVE_TOGGLE.checkStrokeWidth}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    {/if}
+    <ActiveBadge active={part.active} accent={tokens.accent} nodeFill={tokens.nodeFill} />
   </g>
 </g>
 

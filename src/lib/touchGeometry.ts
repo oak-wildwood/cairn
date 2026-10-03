@@ -83,3 +83,18 @@ export function clampPopoverLeft(
   const maxLeft = viewportWidth - margin - width;
   return Math.max(margin, Math.min(preferred, maxLeft));
 }
+
+/**
+ * Whether any of a trigger spanning `top`–`bottom` is inside a scroll
+ * container's visible span `clipTop`–`clipBottom`, all in viewport px. A
+ * popover anchored to a trigger scrolled fully out of view would otherwise
+ * float over whatever sits above or below the container.
+ */
+export function overlapsVertically(
+  top: number,
+  bottom: number,
+  clipTop: number,
+  clipBottom: number,
+): boolean {
+  return bottom > clipTop && top < clipBottom;
+}

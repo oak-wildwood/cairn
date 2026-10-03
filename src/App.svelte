@@ -366,6 +366,26 @@
 
 <svelte:window onkeydown={handleWindowKey} />
 
+<!-- The logo and wordmark, in the header and, compact, in the "Back to map"
+     bar over an expanded phone sheet (see `PartDetailPanel.svelte`). -->
+{#snippet brand(compact: boolean)}
+  <div class="brand" class:compact>
+    <img
+      class="mark"
+      src="{logoBase}logo-96.png"
+      srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
+      alt="Cairn"
+      width="44"
+      height="44"
+    />
+    <p class="wordmark">Cairn</p>
+  </div>
+{/snippet}
+
+{#snippet compactBrand()}
+  {@render brand(true)}
+{/snippet}
+
 <!-- `inert` while the tour is open: it's the simplest way to make the whole
      app un-clickable and un-tabbable behind the overlay at once, matching
      the "purely observational" MVP — no separate full-viewport click
@@ -377,17 +397,7 @@
 
   <main class="app">
     <header class="header">
-      <div class="brand">
-        <img
-          class="mark"
-          src="{logoBase}logo-96.png"
-          srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
-          alt="Cairn"
-          width="44"
-          height="44"
-        />
-        <p class="wordmark">Cairn</p>
-      </div>
+      {@render brand(false)}
       <div class="counts">
         <p class="count">
           {store.parts.length}
@@ -463,6 +473,8 @@
           onedit={(id) => store.startEditing(id)}
           ondelete={(id) => store.deletePart(id)}
           onfeelings={(id, feelings) => store.setFeelings(id, feelings)}
+          ontoggleactive={(id) => store.toggleActive(id)}
+          brand={compactBrand}
         />
       {/if}
     </section>
@@ -568,6 +580,9 @@
     /* The detail panel's/modal's surface, a step above the darkest background
        stop — also the Legend popovers' surface. */
     --surface-raised: #12141f;
+    /* The page itself, the darkest background stop — also the phone
+       sheet's "Back to map" bar. */
+    --surface-page: #0b0c12;
     --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
     --font-ui: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
     /* Mirrors `theme.ts`'s `TYPE_SCALE.bodyText` — kept in sync by hand, the
@@ -577,13 +592,22 @@
        than picking its own body size. */
     --body-text-size: 14px;
     --body-text-line-height: 1.5;
+    /* The "Back to map" bar above an expanded phone sheet, which
+       `PartDetailPanel.svelte` stops its top edge under. */
+    --sheet-bar-height: 3.5rem;
+    /* DERIVED: the phone sheets' motion — the detail sheet's expand and
+       `PartModal.svelte`'s rise. A cubic-out like the detail panel's own
+       reveal, a touch longer than its 260ms because these moves cover most
+       of the screen's height rather than a panel's width. */
+    --sheet-duration: 320ms;
+    --sheet-easing: cubic-bezier(0.33, 1, 0.68, 1);
   }
 
   :global(html),
   :global(body) {
     margin: 0;
     height: 100%;
-    background: #0b0c12;
+    background: var(--surface-page);
   }
 
   :global(body) {
@@ -869,6 +893,16 @@
     .footer-note {
       display: none;
     }
+  }
+
+  /* DERIVED: sized to fit the phone sheet's "Back to map" bar. */
+  .brand.compact .mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand.compact .wordmark {
+    font-size: 20px;
   }
 
   /* A landscape phone has no height to share: no floor short of the whole

@@ -10,12 +10,20 @@
  */
 export const PHONE_QUERY = "(max-width: 720px), (max-height: 560px)";
 
-class PhoneState {
+/**
+ * A portrait phone, where the detail panel is a bottom sheet under the map
+ * that can be pulled up to fill the screen. A landscape phone puts the panel
+ * back beside the map instead (see `PartDetailPanel.svelte`), so it has no
+ * sheet to expand.
+ */
+export const SHEET_QUERY = "(max-width: 720px) and (orientation: portrait)";
+
+class MediaFlag {
   matches = $state(false);
 
-  constructor() {
+  constructor(source: string) {
     if (typeof matchMedia !== "function") return;
-    const query = matchMedia(PHONE_QUERY);
+    const query = matchMedia(source);
     this.matches = query.matches;
     query.addEventListener("change", (event) => {
       this.matches = event.matches;
@@ -23,4 +31,8 @@ class PhoneState {
   }
 }
 
-export const phone = new PhoneState();
+export const phone = new MediaFlag(PHONE_QUERY);
+
+export const sheet = new MediaFlag(SHEET_QUERY);
+
+export const reducedMotion = new MediaFlag("(prefers-reduced-motion: reduce)");
