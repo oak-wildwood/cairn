@@ -101,6 +101,13 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
 - **A connection endpoint may be the literal `"self"`, which is not a `Part.id`.**
   Anything that resolves endpoints by looking them up in the parts list gets
   `undefined` for Self. Self is never `unknown` and never carries a `PartRole`.
+- **A feeling belongs to at most one feeling group.** Groups are a partition
+  because "names the same feeling" has to be transitive. A feeling in two groups
+  would join them, and filtering by one would match the other. Any code that
+  writes `feelingGroups` goes through `assignFeelingsToGroup` or
+  `normalizeFeelingGroups` in `feelings.ts`. Groups are only ever declared by the
+  person: no stemming, synonym list or similarity score decides that two
+  feelings are the same.
 - **Deleting a part must delete every connection naming it,** as `sourceId` or
   `targetId`. A dangling id survives into localStorage and outlives the session that
   created it.

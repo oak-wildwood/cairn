@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import DataStorageModal from "./lib/components/DataStorageModal.svelte";
+  import FeelingGroupsModal from "./lib/components/FeelingGroupsModal.svelte";
   import DemoBanner from "./lib/components/DemoBanner.svelte";
   import { EXAMPLE_OWNER_NAME } from "./lib/exampleData";
   import Diagram from "./lib/components/Diagram.svelte";
@@ -231,6 +232,7 @@
       restoredMap.parts,
       restoredMap.connections,
       restoredMap.ownerName ?? "",
+      restoredMap.feelingGroups ?? [],
     );
     saveState(snapshotState());
     const count = restoredMap.parts.length;
@@ -242,6 +244,7 @@
 
   let startingFresh = $state(false);
   let showingDataInfo = $state(false);
+  let managingFeelingGroups = $state(false);
 
   function handleStartFresh(ownerName: string): void {
     store.startFresh(ownerName);
@@ -322,8 +325,8 @@
     if (exportingPdf) return;
 
     // The modal owns Escape while it is open; closing the form should not
-    // also drop whatever is selected behind it.
-    if (store.editing) return;
+    // also drop whatever is selected behind it. Same for the groups dialog.
+    if (store.editing || managingFeelingGroups) return;
 
     if (event.key === "Escape") {
       store.clearSelection();
@@ -390,6 +393,7 @@
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
         onStartTour={() => tour.start()}
+        onManageFeelingGroups={() => (managingFeelingGroups = true)}
         exporting={exportingPdf}
       />
     </div>
@@ -422,7 +426,7 @@
           onconnectclose={() => store.clearConnectionSelection()}
           activeFilter={store.activeFilter}
           activeOnlyFilter={store.activeOnlyFilter}
-          tagFilter={store.tagFilter}
+          tagFilter={store.effectiveTagFilter}
         />
       </div>
 
@@ -495,6 +499,18 @@
       }}
     />
   {/key}
+{/if}
+
+{#if managingFeelingGroups}
+  <FeelingGroupsModal
+    groups={store.feelingGroups}
+    parts={store.parts}
+    onadd={() => store.addFeelingGroup()}
+    onrename={(id, name) => store.renameFeelingGroup(id, name)}
+    onassign={(id, feelings) => store.setFeelingGroupFeelings(id, feelings)}
+    ondelete={(id) => store.deleteFeelingGroup(id)}
+    onclose={() => (managingFeelingGroups = false)}
+  />
 {/if}
 
 {#if showingExportPdfScope}

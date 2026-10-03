@@ -105,6 +105,22 @@ export interface Connection {
   label: string;
 }
 
+/**
+ * Feelings the person has said are the same feeling under different words —
+ * "scared", "afraid" and "fear", say. Declared, never inferred: nothing in the
+ * app guesses that two words are related, because whether "anxious" and
+ * "scared" are one feeling or two is the person's call about their own
+ * experience, not a dictionary's. See `feelings.ts` for the rules a set of
+ * groups is held to.
+ */
+export interface FeelingGroup {
+  id: string;
+  /** What the person calls the feeling as a whole, e.g. "fear". May be empty. */
+  name: string;
+  /** Normalized feelings (trimmed, lowercased), each in at most one group. */
+  feelings: string[];
+}
+
 /** The persisted localStorage blob. */
 export interface PersistedState {
   schemaVersion: 2;
@@ -121,6 +137,12 @@ export interface PersistedState {
    * maps behind a migration for no benefit.
    */
   ownerName?: string;
+  /**
+   * Optional and absent on older blobs, without a `schemaVersion` bump, for
+   * the same reason as `ownerName`: an old build ignores it, and a new one
+   * reads its absence as "no groups yet", which is what an old blob means.
+   */
+  feelingGroups?: FeelingGroup[];
 }
 
 export const SCHEMA_VERSION = 2 satisfies PersistedState["schemaVersion"];

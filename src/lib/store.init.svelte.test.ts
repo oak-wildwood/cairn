@@ -26,6 +26,7 @@ const STORED: PersistedState = {
   parts: [makePart({ id: "a", name: "The Fixer" }), makePart({ id: "b" })],
   connections: [{ id: "c1", sourceId: "a", targetId: "b", label: "protects" }],
   ownerName: "Demo User",
+  feelingGroups: [{ id: "g1", name: "fear", feelings: ["scared", "afraid"] }],
 };
 
 // Reset before every test, not only after, so a failure that strands the
@@ -48,9 +49,10 @@ describe("initial state at import", () => {
     expect(store.connections).toEqual(EXAMPLE_CONNECTIONS);
     expect(store.showingExample).toBe(true);
     expect(store.ownerName).toBe("");
+    expect(store.feelingGroups).toEqual([]);
   });
 
-  it("restores a stored map as the user's own, with its owner", async () => {
+  it("restores a stored map as the user's own, with its owner and groups", async () => {
     saveState(STORED);
 
     const store = await freshStore();
@@ -59,6 +61,17 @@ describe("initial state at import", () => {
     expect(store.connections).toEqual(STORED.connections);
     expect(store.showingExample).toBe(false);
     expect(store.ownerName).toBe("Demo User");
+    expect(store.feelingGroups).toEqual(STORED.feelingGroups);
+  });
+
+  it("starts with no groups for a stored map saved before they existed", async () => {
+    const { feelingGroups: _feelingGroups, ...withoutGroups } = STORED;
+    saveState(withoutGroups);
+
+    const store = await freshStore();
+
+    expect(store.parts).toEqual(STORED.parts);
+    expect(store.feelingGroups).toEqual([]);
   });
 
   it("leaves the owner empty for a stored map saved before it had one", async () => {
@@ -104,6 +117,8 @@ describe("initial state at import", () => {
     expect(store.parts).toEqual(fixture.parts);
     expect(store.connections).toEqual(fixture.connections);
     expect(store.showingExample).toBe(true);
+    // Nor its groups: they describe the stored map's feelings, not the fixture's.
+    expect(store.feelingGroups).toEqual([]);
   });
 
   it("starts with no filter of any kind", async () => {

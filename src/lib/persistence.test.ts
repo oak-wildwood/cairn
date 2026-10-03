@@ -213,6 +213,68 @@ describe("parseMap", () => {
       const state = { ...emptyState(), ownerName: 42 as never };
       expect(parseMap(JSON.stringify(state))).toBeNull();
     });
+
+    it("rejects feelingGroups present but not an array", () => {
+      const state = { ...emptyState(), feelingGroups: {} as never };
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("rejects a feeling group missing its name", () => {
+      const state = emptyState({
+        feelingGroups: [{ id: "g1", feelings: [] } as never],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("rejects a feeling group whose id isn't a string", () => {
+      const state = emptyState({
+        feelingGroups: [{ id: 1, name: "", feelings: [] } as never],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("rejects a non-string feeling inside a group", () => {
+      const state = emptyState({
+        feelingGroups: [{ id: "g1", name: "", feelings: ["sad", 1] as never }],
+      });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+
+    it("rejects a feeling group that isn't an object", () => {
+      const state = emptyState({ feelingGroups: [null as never] });
+      expect(parseMap(JSON.stringify(state))).toBeNull();
+    });
+  });
+
+  describe("feeling groups", () => {
+    it("reads a map with no feelingGroups as having none, without adding the field", () => {
+      const result = parseMap(JSON.stringify(emptyState()));
+      expect(result).not.toBeNull();
+      expect(result).not.toHaveProperty("feelingGroups");
+    });
+
+    it("keeps well-formed groups as they are", () => {
+      const feelingGroups = [
+        { id: "g1", name: "fear", feelings: ["scared", "afraid"] },
+        { id: "g2", name: "", feelings: [] },
+      ];
+      expect(parseMap(JSON.stringify(emptyState({ feelingGroups })))?.feelingGroups).toEqual(
+        feelingGroups,
+      );
+    });
+
+    it("normalizes groups, keeping a feeling only in the first group to claim it", () => {
+      const state = emptyState({
+        feelingGroups: [
+          { id: "g1", name: " fear ", feelings: ["Scared", "afraid"] },
+          { id: "g2", name: "worry", feelings: ["AFRAID", "worried"] },
+        ],
+      });
+      expect(parseMap(JSON.stringify(state))?.feelingGroups).toEqual([
+        { id: "g1", name: "fear", feelings: ["scared", "afraid"] },
+        { id: "g2", name: "worry", feelings: ["worried"] },
+      ]);
+    });
   });
 
   describe("schema-1 migration", () => {

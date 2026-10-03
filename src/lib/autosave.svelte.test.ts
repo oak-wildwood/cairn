@@ -31,6 +31,7 @@ describe("autosaveMap", () => {
   it("saves the map as plain data, and again after every change", () => {
     store.ownerName = "Demo User";
     store.parts = [makePart({ id: "a" })];
+    store.feelingGroups = [{ id: "g1", name: "fear", feelings: ["scared"] }];
     const save = vi.fn<(state: PersistedState) => void>();
 
     startAutosave(save);
@@ -42,6 +43,7 @@ describe("autosaveMap", () => {
       parts: [makePart({ id: "a" })],
       connections: [],
       ownerName: "Demo User",
+      feelingGroups: [{ id: "g1", name: "fear", feelings: ["scared"] }],
     });
     // A reactive proxy can't be structured-cloned; a snapshot can.
     expect(() => structuredClone(first)).not.toThrow();
