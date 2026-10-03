@@ -34,6 +34,99 @@ describe("deletePart", () => {
     store.deletePart("a");
     expect(store.selectedPartId).toBeNull();
   });
+
+  it("leaves a different part's selection alone", () => {
+    store.parts = [makePart({ id: "a" }), makePart({ id: "b" })];
+    store.select("b");
+    store.deletePart("a");
+    expect(store.selectedPartId).toBe("b");
+  });
+
+  it("marks the map as the user's own", () => {
+    store.parts = [makePart({ id: "a" })];
+    store.showingExample = true;
+    store.deletePart("a");
+    expect(store.showingExample).toBe(false);
+  });
+});
+
+describe("addPart", () => {
+  it("appends the part with a fresh id, selects it and closes the modal", () => {
+    const existing = makePart({ id: "a" });
+    store.parts = [existing];
+    store.startAdding();
+    store.showingExample = true;
+
+    const { id: _ignored, ...draft } = makePart({ name: "The Avoider", role: "exile" });
+    store.addPart(draft);
+
+    expect(store.parts).toHaveLength(2);
+    expect(store.parts[0]).toEqual(existing);
+    const added = store.parts[1];
+    expect(added).toEqual({ ...draft, id: added.id });
+    expect(added.id).not.toBe("");
+    expect(added.id).not.toBe("a");
+    expect(store.selectedPartId).toBe(added.id);
+    expect(store.selectedPart).toEqual(added);
+    expect(store.editing).toBeNull();
+    // Left true, App would decline to save and the next load would reseed
+    // the demo over the user's first part.
+    expect(store.showingExample).toBe(false);
+  });
+
+  it("gives each added part its own id", () => {
+    const { id: _ignored, ...draft } = makePart();
+    store.addPart(draft);
+    store.addPart(draft);
+    expect(store.parts[0].id).not.toBe(store.parts[1].id);
+  });
+});
+
+describe("editing state", () => {
+  it("opens the modal for a new part with no part to edit", () => {
+    store.parts = [makePart({ id: "a" })];
+    store.startAdding();
+    expect(store.editing).toEqual({ kind: "new" });
+    expect(store.editingPart).toBeNull();
+  });
+
+  it("opens the modal on an existing part and resolves it", () => {
+    const target = makePart({ id: "b", name: "The Analyst" });
+    store.parts = [makePart({ id: "a" }), target];
+    store.startEditing("b");
+    expect(store.editing).toEqual({ kind: "existing", id: "b" });
+    expect(store.editingPart).toEqual(target);
+  });
+
+  it("resolves to null when the part being edited no longer exists", () => {
+    store.parts = [makePart({ id: "a" })];
+    store.startEditing("gone");
+    expect(store.editingPart).toBeNull();
+  });
+
+  it("is null when the modal is closed", () => {
+    store.parts = [makePart({ id: "a" })];
+    store.startEditing("a");
+    store.stopEditing();
+    expect(store.editing).toBeNull();
+    expect(store.editingPart).toBeNull();
+  });
+});
+
+describe("selectedPart", () => {
+  it("resolves the selected id to its part", () => {
+    const target = makePart({ id: "b" });
+    store.parts = [makePart({ id: "a" }), target];
+    store.select("b");
+    expect(store.selectedPart).toEqual(target);
+  });
+
+  it("is null with nothing selected, or a selection that no longer resolves", () => {
+    store.parts = [makePart({ id: "a" })];
+    expect(store.selectedPart).toBeNull();
+    store.selectedPartId = "gone";
+    expect(store.selectedPart).toBeNull();
+  });
 });
 
 describe("addConnection / hasConnection", () => {
@@ -60,6 +153,18 @@ describe("addConnection / hasConnection", () => {
     expect(store.connections).toHaveLength(0);
   });
 
+  it("selects the new connection with an empty label, and marks the map as the user's", () => {
+    store.parts = [makePart({ id: "a" }), makePart({ id: "b" })];
+    store.showingExample = true;
+
+    store.addConnection("a", "b");
+
+    const [connection] = store.connections;
+    expect(connection).toEqual({ id: connection.id, sourceId: "a", targetId: "b", label: "" });
+    expect(store.selectedConnectionId).toBe(connection.id);
+    expect(store.showingExample).toBe(false);
+  });
+
   it("allows Self as either endpoint", () => {
     store.parts = [makePart({ id: "a" })];
     store.addConnection("a", SELF_ID);
@@ -81,6 +186,37 @@ describe("visiblePartIds", () => {
 
     expect(store.visiblePartIds).toEqual(["a"]);
   });
+
+  it("narrows to the tag filter on its own", () => {
+    store.parts = [
+      makePart({ id: "a", feelings: ["shame"] }),
+      makePart({ id: "b", feelings: ["tired"] }),
+    ];
+    store.setTagFilter(["shame"]);
+    expect(store.tagFilter).toEqual(["shame"]);
+    expect(store.visiblePartIds).toEqual(["a"]);
+  });
+});
+
+describe("hasActiveFilter", () => {
+  it("is false with no filter set", () => {
+    expect(store.hasActiveFilter).toBe(false);
+  });
+
+  it("is true for a role filter alone", () => {
+    store.setFilter("manager");
+    expect(store.hasActiveFilter).toBe(true);
+  });
+
+  it("is true for the active-only filter alone", () => {
+    store.toggleActiveOnlyFilter();
+    expect(store.hasActiveFilter).toBe(true);
+  });
+
+  it("is true for a tag filter alone", () => {
+    store.setTagFilter(["shame"]);
+    expect(store.hasActiveFilter).toBe(true);
+  });
 });
 
 describe("toggleActive", () => {
@@ -89,9 +225,11 @@ describe("toggleActive", () => {
       makePart({ id: "a", active: false }),
       makePart({ id: "b", active: false }),
     ];
+    store.showingExample = true;
     store.toggleActive("a");
     expect(store.parts.find((part) => part.id === "a")?.active).toBe(true);
     expect(store.parts.find((part) => part.id === "b")?.active).toBe(false);
+    expect(store.showingExample).toBe(false);
   });
 });
 
@@ -114,6 +252,11 @@ describe("startFresh", () => {
     expect(store.tagFilter).toEqual([]);
     expect(store.ownerName).toBe("Someone");
     expect(store.showingExample).toBe(false);
+  });
+
+  it("trims the owner's name", () => {
+    store.startFresh("  Someone  ");
+    expect(store.ownerName).toBe("Someone");
   });
 });
 
@@ -254,5 +397,27 @@ describe("setConnectionLabel", () => {
       { id: "c2", sourceId: "b", targetId: "a", label: "triggers" },
     ]);
     expect(store.showingExample).toBe(false);
+  });
+});
+
+describe("clearConnectionSelection", () => {
+  it("clears only the connection selection", () => {
+    store.connections = [{ id: "c1", sourceId: "a", targetId: "b", label: "" }];
+    store.selectConnection("c1");
+    store.clearConnectionSelection();
+    expect(store.selectedConnectionId).toBeNull();
+    expect(store.connections).toHaveLength(1);
+  });
+});
+
+describe("connectionsFor", () => {
+  it("returns every connection touching the part, in either direction", () => {
+    store.connections = [
+      { id: "c1", sourceId: "a", targetId: "b", label: "" },
+      { id: "c2", sourceId: "c", targetId: "a", label: "" },
+      { id: "c3", sourceId: "b", targetId: "c", label: "" },
+    ];
+    expect(store.connectionsFor("a").map((connection) => connection.id)).toEqual(["c1", "c2"]);
+    expect(store.connectionsFor("missing")).toEqual([]);
   });
 });
