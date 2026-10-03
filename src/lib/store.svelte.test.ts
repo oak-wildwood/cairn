@@ -196,6 +196,87 @@ describe("visiblePartIds", () => {
     expect(store.tagFilter).toEqual(["shame"]);
     expect(store.visiblePartIds).toEqual(["a"]);
   });
+
+  it("widens the tag filter through a feeling group, leaving the picked tags alone", () => {
+    store.parts = [
+      makePart({ id: "a", feelings: ["scared"] }),
+      makePart({ id: "b", feelings: ["afraid"] }),
+      makePart({ id: "c", feelings: ["sad"] }),
+    ];
+    store.feelingGroups = [{ id: "g1", name: "fear", feelings: ["scared", "afraid"] }];
+
+    store.setTagFilter(["scared"]);
+
+    expect(store.tagFilter).toEqual(["scared"]);
+    expect(store.effectiveTagFilter).toEqual(["scared", "afraid"]);
+    expect(store.visiblePartIds).toEqual(["a", "b"]);
+  });
+});
+
+describe("feeling groups", () => {
+  it("addFeelingGroup appends an empty, unnamed group and returns its id", () => {
+    store.feelingGroups = [{ id: "g1", name: "fear", feelings: ["scared"] }];
+    store.showingExample = true;
+
+    const id = store.addFeelingGroup();
+
+    expect(store.feelingGroups).toEqual([
+      { id: "g1", name: "fear", feelings: ["scared"] },
+      { id, name: "", feelings: [] },
+    ]);
+    expect(id).not.toBe("g1");
+    expect(store.showingExample).toBe(false);
+  });
+
+  it("renameFeelingGroup trims the new name onto that group only", () => {
+    store.feelingGroups = [
+      { id: "g1", name: "", feelings: [] },
+      { id: "g2", name: "sadness", feelings: [] },
+    ];
+    store.showingExample = true;
+
+    store.renameFeelingGroup("g1", "  fear ");
+
+    expect(store.feelingGroups.map((group) => group.name)).toEqual(["fear", "sadness"]);
+    expect(store.showingExample).toBe(false);
+  });
+
+  it("setFeelingGroupFeelings moves a feeling out of the group that held it", () => {
+    store.feelingGroups = [
+      { id: "g1", name: "fear", feelings: ["scared", "afraid"] },
+      { id: "g2", name: "worry", feelings: [] },
+    ];
+    store.showingExample = true;
+
+    store.setFeelingGroupFeelings("g2", ["afraid", "worried"]);
+
+    expect(store.feelingGroups).toEqual([
+      { id: "g1", name: "fear", feelings: ["scared"] },
+      { id: "g2", name: "worry", feelings: ["afraid", "worried"] },
+    ]);
+    expect(store.showingExample).toBe(false);
+  });
+
+  it("deleteFeelingGroup removes the group but leaves every part's feelings", () => {
+    store.parts = [makePart({ id: "a", feelings: ["scared"] })];
+    store.feelingGroups = [
+      { id: "g1", name: "fear", feelings: ["scared"] },
+      { id: "g2", name: "worry", feelings: [] },
+    ];
+    store.showingExample = true;
+
+    store.deleteFeelingGroup("g1");
+
+    expect(store.feelingGroups.map((group) => group.id)).toEqual(["g2"]);
+    expect(store.parts[0].feelings).toEqual(["scared"]);
+    expect(store.showingExample).toBe(false);
+  });
+
+  it("startFresh clears the groups along with the rest of the map", () => {
+    store.feelingGroups = [{ id: "g1", name: "fear", feelings: ["scared"] }];
+    store.startFresh("");
+    expect(store.feelingGroups).toEqual([]);
+  });
 });
 
 describe("hasActiveFilter", () => {
@@ -338,10 +419,12 @@ describe("replaceAll", () => {
 
     const parts = [makePart({ id: "a" }), makePart({ id: "b" })];
     const connections = [{ id: "c1", sourceId: "a", targetId: "b", label: "protects" }];
-    store.replaceAll(parts, connections, "Demo User");
+    const feelingGroups = [{ id: "g1", name: "fear", feelings: ["scared"] }];
+    store.replaceAll(parts, connections, "Demo User", feelingGroups);
 
     expect(store.parts).toEqual(parts);
     expect(store.connections).toEqual(connections);
+    expect(store.feelingGroups).toEqual(feelingGroups);
     expect(store.ownerName).toBe("Demo User");
     expect(store.selectedPartId).toBeNull();
     expect(store.selectedConnectionId).toBeNull();

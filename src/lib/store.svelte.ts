@@ -1,10 +1,12 @@
 import { fixtureFromQuery } from "./devFixtures";
 import { EXAMPLE_CONNECTIONS, EXAMPLE_PARTS } from "./exampleData";
+import { assignFeelingsToGroup, expandFeelings } from "./feelings";
 import { connectionEdgeKey, survivesFilters } from "./layout";
 import { loadState } from "./persistence";
 import type {
   Connection,
   EndpointId,
+  FeelingGroup,
   Part,
   PartDraft,
   Point,
@@ -65,6 +67,16 @@ class MapStore {
   ownerName = $state(restored?.ownerName ?? "");
 
   /**
+   * Which feelings the person has said are the same feeling — map data, not
+   * view state, so it persists. Kept a partition by every method that writes
+   * it (see `feelings.ts`). A dev fixture brings none of its own, and
+   * shouldn't borrow the stored map's.
+   */
+  feelingGroups = $state<FeelingGroup[]>(
+    fixture ? [] : (restored?.feelingGroups ?? []),
+  );
+
+  /**
    * The role the legend is filtering to, or null for "All".
    *
    * View state, not map data: it is deliberately absent from `PersistedState`,
@@ -102,6 +114,16 @@ class MapStore {
     this.tagFilter = tags;
   }
 
+  /**
+   * `tagFilter` widened through `feelingGroups`, so picking "scared" in the
+   * legend also keeps the parts tagged "afraid" — what every filter check
+   * actually tests against, while the legend goes on showing exactly what was
+   * picked.
+   */
+  readonly effectiveTagFilter = $derived(
+    expandFeelings(this.tagFilter, this.feelingGroups),
+  );
+
   /** Whether the legend has anything narrowed right now, across all three filters. */
   readonly hasActiveFilter = $derived(
     this.activeFilter !== null || this.activeOnlyFilter || this.tagFilter.length > 0,
@@ -123,7 +145,7 @@ class MapStore {
         survivesFilters(part.role, part.active, part.feelings, {
           activeFilter: this.activeFilter,
           activeOnlyFilter: this.activeOnlyFilter,
-          tagFilter: this.tagFilter,
+          tagFilter: this.effectiveTagFilter,
         }),
       )
       .map((part) => part.id),
@@ -193,6 +215,7 @@ class MapStore {
     this.ownerName = ownerName.trim();
     this.parts = [];
     this.connections = [];
+    this.feelingGroups = [];
     this.selectedPartId = null;
     this.selectedConnectionId = null;
     this.editing = null;
@@ -212,11 +235,13 @@ class MapStore {
     parts: Part[],
     connections: Connection[],
     ownerName: string,
+    feelingGroups: FeelingGroup[],
   ): void {
     this.showingExample = false;
     this.ownerName = ownerName;
     this.parts = parts;
     this.connections = connections;
+    this.feelingGroups = feelingGroups;
     this.selectedPartId = null;
     this.selectedConnectionId = null;
     this.editing = null;
@@ -364,6 +389,44 @@ class MapStore {
     this.parts = this.parts.map((part) =>
       part.id === id ? { ...part, feelings } : part,
     );
+  }
+
+  /** Start an empty, unnamed group, and return its id. */
+  addFeelingGroup(): string {
+    this.showingExample = false;
+    const group: FeelingGroup = {
+      id: crypto.randomUUID(),
+      name: "",
+      feelings: [],
+    };
+    this.feelingGroups = [...this.feelingGroups, group];
+    return group.id;
+  }
+
+  /** Trimmed here rather than on every keystroke — see `FeelingGroupsModal`. */
+  renameFeelingGroup(id: string, name: string): void {
+    this.showingExample = false;
+    this.feelingGroups = this.feelingGroups.map((group) =>
+      group.id === id ? { ...group, name: name.trim() } : group,
+    );
+  }
+
+  /**
+   * Set a group's feelings. One already in another group moves here, since
+   * a feeling is the same as at most one set of others (see `feelings.ts`).
+   */
+  setFeelingGroupFeelings(id: string, feelings: string[]): void {
+    this.showingExample = false;
+    this.feelingGroups = assignFeelingsToGroup(this.feelingGroups, id, feelings);
+  }
+
+  /**
+   * Remove a group. Its feelings stay on every part that carries them — a
+   * group only says which tags are alike, it never owned the tags.
+   */
+  deleteFeelingGroup(id: string): void {
+    this.showingExample = false;
+    this.feelingGroups = this.feelingGroups.filter((group) => group.id !== id);
   }
 
   /** Every connection touching a part, in either direction. */

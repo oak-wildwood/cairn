@@ -24,6 +24,12 @@
      * done here.
      */
     onStartTour: () => void;
+    /**
+     * Opens the feeling-groups dialog. Also an interim home, for the same
+     * reason as the tour: it edits the map rather than the file, but it is
+     * occasional setup, not something to give a pill of its own.
+     */
+    onManageFeelingGroups: () => void;
     disabled?: boolean;
   }
 
@@ -32,6 +38,7 @@
     onRestore,
     onStartFresh,
     onStartTour,
+    onManageFeelingGroups,
     disabled = false,
   }: Props = $props();
 
@@ -122,6 +129,13 @@
         onStartTour();
       }}>
         Take a tour
+      </button>
+
+      <button class="item" type="button" role="menuitem" onclick={() => {
+        close();
+        onManageFeelingGroups();
+      }}>
+        Feeling groups…
       </button>
 
       <hr class="separator" />

@@ -56,7 +56,10 @@
     activeFilter: SectorRole | null;
     /** Whether the legend's "Active only" toggle is on. */
     activeOnlyFilter: boolean;
-    /** The tags the legend is filtering to. Empty means no tag filter. */
+    /**
+     * The tags the legend is filtering to, already widened through the
+     * feeling groups (`store.effectiveTagFilter`). Empty means no tag filter.
+     */
     tagFilter: readonly string[];
     /**
      * The live `<svg>`, bound out so the toolbar can render it to a PNG.

@@ -17,6 +17,7 @@ export function snapshotState(): PersistedState {
     parts: $state.snapshot(store.parts),
     connections: $state.snapshot(store.connections),
     ownerName: store.ownerName,
+    feelingGroups: $state.snapshot(store.feelingGroups),
   };
 }
 

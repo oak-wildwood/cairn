@@ -416,6 +416,60 @@ server." Commit at milestone boundaries, not mid-milestone.
   captions are wide. Raising the spacing pushes parts onto outer rings sooner,
   trading a larger map for a legible one; that trade is the decision to make.
 
+## Feeling groups
+
+Issue #77. People tag the same feeling with different words, "scared", "afraid"
+and "fear" for example, and the feeling filter treated each word as unrelated. A
+feeling group says that a set of words names one feeling. Filtering by any member
+then matches every part that carries any member.
+
+**Logic, not inference.** The app never decides that two words are related. It
+doesn't stem them, check a thesaurus, or score how similar they are, and it ships
+no built-in synonym list. "Scared" and "fear" have nothing in their spelling to
+match on. Whether "anxious" and "scared" are one feeling or two differs from person
+to person, and a map of someone's own parts is the last place to overrule them. The
+person declares each group, and everything after that is set logic in
+`feelings.ts`:
+
+- "Names the same feeling as" must be an equivalence relation, so the groups form a
+  **partition**: each feeling belongs to at most one group. If one feeling sat in
+  two groups, it would join them by transitivity, and filtering by one group would
+  match the other, which the person never said.
+- Members are compared after `normalizeFeeling` (trim and lowercase), which is the
+  same normalisation that tags already go through.
+- Putting a feeling into a group moves it out of the group that held it
+  (`assignFeelingsToGroup`), because the newer, explicit choice wins. When a blob
+  is loaded, a feeling that appears in two groups stays in the first one
+  (`normalizeFeelingGroups`), which matches how `persistence.ts` dedupes
+  connections.
+- `expandFeelings` widens the legend's tag selection through the groups.
+  `store.effectiveTagFilter` holds the result, and both the diagram's dimming and
+  `visiblePartIds` filter on it. The legend still shows only the feelings the
+  person picked.
+- A group lists words. It does not own tags on parts. Deleting a group leaves
+  every part's feelings unchanged, and a group can list a word that no part
+  carries yet.
+
+**Data.** `PersistedState.feelingGroups?: FeelingGroup[]` (`{ id, name, feelings }`)
+is optional and does not bump `schemaVersion`, for the same reason as
+`ownerName`. Backups and restores carry it, and "Start fresh" clears it.
+
+**UI.** "Feeling groups…" in the map menu opens `FeelingGroupsModal`. It lists
+each group with a name field and a `FeelingsMultiSelect` for its members (the
+same picker the part form uses, so a member can be typed in as a new word), plus
+"+ Add a group" and a Delete button for each group. Edits apply immediately with
+no Save step: each one is small and none destroys data.
+
+Deliberately not done yet, and open to follow-up:
+
+- The legend's feeling picker still lists words, not groups, and its counts are
+  per word. Collapsing a group into one entry there would need a decision on
+  which word represents the group, or on showing the group name instead.
+- The detail panel and the part form don't show which group a feeling is in.
+- There is no "suggest groups" feature. A suggestion has to come from somewhere,
+  and every source (a lexicon, edit distance, a model) is the kind of inference
+  this feature avoids on purpose.
+
 ## Explicitly out of scope for v1
 
 - "Open conversation" / guided-dialogue or journaling feature with a part (seen in

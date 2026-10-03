@@ -1,6 +1,13 @@
+import { normalizeFeelingGroups } from "./feelings";
 import { connectionEdgeKey } from "./layout";
 import { SCHEMA_VERSION, SELF_ID } from "./types";
-import type { Connection, Part, PartRole, PersistedState } from "./types";
+import type {
+  Connection,
+  FeelingGroup,
+  Part,
+  PartRole,
+  PersistedState,
+} from "./types";
 
 /**
  * localStorage persistence for the whole map.
@@ -87,6 +94,17 @@ function isConnection(value: unknown): value is Connection {
   );
 }
 
+function isFeelingGroup(value: unknown): value is FeelingGroup {
+  if (typeof value !== "object" || value === null) return false;
+  const group = value as Record<string, unknown>;
+  return (
+    isString(group.id) &&
+    isString(group.name) &&
+    Array.isArray(group.feelings) &&
+    group.feelings.every(isString)
+  );
+}
+
 function isPersistedState(value: unknown): value is PersistedState {
   if (typeof value !== "object" || value === null) return false;
   const state = value as Record<string, unknown>;
@@ -98,7 +116,11 @@ function isPersistedState(value: unknown): value is PersistedState {
     state.connections.every(isConnection) &&
     // Absent is valid — see the field's note in types.ts. Only a present-but-
     // wrong-typed value makes the blob unusable.
-    (state.ownerName === undefined || isString(state.ownerName))
+    (state.ownerName === undefined || isString(state.ownerName)) &&
+    // Absent for the same reason, on every blob from before groups existed.
+    (state.feelingGroups === undefined ||
+      (Array.isArray(state.feelingGroups) &&
+        state.feelingGroups.every(isFeelingGroup)))
   );
 }
 
@@ -202,6 +224,13 @@ function withNormalizedFeelings(state: PersistedState): PersistedState {
       ...part,
       feelings: [...new Set(part.feelings.map((feeling) => feeling.toLowerCase()))],
     })),
+    // A hand-edited blob can put one feeling in two groups, or spell a member
+    // differently from the tag it is meant to match; `normalizeFeelingGroups`
+    // puts both right. Left absent when absent, so an old blob reads back as
+    // the same old blob.
+    ...(state.feelingGroups && {
+      feelingGroups: normalizeFeelingGroups(state.feelingGroups),
+    }),
   };
 }
 
