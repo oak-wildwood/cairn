@@ -43,6 +43,39 @@ function drawnPath(reciprocal: boolean, sourceId = "a"): SVGPathElement {
   return path;
 }
 
+function renderSelected(editable: boolean): HTMLElement {
+  const { container } = render(ConnectionPath, {
+    props: {
+      connection: { id: "c1", sourceId: "a", targetId: "b", label: "protects" },
+      source: endpoint("a", -200, -150, "manager"),
+      target: endpoint("b", 220, -120, "exile"),
+      selected: true,
+      reciprocal: false,
+      editable,
+      onselect: noop,
+      onlabelchange: noop,
+      ondelete: noop,
+      onclose: noop,
+    },
+  });
+  return container;
+}
+
+describe("Connection when selected", () => {
+  it("opens the label editor with a delete button on a computer", () => {
+    const container = renderSelected(true);
+    expect(container.querySelector("input.label-input")).not.toBeNull();
+    expect(container.querySelector("button.delete")).not.toBeNull();
+  });
+
+  it("shows the label as plain text, with nothing to edit, on a phone", () => {
+    const container = renderSelected(false);
+    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("text.label")?.textContent).toBe("protects");
+  });
+});
+
 describe("Connection", () => {
   it("draws an arrowhead in its source's colour on half of a reciprocal pair", () => {
     expect(drawnPath(true).getAttribute("marker-end")).toBe("url(#arrow-manager)");

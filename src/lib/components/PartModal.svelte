@@ -630,4 +630,46 @@
       flex-direction: column;
     }
   }
+
+  /*
+   * DERIVED: the original design has no phone layout. On a portrait phone
+   * (the same query as `SHEET_QUERY` in `phone.svelte.ts`) the form is a
+   * bottom sheet rather than a floating card: full width, rising from the
+   * bottom edge, stopping a bar's height short of the top like the expanded
+   * detail sheet does. The card's side margins only showed more of a dimmed
+   * page nobody is looking at while filling in a long form. The rise shares
+   * that sheet's `--sheet-duration` and `--sheet-easing`.
+   */
+  @media (max-width: 720px) and (orientation: portrait) {
+    dialog {
+      width: 100%;
+      max-width: none;
+      max-height: calc(100vh - var(--sheet-bar-height));
+      max-height: calc(100dvh - var(--sheet-bar-height));
+      margin: auto 0 0;
+      border-width: 1px 0 0;
+      border-radius: 14px 14px 0 0;
+    }
+
+    dialog[open] {
+      animation: sheet-rise var(--sheet-duration) var(--sheet-easing);
+    }
+
+    /* Keeps Cancel and Add clear of the home indicator. */
+    .actions {
+      padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+    }
+  }
+
+  @keyframes sheet-rise {
+    from {
+      transform: translateY(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open] {
+      animation: none;
+    }
+  }
 </style>

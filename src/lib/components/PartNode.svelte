@@ -2,6 +2,7 @@
   import { nodeStrokeDashArray, partCaption, polarToPoint, wrapLabel } from "../layout";
   import { ACTIVE_TOGGLE, HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
+  import ActiveBadge from "./ActiveBadge.svelte";
 
   interface Props {
     part: Part;
@@ -18,6 +19,9 @@
     dropTarget: boolean;
     /** True while any connection is being drawn, from any node. */
     drawing: boolean;
+    /** False on a phone: the node can't be dragged and has no connection
+     * handles. Tapping it and its active badge still work. */
+    editable?: boolean;
   }
 
   const {
@@ -30,6 +34,7 @@
     ontoggleactive,
     dropTarget,
     drawing,
+    editable = true,
   }: Props = $props();
 
   let hovered = $state(false);
@@ -127,6 +132,7 @@
   function handlePointerDown(event: PointerEvent): void {
     // Secondary buttons open context menus; they are not the start of a drag.
     if (event.button !== 0) return;
+    if (!editable) return;
     const pointerPosition = toDiagramSpace(event);
     if (!pointerPosition) return;
 
@@ -303,34 +309,36 @@
   <!-- data-export-hide: read by pdfExport.ts, which hides every element
        carrying it before screenshotting the diagram — a drag affordance has
        no meaning on a printed page. -->
-  <g
-    class="handles"
-    class:visible={showHandles}
-    aria-hidden="true"
-    data-export-hide
-  >
-    {#each HANDLE_POSITIONS as handle, index (index)}
-      <!--
-        Drawing a connection is a pointer-only affordance. The handles are
-        hidden from assistive technology rather than made focusable, because a
-        focusable control that does nothing on Enter is worse than none: there
-        is no keyboard path for drawing a connection, and the plan allows
-        punting gestures of this class. Existing connections stay readable
-        without a pointer — the detail panel lists every one touching a part.
-      -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <circle
-        class="handle"
-        cx={handle.x}
-        cy={handle.y}
-        r={HANDLE.radius}
-        fill={tokens.accent}
-        stroke={tokens.nodeFill}
-        stroke-width="1.5"
-        onpointerdown={handleConnectStart}
-      />
-    {/each}
-  </g>
+  {#if editable}
+    <g
+      class="handles"
+      class:visible={showHandles}
+      aria-hidden="true"
+      data-export-hide
+    >
+      {#each HANDLE_POSITIONS as handle, index (index)}
+        <!--
+          Drawing a connection is a pointer-only affordance. The handles are
+          hidden from assistive technology rather than made focusable, because a
+          focusable control that does nothing on Enter is worse than none: there
+          is no keyboard path for drawing a connection, and the plan allows
+          punting gestures of this class. Existing connections stay readable
+          without a pointer — the detail panel lists every one touching a part.
+        -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <circle
+          class="handle"
+          cx={handle.x}
+          cy={handle.y}
+          r={HANDLE.radius}
+          fill={tokens.accent}
+          stroke={tokens.nodeFill}
+          stroke-width="1.5"
+          onpointerdown={handleConnectStart}
+        />
+      {/each}
+    </g>
+  {/if}
 
   <!--
     Unlike the connection handles above, this stays visible at rest — it is
@@ -353,22 +361,7 @@
     <!-- Wider than the drawn circle below, so a small badge doesn't also
          have to be a precise click. -->
     <circle class="hit-area" r={ACTIVE_TOGGLE.hitRadius} fill="transparent" />
-    <circle
-      r={ACTIVE_TOGGLE.radius}
-      fill={part.active ? tokens.accent : "none"}
-      stroke={tokens.accent}
-      stroke-width={ACTIVE_TOGGLE.strokeWidth}
-    />
-    {#if part.active}
-      <path
-        d={ACTIVE_TOGGLE.checkPath}
-        fill="none"
-        stroke={tokens.nodeFill}
-        stroke-width={ACTIVE_TOGGLE.checkStrokeWidth}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    {/if}
+    <ActiveBadge active={part.active} accent={tokens.accent} nodeFill={tokens.nodeFill} />
   </g>
 </g>
 

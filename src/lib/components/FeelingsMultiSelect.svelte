@@ -11,6 +11,7 @@
    * new one enters that vocabulary in the first place.
    */
   import { onMount, tick } from "svelte";
+  import { clampPopoverLeft, overlapsVertically } from "../touchGeometry";
 
   interface Props {
     /** The known feeling vocabulary and how many parts carry each, from
@@ -128,13 +129,34 @@
     null,
   );
 
+  /** `.popover`'s outer width (260px content, 28px padding, 2px border) and
+   * its least gap to a viewport edge, in px — kept in step with the
+   * stylesheet below by hand. */
+  const POPOVER_WIDTH = 290;
+  const POPOVER_MARGIN = 8;
+
+  /** Where the trigger's top-left corner was when `anchor` was last set. */
+  let anchoredAt: { top: number; left: number } | null = null;
+
+  /** False while the trigger is scrolled out of its container's view. */
+  let triggerInView = $state(true);
+
   function measureAnchor(): void {
     const rect = trigger?.getBoundingClientRect();
     if (!rect) return;
+    anchoredAt = { top: rect.top, left: rect.left };
+    // Kept on screen: a trigger near a phone's right edge (the legend's, at
+    // the end of its row) would otherwise open the popover half off it.
+    const left = clampPopoverLeft(
+      rect.left,
+      Math.min(POPOVER_WIDTH, window.innerWidth - 2 * POPOVER_MARGIN),
+      window.innerWidth,
+      POPOVER_MARGIN,
+    );
     anchor =
       dropDirection === "up"
-        ? { left: rect.left, bottom: window.innerHeight - rect.top + 8 }
-        : { left: rect.left, top: rect.bottom + 8 };
+        ? { left, bottom: window.innerHeight - rect.top + 8 }
+        : { left, top: rect.bottom + 8 };
   }
 
   function openPanel(): void {
@@ -298,6 +320,78 @@
       window.removeEventListener("resize", measureAnchor);
     };
   });
+
+  /**
+   * Carries the popover along when the trigger itself moves: the panel or
+   * form it sits in scrolling, or a phone sheet sliding or rising. Only the
+   * trigger's top-left corner is followed, so the popover still ignores its
+   * own chip row growing (see `anchor`).
+   *
+   * Driven by what can move the trigger — a scroll anywhere, a transition
+   * or animation anywhere — and then followed frame by frame only until the
+   * trigger has sat still for a few frames, since a sheet's slide moves it
+   * without scrolling anything, and may not have moved it yet on the frame
+   * right after it starts.
+   *
+   * Hidden rather than closed while the trigger is scrolled out of its
+   * container, so it isn't left floating over whatever is above or below
+   * that, and comes back as it was when the trigger does.
+   */
+  $effect(() => {
+    if (!open) return;
+    const clip = scrollParent(trigger);
+    const STILL_FRAMES = 4;
+    let frame = 0;
+    let stillFrames = 0;
+
+    const follow = (): void => {
+      frame = 0;
+      const rect = trigger?.getBoundingClientRect();
+      if (!rect || !anchor || !anchoredAt) return;
+      const dx = rect.left - anchoredAt.left;
+      const dy = rect.top - anchoredAt.top;
+      const bounds = clip?.getBoundingClientRect();
+      triggerInView =
+        !bounds || overlapsVertically(rect.top, rect.bottom, bounds.top, bounds.bottom);
+      if (dx === 0 && dy === 0) {
+        if (++stillFrames < STILL_FRAMES) frame = requestAnimationFrame(follow);
+        return;
+      }
+      stillFrames = 0;
+      anchor = {
+        left: anchor.left + dx,
+        top: anchor.top !== undefined ? anchor.top + dy : undefined,
+        bottom: anchor.bottom !== undefined ? anchor.bottom - dy : undefined,
+      };
+      anchoredAt = { top: rect.top, left: rect.left };
+      frame = requestAnimationFrame(follow);
+    };
+
+    const startFollowing = (): void => {
+      stillFrames = 0;
+      if (frame === 0) frame = requestAnimationFrame(follow);
+    };
+
+    const events = ["scroll", "transitionrun", "animationstart"] as const;
+    for (const type of events) {
+      document.addEventListener(type, startFollowing, { capture: true, passive: true });
+    }
+    return () => {
+      for (const type of events) {
+        document.removeEventListener(type, startFollowing, { capture: true });
+      }
+      cancelAnimationFrame(frame);
+      triggerInView = true;
+    };
+  });
+
+  /** The nearest ancestor that scrolls vertically, if any. */
+  function scrollParent(node: HTMLElement | null): HTMLElement | null {
+    for (let el = node?.parentElement; el; el = el.parentElement) {
+      if (/(auto|scroll)/.test(getComputedStyle(el).overflowY)) return el;
+    }
+    return null;
+  }
 </script>
 
 <div class="dropdown">
@@ -353,6 +447,7 @@
       style:left="{anchor.left}px"
       style:top={anchor.top !== undefined ? `${anchor.top}px` : undefined}
       style:bottom={anchor.bottom !== undefined ? `${anchor.bottom}px` : undefined}
+      style:visibility={triggerInView ? undefined : "hidden"}
     >
       <p class="eyebrow">{eyebrow}</p>
       <input
@@ -596,7 +691,9 @@
   .popover {
     position: fixed;
     z-index: 20;
-    width: 260px;
+    /* Narrows on a phone to leave `POPOVER_MARGIN` either side: 16px of
+       margin, plus the 28px of padding and 2px of border outside `width`. */
+    width: min(260px, calc(100vw - 46px));
     padding: 14px;
     border: 1px solid var(--pill-border);
     border-radius: 10px;
@@ -641,6 +738,9 @@
     max-height: 200px;
     margin: 0;
     padding: 0;
+    /* Reaching the end of the list shouldn't carry on into scrolling the
+       panel or page behind the popover. */
+    overscroll-behavior: contain;
     overflow-y: auto;
     list-style: none;
     /* Firefox; Chromium picks this up too, but gets the fuller treatment below. */

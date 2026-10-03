@@ -34,6 +34,8 @@
     Point,
     SectorRole,
   } from "../types";
+  import { pinchView } from "../touchGeometry";
+  import type { PinchStart } from "../touchGeometry";
   import ConnectionPath from "./Connection.svelte";
   import PartNode from "./PartNode.svelte";
   import SelfNode from "./SelfNode.svelte";
@@ -58,6 +60,13 @@
     activeOnlyFilter: boolean;
     /** The tags the legend is filtering to. Empty means no tag filter. */
     tagFilter: readonly string[];
+    /**
+     * False on a phone: parts can't be dragged, connections can't be drawn,
+     * and a connection's label is read-only. Each is a pointer gesture too
+     * fine for a finger on a map this small, and sits right next to the pan
+     * gesture it would be mistaken for.
+     */
+    editable?: boolean;
     /**
      * The live `<svg>`, bound out so the toolbar can render it to a PNG.
      * Exposed rather than exporting from in here: this component owns the
@@ -84,6 +93,7 @@
     activeFilter,
     activeOnlyFilter,
     tagFilter,
+    editable = true,
     element = $bindable(null),
   }: Props = $props();
 
@@ -253,6 +263,63 @@
    */
   let suppressBackdropClick = false;
 
+  /**
+   * Every pointer pressed on the backdrop, at its latest client position. A
+   * second one arriving turns the gesture from a pan into a pinch — the
+   * touch screen's stand-in for the wheel and the zoom buttons, which on a
+   * phone are respectively missing and a stretch away from where the
+   * fingers already are.
+   */
+  const backdropPointers = new Map<number, Point>();
+  let pinch: PinchStart | null = null;
+
+  /**
+   * Whether the gesture in progress has been a pinch at any point. Lifting
+   * the fingers one at a time ends it as a lone press, which must not then
+   * count as a tap that clears the selection.
+   */
+  let gestureWasPinch = false;
+
+  function startPinch(): void {
+    const [first, second] = [...backdropPointers.values()];
+    const ctm = element?.getScreenCTM();
+    const rect = element?.getBoundingClientRect();
+    const distance = Math.hypot(second.x - first.x, second.y - first.y);
+    // Two touches reported at the same spot give no spread to scale by.
+    if (!ctm || !rect || distance === 0) return;
+    const midpoint = {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    };
+    const anchor = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(
+      ctm.inverse(),
+    );
+    pinch = {
+      anchor: { x: anchor.x, y: anchor.y },
+      distance,
+      zoom,
+      scale: ctm.a,
+      viewCenter: { ...viewCenter },
+      elementCenter: {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      },
+    };
+  }
+
+  function updatePinch(): void {
+    if (!pinch) return;
+    const [first, second] = [...backdropPointers.values()];
+    const next = pinchView(
+      pinch,
+      { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
+      Math.hypot(second.x - first.x, second.y - first.y),
+      ZOOM,
+    );
+    zoom = next.zoom;
+    pan = next.pan;
+  }
+
   function handleBackdropPointerDown(event: PointerEvent): void {
     if (event.button !== 0) return;
     const ctm = element?.getScreenCTM();
@@ -260,6 +327,25 @@
     (event.currentTarget as SVGRectElement).setPointerCapture(
       event.pointerId,
     );
+    backdropPointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+    // A fresh press starts a fresh gesture. A pinch's fingers can lift with
+    // no `click` to spend `suppressBackdropClick` on, so it is cleared here
+    // too, or the next honest tap would be swallowed in its place.
+    if (backdropPointers.size === 1) {
+      gestureWasPinch = false;
+      suppressBackdropClick = false;
+    }
+    if (backdropPointers.size === 2) {
+      panGesture = null;
+      gestureWasPinch = true;
+      startPinch();
+      return;
+    }
+    // A third finger joins nothing: the pinch carries on with the first two.
+    if (backdropPointers.size > 2) return;
     panGesture = {
       pointerId: event.pointerId,
       originX: event.clientX,
@@ -271,6 +357,16 @@
   }
 
   function handleBackdropPointerMove(event: PointerEvent): void {
+    if (backdropPointers.has(event.pointerId)) {
+      backdropPointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    }
+    if (pinch) {
+      updatePinch();
+      return;
+    }
     if (!panGesture || event.pointerId !== panGesture.pointerId) return;
 
     if (!panGesture.dragging) {
@@ -298,10 +394,19 @@
   }
 
   function handleBackdropPointerUp(event: PointerEvent): void {
-    if (!panGesture || event.pointerId !== panGesture.pointerId) return;
+    if (!backdropPointers.delete(event.pointerId)) return;
     (event.currentTarget as SVGRectElement).releasePointerCapture(
       event.pointerId,
     );
+    // Either finger lifting ends the pinch; the one left down stays still
+    // rather than turning into a pan, which would jump the map from wherever
+    // the pinch left it.
+    pinch = null;
+    if (gestureWasPinch) {
+      suppressBackdropClick = true;
+      return;
+    }
+    if (!panGesture || event.pointerId !== panGesture.pointerId) return;
     suppressBackdropClick = panGesture.dragging;
     panGesture = null;
   }
@@ -632,6 +737,7 @@
     onpointerdown={handleBackdropPointerDown}
     onpointermove={handleBackdropPointerMove}
     onpointerup={handleBackdropPointerUp}
+    onpointercancel={handleBackdropPointerUp}
     onclick={handleBackdropClick}
   />
 
@@ -691,6 +797,7 @@
         target={entry.target}
         selected={entry.connection.id === selectedConnectionId}
         reciprocal={reciprocalIds.has(entry.connection.id)}
+        {editable}
         onselect={onconnectselect}
         onlabelchange={onconnectlabel}
         ondelete={onconnectdelete}
@@ -702,6 +809,7 @@
   <SelfNode
     dropTarget={dropTargetId === SELF_ID}
     drawing={drawing !== null}
+    {editable}
     onconnectstart={() => startConnection(SELF_ID)}
     {onclear}
   />
@@ -734,6 +842,7 @@
           selected={part.id === selectedPartId}
           dropTarget={dropTargetId === part.id}
           drawing={drawing !== null}
+          {editable}
           onconnectstart={startConnection}
           {onselect}
           {onmove}
@@ -789,6 +898,10 @@
     display: block;
     width: 100%;
     height: 100%;
+    /* The canvas handles every touch gesture itself — drag to pan, pinch to
+       zoom. Left to the browser, a pinch with a finger on Self or a
+       connector rather than the backdrop would zoom the whole page instead. */
+    touch-action: none;
   }
 
   /* Keeps the crosshair while drawing even as the pointer crosses nodes that
@@ -855,6 +968,22 @@
 
   .zoom-button.reset {
     min-width: unset;
+  }
+
+  /* Matches `App.svelte`'s phone breakpoint. Tucked closer into the corner
+     so they cover less of a map that, at this size, reaches nearly to it. */
+  @media (max-width: 720px), (max-height: 560px) {
+    .zoom-controls {
+      right: 0.25rem;
+      bottom: 0.25rem;
+    }
+
+    .zoom-button {
+      height: 28px;
+      min-width: 28px;
+      padding: 0 0.625rem;
+      border-radius: 14px;
+    }
   }
 
   .zoom-button:hover:not(:disabled) {
