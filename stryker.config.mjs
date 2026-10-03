@@ -78,7 +78,7 @@ export default {
   //                         are equivalent (see below); what's left overall is
   //                         #94 (store).
   //
-  // The three layout.ts survivors at that baseline are all equivalent:
+  // The three layout.ts survivors at the #95 baseline are all equivalent:
   //   - `bowRatio * away` -> `bowRatio / away` in connectorCurve: `away` is
   //     only ever 1 or -1, so the quotient is the product.
   //   - `i < words.length` -> `i <= words.length` in wrapLabel: the extra
@@ -89,9 +89,10 @@ export default {
   // They are left surviving for the same reason as the ones below: each line
   // also holds a mutant the suite kills, and a disable would hide it.
   //
-  // The ten persistence.ts survivors at that baseline are all equivalent:
-  //   - `typeof value !== "object"` -> false in the five shape guards: the
-  //     field checks after it reject a primitive anyway.
+  // The nine persistence.ts survivors at the #95 baseline are all equivalent
+  // (ten at #88; isPart's guard has been killed since):
+  //   - `typeof value !== "object"` -> false in the other four shape guards:
+  //     the field checks after it reject a primitive anyway.
   //   - the three `catch {}` bodies in parseMap and loadState, and
   //     `raw === null` -> false: each fall-through hands readPersistedState
   //     an undefined or null that it rejects one step later.
