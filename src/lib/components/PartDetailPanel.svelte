@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import { cubicOut } from "svelte/easing";
-  import type { TransitionConfig } from "svelte/transition";
+  import { fade, type TransitionConfig } from "svelte/transition";
   import FeelingsMultiSelect from "./FeelingsMultiSelect.svelte";
   import { feelingCounts } from "../feelings";
   import { partCaption } from "../layout";
-  import { ROLES } from "../theme";
+  import { reducedMotion, sheet } from "../phone.svelte";
+  import type { Snippet } from "svelte";
+  import { ACTIVE_TOGGLE, ROLES } from "../theme";
+  import ActiveBadge from "./ActiveBadge.svelte";
   import { SELF_ID } from "../types";
   import type { Connection, EndpointId, Part } from "../types";
 
@@ -21,12 +24,31 @@
     ondelete: (id: string) => void;
     /** Quick-edits this part's feelings, bypassing the edit modal. */
     onfeelings: (id: string, feelings: string[]) => void;
+    /** Flips whether this part is active this week, bypassing the edit modal. */
+    ontoggleactive: (id: string) => void;
+    /** The app's logo and wordmark, for the "Back to map" bar that an
+     * expanded phone sheet leaves showing above it. */
+    brand: Snippet;
   }
 
-  const { part, connections, parts, onclose, onedit, ondelete, onfeelings }: Props =
-    $props();
+  let {
+    part,
+    connections,
+    parts,
+    onclose,
+    onedit,
+    ondelete,
+    onfeelings,
+    ontoggleactive,
+    brand,
+  }: Props = $props();
 
   const accent = $derived(ROLES[part.role].accent);
+  const nodeFill = $derived(ROLES[part.role].nodeFill);
+
+  /** The pill under the name already says whether the part is active, so the
+   * caption above it leaves that out rather than saying it twice. */
+  const caption = $derived(partCaption({ ...part, active: false }));
 
   const tagCounts = $derived(feelingCounts(parts));
 
@@ -76,10 +98,15 @@
    * text arriving before there is room for it.
    */
   function reveal(node: HTMLElement): TransitionConfig {
-    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Matches the stylesheet's breakpoint: a sidebar grows sideways, a panel
-    // docked underneath grows upward.
-    const sideways = matchMedia("(min-width: 901px)").matches;
+    // An expanded sheet is the whole screen; shrinking it from the top down
+    // on close would read as the map being wiped in rather than the panel
+    // going away, so it just goes.
+    const reduceMotion = reducedMotion.matches || floating;
+    // Matches the stylesheet's breakpoints: a sidebar (on a desktop, or a
+    // landscape phone) grows sideways, a panel docked underneath grows upward.
+    const sideways = matchMedia(
+      "(min-width: 901px), (max-height: 560px) and (orientation: landscape)",
+    ).matches;
     const extent = sideways ? node.offsetWidth : node.offsetHeight;
 
     return {
@@ -128,23 +155,212 @@
    */
   let lastPartId = $state(untrack(() => part.id));
 
+  /**
+   * The panel is one element across part changes, so without this the next
+   * part opens scrolled to wherever the last one was left — on a phone, with
+   * its header above the fold.
+   */
+  let scrollEl = $state<HTMLElement | null>(null);
+
+  /**
+   * The portrait-phone bottom sheet. Docked, it sits under the map in the
+   * page's flow like the tablet layout's panel. Scrolling it up expands it:
+   * it becomes `position: fixed` at exactly where it was docked, then its top
+   * edge travels up to just under the "Back to map" bar, covering the map,
+   * the header and the footer. Collapsing runs the same move in reverse and
+   * drops it back into the flow once it has landed.
+   *
+   * The sides travel the same way: they start at the page's padding and
+   * widen to the screen's edges, while `--sheet-inset` pads the content in by
+   * exactly as much over the same curve. So the surface grows to full width
+   * and everything on it, Edit and Delete included, stays where it was.
+   *
+   * While it is fixed, `spacerEl` holds its docked place in the page, so the
+   * canvas doesn't grow into the gap behind it — and so there is somewhere
+   * to measure the way back to, even if the page scrolled in the meantime.
+   */
+  type SheetMode = "docked" | "expanded" | "collapsing";
+  let sheetMode = $state<SheetMode>("docked");
+  const floating = $derived(sheetMode !== "docked");
+  /** The fixed sheet's `top`/`bottom`/`left`/`right`; null while docked. */
+  let edges = $state<{ top: string; bottom: string; left: string; right: string } | null>(
+    null,
+  );
+  let sheetInset = $state("0px");
+  let dockedHeight = $state(0);
+  let panelEl = $state<HTMLElement | null>(null);
+  let spacerEl = $state<HTMLElement | null>(null);
+
+  function edgesOf(rect: DOMRect): NonNullable<typeof edges> {
+    return {
+      top: `${rect.top}px`,
+      bottom: `${innerHeight - rect.bottom}px`,
+      left: `${rect.left}px`,
+      right: `${innerWidth - rect.right}px`,
+    };
+  }
+
+  async function expand(): Promise<void> {
+    if (floating || !sheet.matches || !panelEl) return;
+    const rect = panelEl.getBoundingClientRect();
+    dockedHeight = rect.height;
+    edges = edgesOf(rect);
+    sheetMode = "expanded";
+    await tick();
+    // Commits the docked position as the starting point, so the change below
+    // transitions rather than landing in the same style recalculation.
+    void panelEl?.offsetHeight;
+    edges = { top: "var(--sheet-bar-height)", bottom: "0px", left: "0px", right: "0px" };
+    sheetInset = `${rect.left}px`;
+  }
+
+  function collapse(): void {
+    if (sheetMode !== "expanded") return;
+    if (spacerEl) edges = edgesOf(spacerEl.getBoundingClientRect());
+    sheetInset = "0px";
+    sheetMode = "collapsing";
+    if (reducedMotion.matches) dock();
+  }
+
+  function dock(): void {
+    sheetMode = "docked";
+    edges = null;
+    sheetInset = "0px";
+  }
+
+  function handleTransitionEnd(event: TransitionEvent): void {
+    if (event.target !== panelEl || event.propertyName !== "top") return;
+    if (sheetMode === "collapsing") dock();
+  }
+
+  // Rotating to landscape turns the sheet back into a sidebar, which has
+  // nothing to expand into.
+  $effect(() => {
+    if (!sheet.matches && floating) dock();
+  });
+
+  /**
+   * A drag up anywhere on the docked sheet expands it; a drag down on the
+   * expanded one collapses it, but only when the gesture began with its
+   * content already scrolled to the top — otherwise scrolling back up
+   * through a long worksheet would throw the user out of it at the end.
+   */
+  const DRAG_THRESHOLD = 12;
+  const PULL_DOWN_THRESHOLD = 64;
+  let touchStartY: number | null = null;
+  let startedAtTop = false;
+
+  /**
+   * Overlays opened from inside the panel — the feelings popover, its
+   * clear-confirm dialog — are in its DOM though drawn above it, so their
+   * gestures bubble here. Scrolling one is not a gesture at the sheet.
+   */
+  function inOverlay(event: Event): boolean {
+    return (
+      event.target instanceof Element &&
+      event.target.closest('dialog, [role="dialog"]') !== null
+    );
+  }
+
+  function handleTouchStart(event: TouchEvent): void {
+    if (inOverlay(event)) {
+      touchStartY = null;
+      return;
+    }
+    touchStartY = event.touches[0]?.clientY ?? null;
+    startedAtTop = (scrollEl?.scrollTop ?? 0) <= 0;
+  }
+
+  function handleTouchMove(event: TouchEvent): void {
+    const y = event.touches[0]?.clientY;
+    if (touchStartY === null || y === undefined) return;
+    const dy = y - touchStartY;
+    if (sheetMode === "docked" && dy < -DRAG_THRESHOLD) {
+      touchStartY = null;
+      void expand();
+    } else if (sheetMode === "expanded" && startedAtTop && dy > PULL_DOWN_THRESHOLD) {
+      touchStartY = null;
+      collapse();
+    }
+  }
+
+  function handleWheel(event: WheelEvent): void {
+    if (inOverlay(event)) return;
+    if (event.deltaY > 0) void expand();
+  }
+
+  // Catches what the two above don't, such as keyboard scrolling.
+  function handleScroll(): void {
+    if ((scrollEl?.scrollTop ?? 0) > 0) void expand();
+  }
+
   $effect(() => {
     if (part.id === lastPartId) return;
     lastPartId = part.id;
     confirmingDelete = false;
     editingFeelings = false;
+    if (scrollEl) scrollEl.scrollTop = 0;
   });
 </script>
 
-<aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
+{#if floating}
+  <div class="spacer" style:height="{dockedHeight}px" bind:this={spacerEl}></div>
+{/if}
+
+{#if sheetMode === "expanded"}
+  <!-- Everything the expanded sheet leaves showing: enough to say which app
+       this is, and the way back. -->
+  <div class="sheet-bar" transition:fade={{ duration: 200 }}>
+    {@render brand()}
+    <button type="button" class="sheet-back" onclick={collapse}>Back to map</button>
+  </div>
+{/if}
+
+<aside
+  class="panel"
+  class:sheet={floating}
+  aria-label="Part details"
+  data-tour="detail-panel"
+  style:top={edges?.top}
+  style:bottom={edges?.bottom}
+  style:left={edges?.left}
+  style:right={edges?.right}
+  style:--sheet-inset={sheetInset}
+  bind:this={panelEl}
+  ontouchstart={handleTouchStart}
+  ontouchmove={handleTouchMove}
+  onwheel={handleWheel}
+  ontransitionend={handleTransitionEnd}
+  transition:reveal
+>
   <div class="inner">
-    <div class="scroll">
+    <div class="scroll" bind:this={scrollEl} onscroll={handleScroll}>
       <header class="head">
         <div class="title">
           <p class="meta" style:color={accent}>
-            {partCaption(part).toUpperCase()}
+            {caption.toUpperCase()}
           </p>
           <h2 class="name">{part.name}</h2>
+          <!-- The map's own active badge, as a labelled pill: same filled
+               circle and check when active, same empty ring when not. -->
+          <button
+            type="button"
+            class="active-toggle"
+            class:on={part.active}
+            style:--accent={accent}
+            aria-pressed={part.active}
+            onclick={() => ontoggleactive(part.id)}
+          >
+            <svg
+              width={ACTIVE_TOGGLE.radius * 2 + 2}
+              height={ACTIVE_TOGGLE.radius * 2 + 2}
+              viewBox="{-ACTIVE_TOGGLE.radius - 1} {-ACTIVE_TOGGLE.radius - 1} {ACTIVE_TOGGLE.radius * 2 + 2} {ACTIVE_TOGGLE.radius * 2 + 2}"
+              aria-hidden="true"
+            >
+              <ActiveBadge active={part.active} {accent} {nodeFill} />
+            </svg>
+            Active this week
+          </button>
         </div>
         <!-- data-export-hide: read by both export.ts and pdfExport.ts, which
              hide every element carrying it before screenshotting this panel —
@@ -343,6 +559,48 @@
    */
   .title {
     flex-grow: 1;
+  }
+
+  /*
+   * DERIVED: the original design has no detail panel. The pill borrows the
+   * feeling pills' shape and the part's role accent; off, it drops to the
+   * muted grey and pill border every other inactive control here uses, so
+   * the two states differ in more than the badge alone.
+   */
+  .active-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    margin-top: 0.75rem;
+    padding: 0.3125rem 0.75rem 0.3125rem 0.5rem;
+    border: 1px solid var(--pill-border);
+    border-radius: 999px;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .active-toggle svg {
+    display: block;
+  }
+
+  .active-toggle:hover {
+    color: var(--text-bright);
+  }
+
+  .active-toggle.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .active-toggle.on:hover {
+    opacity: 0.85;
   }
 
   .meta {
@@ -636,6 +894,103 @@
 
     .inner {
       width: 100%;
+    }
+  }
+
+  .spacer {
+    flex-shrink: 0;
+  }
+
+  /*
+   * DERIVED: the original design has no phone layout. The bar is the page
+   * background, so the sheet below it reads as the raised surface.
+   */
+  .sheet-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--sheet-bar-height);
+    padding: 0 1rem;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-page);
+    color: var(--text-primary);
+    /* Nothing behind it should scroll while the sheet covers the page. */
+    touch-action: none;
+  }
+
+  .sheet-back {
+    padding: 0.5rem 0;
+    border: none;
+    background: none;
+    color: var(--text-bright);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .sheet-back:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * DERIVED: the original design has no phone layout. The expanded sheet
+   * keeps the panel's own surface and rule, so it reads as the same panel
+   * grown rather than a new screen. The motion is `--sheet-duration` and
+   * `--sheet-easing`, shared with `PartModal.svelte`'s phone sheet.
+   */
+  .panel.sheet {
+    position: fixed;
+    z-index: 5;
+    width: auto;
+    max-height: none;
+    overscroll-behavior: contain;
+    transition-property: top, bottom, left, right;
+    transition-duration: var(--sheet-duration);
+    transition-timing-function: var(--sheet-easing);
+  }
+
+  .panel.sheet .inner {
+    padding-inline: var(--sheet-inset);
+    transition: padding-inline var(--sheet-duration) var(--sheet-easing);
+  }
+
+  .panel.sheet .scroll {
+    overscroll-behavior: contain;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel.sheet,
+    .panel.sheet .inner {
+      transition: none;
+    }
+  }
+
+  /* A landscape phone: a strip under the map would get a few lines of a
+     screen this short, so the panel goes back to being a sidebar, narrower
+     than the desktop's so the map keeps most of the width. Same query as
+     `App.svelte`'s matching rule, which turns the workspace back into a row. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .panel {
+      width: min(22rem, 42vw);
+      /* No taller than the canvas beside it, which fills the screen —
+         beyond that the panel scrolls inside itself as it does on a
+         desktop, rather than stretching the canvas to its own length. */
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem);
+      border-top: none;
+      border-left: 1px solid var(--rule);
+    }
+
+    .inner {
+      width: min(22rem, 42vw);
     }
   }
 </style>

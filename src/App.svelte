@@ -20,7 +20,10 @@
   import { autosaveMap, snapshotState } from "./lib/autosave.svelte";
   import { isDemoRoute, parseMap, saveState } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
-  import { hasSeenTour } from "./lib/tour";
+  import MobileNoticeModal from "./lib/components/MobileNoticeModal.svelte";
+  import { hasSeenMobileNotice, markMobileNoticeSeen } from "./lib/mobileNotice";
+  import { phone } from "./lib/phone.svelte";
+  import { hasSeenTour, tourSteps } from "./lib/tour";
   import { TourState } from "./lib/tourState.svelte";
 
   /**
@@ -280,8 +283,30 @@
   // The demo page is a second static entry for looking at the seed map
   // alongside a real one (see `isDemoRoute` in persistence.ts) — it isn't a
   // first visit to the real app, so it shouldn't offer the tour either.
+  function startTour(): void {
+    tour.start(tourSteps(phone.matches));
+  }
+
+  /**
+   * The one-time "best on a computer" notice. On a first visit from a phone it
+   * comes before the tour, which starts when it is dismissed — two overlays at
+   * once would each be fighting for the screen.
+   */
+  let showingMobileNotice = $state(false);
+
+  function handleMobileNoticeClose(): void {
+    markMobileNoticeSeen();
+    showingMobileNotice = false;
+    if (!hasSeenTour()) startTour();
+  }
+
   onMount(() => {
-    if (!isDemoRoute() && !hasSeenTour()) tour.start();
+    if (isDemoRoute()) return;
+    if (phone.matches && !hasSeenMobileNotice()) {
+      showingMobileNotice = true;
+      return;
+    }
+    if (!hasSeenTour()) startTour();
   });
 
   /**
@@ -351,6 +376,26 @@
 
 <svelte:window onkeydown={handleWindowKey} />
 
+<!-- The logo and wordmark, in the header and, compact, in the "Back to map"
+     bar over an expanded phone sheet (see `PartDetailPanel.svelte`). -->
+{#snippet brand(compact: boolean)}
+  <div class="brand" class:compact>
+    <img
+      class="mark"
+      src="{logoBase}logo-96.png"
+      srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
+      alt="Cairn"
+      width="36"
+      height="36"
+    />
+    <p class="wordmark">Cairn</p>
+  </div>
+{/snippet}
+
+{#snippet compactBrand()}
+  {@render brand(true)}
+{/snippet}
+
 <!-- `inert` while the tour is open: it's the simplest way to make the whole
      app un-clickable and un-tabbable behind the overlay at once, matching
      the "purely observational" MVP — no separate full-viewport click
@@ -362,17 +407,7 @@
 
   <main class="app">
     <header class="header">
-      <div class="brand">
-        <img
-          class="mark"
-          src="{logoBase}logo-96.png"
-          srcset="{logoBase}logo-96.png 1x, {logoBase}logo-192.png 2x"
-          alt="Cairn"
-          width="36"
-          height="36"
-        />
-        <p class="wordmark">Cairn</p>
-      </div>
+      {@render brand(false)}
       <h1 class="title">
         {#if owner === ""}
           My Parts Map
@@ -391,8 +426,9 @@
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
-        onStartTour={() => tour.start()}
+        onStartTour={startTour}
         exporting={exportingPdf}
+        hideExport={phone.matches}
       />
     </header>
 
@@ -419,6 +455,7 @@
           activeFilter={store.activeFilter}
           activeOnlyFilter={store.activeOnlyFilter}
           tagFilter={store.tagFilter}
+          editable={!phone.matches}
         />
         {#if fileNotice}
           <Toast
@@ -439,6 +476,8 @@
           onedit={(id) => store.startEditing(id)}
           ondelete={(id) => store.deletePart(id)}
           onfeelings={(id, feelings) => store.setFeelings(id, feelings)}
+          ontoggleactive={(id) => store.toggleActive(id)}
+          brand={compactBrand}
         />
       {/if}
     </section>
@@ -513,12 +552,17 @@
 
 {#if tour.active}
   <TourOverlay
+    steps={tour.steps}
     stepIndex={tour.stepIndex}
     onNext={() => tour.next()}
     onBack={() => tour.back()}
     onClose={() => tour.end()}
     onShowDataInfo={() => (showingDataInfo = true)}
   />
+{/if}
+
+{#if showingMobileNotice}
+  <MobileNoticeModal onclose={handleMobileNoticeClose} />
 {/if}
 
 {#if showingDataInfo}
@@ -539,6 +583,9 @@
     /* The detail panel's/modal's surface, a step above the darkest background
        stop — also the Legend popovers' surface. */
     --surface-raised: #12141f;
+    /* The page itself, the darkest background stop — also the phone
+       sheet's "Back to map" bar. */
+    --surface-page: #0b0c12;
     --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
     --font-ui: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
     /* Mirrors `theme.ts`'s `TYPE_SCALE.bodyText` — kept in sync by hand, the
@@ -548,13 +595,22 @@
        than picking its own body size. */
     --body-text-size: 14px;
     --body-text-line-height: 1.5;
+    /* The "Back to map" bar above an expanded phone sheet, which
+       `PartDetailPanel.svelte` stops its top edge under. */
+    --sheet-bar-height: 3.5rem;
+    /* DERIVED: the phone sheets' motion — the detail sheet's expand and
+       `PartModal.svelte`'s rise. A cubic-out like the detail panel's own
+       reveal, a touch longer than its 260ms because these moves cover most
+       of the screen's height rather than a panel's width. */
+    --sheet-duration: 320ms;
+    --sheet-easing: cubic-bezier(0.33, 1, 0.68, 1);
   }
 
   :global(html),
   :global(body) {
     margin: 0;
     height: 100%;
-    background: #0b0c12;
+    background: var(--surface-page);
   }
 
   :global(body) {
@@ -574,6 +630,11 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    /* A phone's `vh` is the viewport with its browser chrome retracted, so
+       a `100vh` shell starts taller than the screen it opens on and the
+       footer sits under the address bar. `dvh` tracks what is actually
+       visible; `vh` above stays as the fallback for browsers without it. */
+    height: 100dvh;
   }
 
   .app {
@@ -624,12 +685,16 @@
 
   .title {
     flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
     font-family: var(--font-display);
     font-size: 30px;
     font-style: italic;
     font-weight: 500;
     line-height: 1;
+    /* An owner's name is their own words, with no length limit; a single
+       long word must break rather than run off a narrow screen. */
+    overflow-wrap: anywhere;
   }
 
   /**
@@ -732,6 +797,91 @@
 
     .footer-data {
       text-align: center;
+    }
+  }
+
+  /*
+   * Phones, in either orientation. The desktop shell is a fixed-height,
+   * non-scrolling page whose canvas takes whatever the chrome leaves over —
+   * on a phone the chrome alone fills most of the screen, and the canvas, the
+   * one thing the page is for, is what gets squeezed (to nothing at all in
+   * landscape). Here the chrome tightens and the canvas gets a floor. The
+   * shell keeps its one-screen height, so the canvas still fills whatever is
+   * spare and still gives way when the detail panel opens beneath it; but it
+   * stops giving way at the floor, and from there the content overflows the
+   * shell and the page scrolls rather than the map shrinking further.
+   */
+  @media (max-width: 720px), (max-height: 560px) {
+    .app {
+      overflow: visible;
+      padding: 1rem;
+    }
+
+    .mark {
+      width: 32px;
+      height: 32px;
+    }
+
+    .wordmark {
+      font-size: 22px;
+    }
+
+    .title {
+      font-size: 26px;
+    }
+
+    .counts {
+      font-size: 12px;
+    }
+
+    .workspace {
+      gap: 0.75rem;
+      /* Room for the canvas's floor plus the open panel, rather than the
+         desktop's zero — with zero the panel and canvas would overflow the
+         workspace onto the footer instead of pushing it down. */
+      min-height: auto;
+    }
+
+    /* `contain: size` stops the `<svg>`'s own aspect ratio counting towards
+       the workspace's content height: unchecked, a wide screen's canvas
+       claims its full width's worth of height and the floor below is moot. */
+    .canvas {
+      contain: size;
+      min-height: clamp(220px, 40vh, 360px);
+      min-height: clamp(220px, 40dvh, 360px);
+    }
+
+    /* The tagline is the one piece of the footer with nothing to operate,
+       so it is what gives way when the canvas needs the room. */
+    .footer-note {
+      display: none;
+    }
+  }
+
+  /* DERIVED: sized to fit the phone sheet's "Back to map" bar. */
+  .brand.compact .mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand.compact .wordmark {
+    font-size: 20px;
+  }
+
+  /* A landscape phone has no height to share: no floor short of the whole
+     screen leaves a map worth reading. So the canvas takes the full screen
+     and the chrome either side of it scrolls away. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .canvas {
+      min-height: calc(100vh - 2rem);
+      min-height: calc(100dvh - 2rem);
+    }
+
+    /* And the detail panel goes back beside the map, where the width is: a
+       strip under it would get a few lines of a screen this short. Same
+       query as `PartDetailPanel.svelte`'s matching rule. */
+    .workspace {
+      flex-direction: row;
     }
   }
 </style>

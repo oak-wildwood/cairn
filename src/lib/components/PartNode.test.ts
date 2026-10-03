@@ -39,6 +39,36 @@ function nodeDash(part: Part): string | null {
 
 const ROLES: readonly PartRole[] = ["manager", "firefighter", "exile", "unknown"];
 
+describe("PartNode editable", () => {
+  function renderNode(editable: boolean, onmove: () => void = noop): HTMLElement {
+    const { container } = render(PartNode, {
+      props: {
+        part: makePart(),
+        position: { x: 0, y: 0 },
+        selected: false,
+        onselect: noop,
+        onmove,
+        onconnectstart: noop,
+        ontoggleactive: noop,
+        dropTarget: false,
+        drawing: false,
+        editable,
+      },
+    });
+    return container;
+  }
+
+  it("has connection handles on a computer", () => {
+    expect(renderNode(true).querySelectorAll(".handle")).toHaveLength(4);
+  });
+
+  it("has no connection handles on a phone, but keeps the active badge", () => {
+    const container = renderNode(false);
+    expect(container.querySelectorAll(".handle")).toHaveLength(0);
+    expect(container.querySelector("[data-tour='node-active-toggle']")).not.toBeNull();
+  });
+});
+
 describe("PartNode stroke dash", () => {
   it("dashes an emerging or unwitnessed part in every role, whatever the case", () => {
     for (const role of ROLES) {

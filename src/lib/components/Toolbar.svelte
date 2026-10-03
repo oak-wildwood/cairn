@@ -23,6 +23,9 @@
     onStartTour: () => void;
     /** True while a PDF export is walking every part's selection in turn. */
     exporting?: boolean;
+    /** Leaves out Save image and Export PDF, which are built around the wide
+     * desktop layout and give an oddly shaped capture on a phone. */
+    hideExport?: boolean;
   }
 
   const {
@@ -34,6 +37,7 @@
     onStartFresh,
     onStartTour,
     exporting = false,
+    hideExport = false,
   }: Props = $props();
 </script>
 
@@ -48,14 +52,16 @@
     >
       + Add a part
     </button>
-    <div class="export-group" data-tour="export">
-      <button type="button" class="button" onclick={onExport} disabled={exporting}>
-        Save image
-      </button>
-      <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
-        Export PDF
-      </button>
-    </div>
+    {#if !hideExport}
+      <div class="export-group" data-tour="export">
+        <button type="button" class="button" onclick={onExport} disabled={exporting}>
+          Save image
+        </button>
+        <button type="button" class="button" onclick={onExportPdf} disabled={exporting}>
+          Export PDF
+        </button>
+      </div>
+    {/if}
     <MapMenu {onBackUp} {onRestore} {onStartFresh} {onStartTour} disabled={exporting} />
   </div>
 </div>
@@ -68,8 +74,11 @@
     gap: 0.625rem;
   }
 
+  /* Wraps so a narrow screen pushes the last buttons onto a second row
+     rather than off the right-hand edge. */
   .actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.625rem;
   }
@@ -92,6 +101,9 @@
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
+    /* A pill whose label wraps grows taller than its neighbours and reads as
+       broken; better the row wrap than the label. */
+    white-space: nowrap;
     cursor: pointer;
     transition:
       color 160ms ease,
@@ -115,5 +127,18 @@
   .button:disabled {
     cursor: default;
     opacity: 0.5;
+  }
+
+  /* Matches `App.svelte`'s phone breakpoint: tighter pills so all four
+     controls usually still share one row at phone width. */
+  @media (max-width: 720px), (max-height: 560px) {
+    .actions,
+    .export-group {
+      gap: 0.5rem;
+    }
+
+    .button {
+      padding: 0 0.875rem;
+    }
   }
 </style>

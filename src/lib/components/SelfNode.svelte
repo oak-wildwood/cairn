@@ -15,6 +15,8 @@
     dropTarget: boolean;
     /** True while any connection is being drawn, from any node. */
     drawing: boolean;
+    /** False on a phone, where connections aren't drawn: no handles. */
+    editable?: boolean;
     onconnectstart: () => void;
     /**
      * Self used to be `pointer-events: none`, so a click on it fell through to
@@ -25,7 +27,8 @@
     onclear: () => void;
   }
 
-  const { dropTarget, drawing, onconnectstart, onclear }: Props = $props();
+  const { dropTarget, drawing, editable = true, onconnectstart, onclear }: Props =
+    $props();
 
   let hovered = $state(false);
   const showHandles = $derived(hovered && !drawing);
@@ -105,27 +108,29 @@
   >
 
   <!-- data-export-hide: see PartNode. -->
-  <g
-    class="handles"
-    class:visible={showHandles}
-    aria-hidden="true"
-    data-export-hide
-  >
-    {#each HANDLE_POSITIONS as handle, index (index)}
-      <!-- Pointer-only, for the reasons set out in PartNode. -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <circle
-        class="handle"
-        cx={handle.x}
-        cy={handle.y}
-        r={HANDLE.radius}
-        fill={SELF.stroke}
-        stroke={SELF.fill}
-        stroke-width="1.5"
-        onpointerdown={handleConnectStart}
-      />
-    {/each}
-  </g>
+  {#if editable}
+    <g
+      class="handles"
+      class:visible={showHandles}
+      aria-hidden="true"
+      data-export-hide
+    >
+      {#each HANDLE_POSITIONS as handle, index (index)}
+        <!-- Pointer-only, for the reasons set out in PartNode. -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <circle
+          class="handle"
+          cx={handle.x}
+          cy={handle.y}
+          r={HANDLE.radius}
+          fill={SELF.stroke}
+          stroke={SELF.fill}
+          stroke-width="1.5"
+          onpointerdown={handleConnectStart}
+        />
+      {/each}
+    </g>
+  {/if}
 </g>
 
 <style>

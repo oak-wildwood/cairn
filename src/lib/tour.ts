@@ -43,7 +43,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "map",
     title: "Your map",
-    body: "Self sits at the center, with your parts placed around it by role. Drag to pan — or use the buttons in the corner, your mouse wheel, or a trackpad — to zoom in and out.",
+    body: "Self sits at the center, with your parts placed around it by role. Drag to pan, and pinch — or use the buttons in the corner, your mouse wheel, or a trackpad — to zoom in and out.",
     target: "zoom-controls",
     placement: "left",
   },
@@ -132,7 +132,97 @@ export const TOUR_STEPS: readonly TourStep[] = [
     showDataStorageLink: true,
   },
 ];
+
+/**
+ * The phone's tour: the same story without the steps that teach a mouse
+ * gesture (hover handles, drag-to-connect) or a feature phones don't have
+ * (image and PDF export), and with the touch wording ("tap", "below the map")
+ * for the rest.
+ */
+export const MOBILE_TOUR_STEPS: readonly TourStep[] = [
+  {
+    id: "map",
+    title: "Your map",
+    body: "Self sits at the center, with your parts placed around it by role. Drag with one finger to pan, pinch to zoom, or use the buttons in the corner.",
+    target: "zoom-controls",
+    placement: "bottom",
+  },
+  {
+    id: "add-part",
+    title: "Add a part",
+    body: "Add a manager, firefighter, or exile — it places itself in the right sector of the map automatically.",
+    target: "add-part",
+    placement: "bottom",
+  },
+  {
+    id: "select-part",
+    title: "Open a part",
+    body: "Tap any part to open everything you've recorded about it — its card opens below the map.",
+    target: "part-node",
+    secondaryTarget: "detail-panel",
+    placement: "bottom",
+    requiresPart: true,
+  },
+  {
+    id: "feelings",
+    title: "Tag its feelings",
+    body: "Add feelings straight from a part's card, without opening the full edit form.",
+    target: "detail-feelings",
+    placement: "top",
+    requiresPart: true,
+  },
+  {
+    id: "connection",
+    title: "How parts connect",
+    body: "A line between two parts is a connection — tap it to read what it means. It also shows up in the part's own card. Drawing and editing connections is done on a computer.",
+    target: "connection",
+    secondaryTarget: "detail-connections",
+    placement: "bottom",
+    requiresPart: true,
+  },
+  {
+    id: "node-active-toggle",
+    title: "Mark a part active",
+    body: "That small badge on a part's edge toggles whether it's active this week, right from the map — no need to open the part first.",
+    target: "node-active-toggle",
+    placement: "bottom",
+  },
+  {
+    id: "active-filter",
+    title: "Active this week",
+    body: "Toggle this to see only the parts that are currently showing up for you.",
+    target: "active-filter",
+    placement: "top",
+  },
+  {
+    id: "role-filter",
+    title: "Filter by part type",
+    body: "Narrow the map down to just managers, firefighters, or exiles.",
+    target: "role-filter",
+    placement: "top",
+  },
+  {
+    id: "feelings-filter",
+    title: "Filter by feeling",
+    body: "Narrow the map down to the parts carrying a particular feeling.",
+    target: "feelings-filter",
+    placement: "top",
+  },
+  {
+    id: "start-fresh",
+    title: "Make the map yours",
+    body: "This menu backs your map up to a file, restores one, or clears the sample so you can start fresh with your own parts. Saving an image or a PDF is on the computer version.",
+    target: "map-menu-trigger",
+    placement: "bottom",
+    showDataStorageLink: true,
+  },
+];
 // Stryker restore all
+
+/** The tour for the screen it is starting on. */
+export function tourSteps(phone: boolean): readonly TourStep[] {
+  return phone ? MOBILE_TOUR_STEPS : TOUR_STEPS;
+}
 
 const SEEN_KEY = "cairn.tour.v1.seen";
 
