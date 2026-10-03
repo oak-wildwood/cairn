@@ -1,0 +1,79 @@
+name: Mutation
+
+# Mutation testing for the unit suite (see stryker.config.mjs and AGENTS.md,
+# Testing). Its own workflow so the required `verify` check in ci.yml stays
+# fast, and so it isn't coupled to claude-nightly.yml, which works issues.
+# Advisory: not a required status check until its runtime and flakiness are known.
+
+on:
+  schedule:
+    # Nightly, well clear of the 10:00 UTC Nightly so the two don't compete.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/lib/**"
+      - "stryker.config.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Stryker's incremental file: a PR run only re-tests mutants its diff
+      # can affect. Saved under a per-run key and restored by prefix, so the
+      # newest result from main (or this branch) seeds the next run.
+      - name: Restore incremental results
+        uses: actions/cache@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            stryker-incremental-${{ github.ref_name }}-
+            stryker-incremental-main-
+
+      - name: Mutation test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:mutation 2>&1 | tee stryker.log
+
+      - name: Survivors to the job summary
+        if: always()
+        shell: bash
+        run: |
+          # npm ci or the checkout can fail before Stryker writes anything.
+          [ -f stryker.log ] || { echo "No mutation run to report." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          {
+            echo "## Mutation testing"
+            echo
+            echo '```'
+            # Strip ANSI color codes; the clear-text reporter lists every
+            # survivor followed by the score table.
+            sed -e 's/\x1b\[[0-9;]*m//g' stryker.log | grep -v ' INFO \| DEBUG ' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: ignore
