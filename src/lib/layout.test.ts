@@ -379,23 +379,21 @@ describe("computeViewBox", () => {
   });
 
   it("measures a node above Self by its upward reach alone", () => {
-    // Reach is 15 + 710 + 54 = 779 past the frame's half-height of 385, so
-    // 2.02x: the next 5% step is 2.05x. Adding rather than subtracting the
+    // Reach is 15 + 731 + 54 = 800 past the frame's half-height of 385, so
+    // 2.08x: the next 5% step is 2.10x. Adding rather than subtracting the
     // node's up-extent, or measuring from the wrong edge, lands elsewhere.
-    // The height is 770 x 2.05 = 1578.5, right on a rounding boundary. The
-    // stepped scale comes out as 2.0500000000000003, so it rounds up to 1579,
-    // while Math.round(VIEWBOX.height * 2.05) would round down to 1578.
-    const box = computeViewBox([{ x: 0, y: -710 }]);
-    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.05));
-    expect(box.height).toBe(1579);
+    // A 2.10x step, not 2.05x: 770 x 2.05 is exactly 1578.5, where rounding
+    // would depend on float error in the stepped scale.
+    const box = computeViewBox([{ x: 0, y: -731 }]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.1));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 2.1));
   });
 
   it("measures a node below Self by its caption's downward reach alone", () => {
-    // Reach is 719 + 73.5 - 15 = 777.5: 2.02x, so 2.05x. The height rounds
-    // to 1579 for the reason given in the test above.
-    const box = computeViewBox([{ x: 0, y: 719 }]);
-    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.05));
-    expect(box.height).toBe(1579);
+    // Reach is 741 + 73.5 - 15 = 799.5: 2.08x, so 2.10x.
+    const box = computeViewBox([{ x: 0, y: 741 }]);
+    expect(box.width).toBe(Math.round(VIEWBOX.width * 2.1));
+    expect(box.height).toBe(Math.round(VIEWBOX.height * 2.1));
   });
 
   it("measures a node to either side by its offset from the centre", () => {
