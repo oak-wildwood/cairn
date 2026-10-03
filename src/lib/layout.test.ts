@@ -5,14 +5,19 @@ import {
   connectionEdgeKey,
   connectionOpacity,
   connectionStyle,
+  connectorCurve,
+  connectorMarkerEnd,
+  nodeStrokeDashArray,
   partCaption,
   pointToBearing,
   polarToPoint,
+  reciprocalConnectionIds,
   SECTORS,
   survivesFilters,
   wrapLabel,
 } from "./layout";
-import { VIEWBOX } from "./theme";
+import { CONNECTION, CONNECTOR_COLORS, NODE, VIEWBOX } from "./theme";
+import type { ConnectorColorKey } from "./theme";
 import { SELF_ID } from "./types";
 import type { Point } from "./types";
 import { makePart } from "./testParts";
@@ -330,5 +335,128 @@ describe("computeLayout: the unknown ring", () => {
     for (const part of unknowns) {
       expect(radius(part.id)).toBeGreaterThan(radius(manager.id));
     }
+  });
+});
+
+describe("nodeStrokeDashArray", () => {
+  it("dashes emerging and unwitnessed parts, whatever the case or padding", () => {
+    for (const status of ["emerging", "Emerging", "UNWITNESSED", "  unwitnessed "]) {
+      expect(nodeStrokeDashArray(status)).toBe("3 4");
+    }
+  });
+
+  it("leaves every other status solid", () => {
+    for (const status of ["", "witnessed", "unburdened", "emerging slowly"]) {
+      expect(nodeStrokeDashArray(status)).toBeUndefined();
+    }
+  });
+
+  it("never uses the connector's dash, which means something else", () => {
+    expect(NODE.mutedDashArray).not.toBe(CONNECTION.dashArray);
+  });
+});
+
+describe("reciprocalConnectionIds", () => {
+  it("marks both halves of a pair that runs each way, and nothing else", () => {
+    const ids = reciprocalConnectionIds([
+      { id: "protects", sourceId: "a", targetId: "b" },
+      { id: "triggers", sourceId: "b", targetId: "a" },
+      { id: "lone", sourceId: "a", targetId: "c" },
+      { id: "to-self", sourceId: "c", targetId: SELF_ID },
+    ]);
+    expect([...ids].sort()).toEqual(["protects", "triggers"]);
+  });
+
+  it("treats a pair sharing endpoints in the same direction as not reciprocal", () => {
+    expect(
+      reciprocalConnectionIds([
+        { id: "one", sourceId: "a", targetId: "b" },
+        { id: "two", sourceId: "a", targetId: "b" },
+      ]).size,
+    ).toBe(0);
+  });
+});
+
+describe("connectorMarkerEnd", () => {
+  const keys = Object.keys(CONNECTOR_COLORS) as ConnectorColorKey[];
+
+  it("gives a reciprocal connector the arrowhead in its own colour", () => {
+    for (const key of keys) {
+      expect(connectorMarkerEnd(true, key)).toBe(`url(#arrow-${key})`);
+    }
+  });
+
+  it("gives a lone connector no arrowhead", () => {
+    for (const key of keys) {
+      expect(connectorMarkerEnd(false, key)).toBeUndefined();
+    }
+  });
+});
+
+describe("connectorCurve", () => {
+  const radius = 46;
+  const a = { id: "a", point: { x: -200, y: -150 }, radius };
+  const b = { id: "b", point: { x: 220, y: -120 }, radius };
+
+  const distance = (p: Point, q: Point): number => Math.hypot(p.x - q.x, p.y - q.y);
+
+  it("starts and ends on the circles' edges rather than their centres", () => {
+    const curve = connectorCurve(a, b, false)!;
+    expect(distance(curve.start, a.point)).toBeCloseTo(radius);
+    expect(distance(curve.end, b.point)).toBeCloseTo(radius);
+  });
+
+  it("draws nothing for overlapping nodes", () => {
+    expect(connectorCurve(a, { ...b, point: { x: -180, y: -150 } }, false)).toBeNull();
+  });
+
+  it("bows away from Self rather than across it", () => {
+    const curve = connectorCurve(a, b, false)!;
+    const mid = {
+      x: (curve.start.x + curve.end.x) / 2,
+      y: (curve.start.y + curve.end.y) / 2,
+    };
+    expect(Math.hypot(curve.bow.x, curve.bow.y)).toBeGreaterThan(
+      Math.hypot(mid.x, mid.y),
+    );
+  });
+
+  it("would put two opposite lone connectors on the same arc", () => {
+    // Why the spread below exists: `perp` and `away` both flip with direction
+    // and cancel out, so without it a reciprocal pair draws as one line.
+    const there = connectorCurve(a, b, false)!;
+    const back = connectorCurve(b, a, false)!;
+    expect(distance(there.bow, back.bow)).toBeCloseTo(0);
+  });
+
+  it("bows the two arcs of a reciprocal pair apart, either side of the shared one", () => {
+    const shared = connectorCurve(a, b, false)!;
+    const there = connectorCurve(a, b, true)!;
+    const back = connectorCurve(b, a, true)!;
+
+    const chord = distance(shared.start, shared.end);
+    expect(distance(there.bow, back.bow)).toBeCloseTo(
+      2 * chord * CONNECTION.reciprocalSpread,
+    );
+    expect((there.bow.x + back.bow.x) / 2).toBeCloseTo(shared.bow.x);
+    expect((there.bow.y + back.bow.y) / 2).toBeCloseTo(shared.bow.y);
+  });
+
+  it("bows every connector out of Self to the same side, wherever the part sits", () => {
+    // `mid` lies on the line through Self here, so the dot product that picks
+    // a side for other connectors is zero and its sign is floating-point
+    // noise. Left to that, some bearings would bow clockwise and some
+    // counter-clockwise, and a drag would flicker between mirror images.
+    const self = { id: SELF_ID, point: { x: 0, y: 0 }, radius: 40 };
+    const sides = new Set<number>();
+    for (let bearing = 0; bearing < 360; bearing += 3) {
+      const part = { id: "a", point: polarToPoint(bearing, 255), radius };
+      for (const [from, to] of [[self, part], [part, self]]) {
+        const { bow } = connectorCurve(from, to, false)!;
+        // Which side of the Self-to-part line the bow sits on.
+        sides.add(Math.sign(part.point.x * bow.y - part.point.y * bow.x));
+      }
+    }
+    expect([...sides]).toHaveLength(1);
   });
 });

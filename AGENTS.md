@@ -77,8 +77,8 @@ protector/exile bond drawn one-way is a half-drawn bond however it was first dra
   everywhere for consistency is a regression against the settled design, and dropping them
   from reciprocal pairs makes those two arcs unreadable.
 - **Reciprocal arcs separate because one term skips the `away` flip.** In
-  `Connection.svelte`, `perp` and `away` both flip with direction, so they cancel
-  and two opposite connectors would otherwise bow onto the same point. The
+  `layout.ts`'s `connectorCurve`, `perp` and `away` both flip with direction, so they
+  cancel and two opposite connectors would otherwise bow onto the same point. The
   `reciprocalSpread` term is added *without* `away` on purpose — `perp` alone flips
   it, and that is what splits the pair. Multiplying it by `away` for symmetry puts
   the two arcs back on top of each other.
@@ -185,8 +185,10 @@ Vitest PRs (#73, #84) found exactly that.
   at the end of a test body — a failing assertion skips the rest of the body and the
   leak hits the next test. That includes URL changes made with `history.pushState`.
 - **Svelte.** Tests that use runes are named `*.svelte.test.ts`. Test an `$effect`
-  inside `$effect.root` and call `flushSync`. Component tests use the harness chosen in
-  #69. Prefer putting logic in modules over components so it can be tested without one.
+  inside `$effect.root` and call `flushSync`. Component tests use
+  `@testing-library/svelte` on jsdom (not Vitest browser mode; real-browser coverage
+  belongs to Playwright), and call its `cleanup` in `afterEach`. Prefer putting logic
+  in modules over components so it can be tested without one.
 - **Fixtures.** Use the shared `makePart` helper in `src/lib/testParts.ts` and the six
   generic names. The no-real-data and no-network hard rules apply to tests, fixtures
   and snapshots as much as to app code.

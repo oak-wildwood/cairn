@@ -333,10 +333,10 @@ export const CONNECTION = {
   /**
    * DERIVED: extra bow, as a fraction of chord, applied to a connector whose
    * pair also holds the reverse edge. Without it the two draw as one arc — see
-   * the derivation in Connection.svelte. 0.09 against a `bowRatio` of 0.12
-   * splits them roughly 0.21/0.03 off the chord: far enough apart that neither
-   * label touches the other, while the inner arc still reads as a curve rather
-   * than a straight line.
+   * the derivation in `layout.ts`'s `connectorCurve`. 0.09 against a
+   * `bowRatio` of 0.12 splits them roughly 0.21/0.03 off the chord: far enough
+   * apart that neither label touches the other, while the inner arc still
+   * reads as a curve rather than a straight line.
    */
   reciprocalSpread: 0.09,
   /**

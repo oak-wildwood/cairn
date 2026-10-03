@@ -3,6 +3,7 @@
     computeLayout,
     computeViewBox,
     connectionEdgeKey,
+    reciprocalConnectionIds,
     survivesFilters,
   } from "../layout";
   import {
@@ -385,17 +386,7 @@
    * Connections whose pair also holds the reverse edge. They need to be drawn
    * apart from each other, and only this component can see both at once.
    */
-  const reciprocalIds = $derived(
-    new Set(
-      connections
-        .filter((connection) =>
-          connectedEdges.has(
-            connectionEdgeKey(connection.targetId, connection.sourceId),
-          ),
-        )
-        .map((connection) => connection.id),
-    ),
-  );
+  const reciprocalIds = $derived(reciprocalConnectionIds(connections));
 
   const dropTargetId = $derived.by((): EndpointId | null => {
     if (!drawing) return null;
@@ -581,7 +572,7 @@
       Connection.svelte names the marker matching its own. `markerUnits`
       defaults to "strokeWidth", so each head scales with the line it caps, and
       `refX` at the tip puts the point on the node's edge where the path ends.
-      Only reciprocal connectors reference these — see Connection.svelte.
+      Only reciprocal connectors reference these — see `connectorMarkerEnd`.
     -->
     {#each Object.entries(CONNECTOR_COLORS) as [key, color] (key)}
       <marker

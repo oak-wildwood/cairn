@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { partCaption, polarToPoint, wrapLabel } from "../layout";
+  import { nodeStrokeDashArray, partCaption, polarToPoint, wrapLabel } from "../layout";
   import { ACTIVE_TOGGLE, HANDLE, isLowDefinition, NODE, ROLES } from "../theme";
   import type { Part, Point } from "../types";
 
@@ -277,7 +277,7 @@
     fill={tokens.nodeFill}
     stroke={tokens.accent}
     stroke-width={lowDefinition ? NODE.mutedStrokeWidth : NODE.strokeWidth}
-    stroke-dasharray={lowDefinition ? NODE.mutedDashArray : undefined}
+    stroke-dasharray={nodeStrokeDashArray(part.status)}
     opacity={lowDefinition ? NODE.mutedOpacity : 1}
     filter={lowDefinition ? undefined : "url(#glow)"}
   />
