@@ -37,6 +37,8 @@ export interface TourStep {
   readonly showDataStorageLink?: boolean;
 }
 
+// Stryker disable all: the tour's copy and targets are content, not logic. A
+// test that kills these mutants could only assert each string equals itself.
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "map",
@@ -130,6 +132,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     showDataStorageLink: true,
   },
 ];
+// Stryker restore all
 
 const SEEN_KEY = "cairn.tour.v1.seen";
 

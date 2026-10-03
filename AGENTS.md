@@ -172,6 +172,16 @@ Vitest PRs (#73, #84) found exactly that.
     policy (the six generic demo names in `exampleData.ts`), and it must carry a
     comment saying so.
   - *Mocking the unit under test.* Mock its dependencies, never the thing being tested.
+- **Mutation testing checks the first rule mechanically.** `npm run test:mutation`
+  runs StrykerJS over `src/lib`: it changes the code (`>` to `>=`, `sin` to `cos`, a
+  return to `null`) and reruns the suite, and a mutant no test fails on is a place
+  where no test can. `stryker.config.mjs` records what is in scope and why, and the
+  score floor (`thresholds.break`). Raise the floor as survivors are killed; never
+  lower it without a reason in the PR. Kill a survivor with a test that asserts
+  behavior, not by pinning a constant. A mutant that is genuinely equivalent gets
+  `// Stryker disable next-line <mutator>: <reason>`, never an unexplained disable,
+  and only when no killable mutant shares the line. There is deliberately no
+  coverage-percentage gate: coverage counts lines run, not lines checked.
 - **Every invariant has a test.** Each item under "Invariants that are easy to break by
   accident" needs a test that fails when it is violated, and changing an invariant
   updates its test in the same PR. The review found that rotating the whole diagram 90°

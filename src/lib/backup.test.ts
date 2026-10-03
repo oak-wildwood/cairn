@@ -75,6 +75,7 @@ describe("downloadMap", () => {
     expect(downloadedAs).toBe("cairn-map-2026-08-31.json");
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock");
     expect(blob).toBeDefined();
+    expect(blob!.type).toBe("application/json");
     expect(parseMap(await readBlobText(blob!))).toEqual(state);
   });
 });

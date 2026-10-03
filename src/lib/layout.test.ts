@@ -72,6 +72,32 @@ describe("computeLayout", () => {
     for (const part of parts) {
       expect(positions.has(part.id)).toBe(true);
     }
+    // And nothing else: a phantom entry in any sector's bucket would take a
+    // slot and shift the real parts along.
+    expect(positions.size).toBe(parts.length);
+  });
+
+  it("gives a lone part in each sector that sector's midpoint", () => {
+    // One part per sector, so a phantom slot in any bucket moves it off-center.
+    const positions = computeLayout([
+      makePart({ id: "m", role: "manager" }),
+      makePart({ id: "f", role: "firefighter" }),
+      makePart({ id: "e", role: "exile" }),
+    ]);
+    for (const [id, role] of [["m", "manager"], ["f", "firefighter"], ["e", "exile"]] as const) {
+      const { startDeg, endDeg } = SECTORS[role];
+      expect(pointToBearing(positions.get(id)!)).toBeCloseTo((startDeg + endDeg) / 2);
+    }
+  });
+
+  it("ignores a half-set override: x without y is not a position", () => {
+    // `null` means unset (see AGENTS.md: x/y are null, never 0, when unset).
+    // Pinning on x alone would put the part at (x, null) - effectively y = 0.
+    const computed = computeLayout([makePart({ id: "p", role: "manager" })]);
+    const halfX = computeLayout([makePart({ id: "p", role: "manager", x: 40, y: null })]);
+    const halfY = computeLayout([makePart({ id: "p", role: "manager", x: null, y: 40 })]);
+    expect(halfX.get("p")).toEqual(computed.get("p"));
+    expect(halfY.get("p")).toEqual(computed.get("p"));
   });
 
   it("uses a manual x/y override verbatim instead of the computed sector position", () => {
