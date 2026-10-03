@@ -43,7 +43,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "map",
     title: "Your map",
-    body: "Self sits at the center, with your parts placed around it by role. Drag to pan — or use the buttons in the corner, your mouse wheel, or a trackpad — to zoom in and out.",
+    body: "Self sits at the center, with your parts placed around it by role. Drag to pan, and pinch — or use the buttons in the corner, your mouse wheel, or a trackpad — to zoom in and out.",
     target: "zoom-controls",
     placement: "left",
   },

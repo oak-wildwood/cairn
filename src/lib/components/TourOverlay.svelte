@@ -48,6 +48,13 @@
     );
   }
 
+  /**
+   * The step whose target has been scrolled into view. On a phone the page
+   * scrolls (see `App.svelte`), so a step can point at something below the
+   * fold — the detail panel, the legend — and spotlight nothing visible.
+   */
+  let scrolledStep = -1;
+
   $effect(() => {
     let frame = requestAnimationFrame(function measure() {
       const selector = step.target;
@@ -55,6 +62,16 @@
         ? document.querySelector<HTMLElement>(`[data-tour="${selector}"]`)
         : null;
       const nextRect = el ? el.getBoundingClientRect() : null;
+      // Waits for the target to hold still for a frame first: the detail
+      // panel animates open, and scrolling to it mid-animation would stop
+      // short of where it ends up.
+      if (el && scrolledStep !== stepIndex && rectsEqual(rect, nextRect)) {
+        scrolledStep = stepIndex;
+        el.scrollIntoView({
+          block: "nearest",
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+      }
       if (!rectsEqual(rect, nextRect)) rect = nextRect;
 
       const secondarySelector = step.secondaryTarget;
@@ -94,6 +111,8 @@
 
   const GAP = 16;
   const MARGIN = 12;
+  /** The arrow's least distance from a tooltip corner, in px. */
+  const ARROW_INSET = 20;
 
   const layout = $derived.by(() => {
     const tw = tooltipSize.width || 320;
@@ -107,6 +126,7 @@
         top: vh / 2 - th / 2,
         left: vw / 2 - tw / 2,
         arrow: null as TourPlacement | null,
+        arrowOffset: 0,
       };
     }
 
@@ -135,31 +155,55 @@
       }
     };
 
-    let placement = step.placement;
-    let pos = place(placement);
-
-    // A single flip to the opposite side covers every target this tour
-    // actually points at — none sit close enough to two viewport edges at
-    // once to need a second fallback.
-    if (placement === "top" && pos.top < MARGIN) {
-      placement = "bottom";
-      pos = place(placement);
-    } else if (placement === "bottom" && pos.top + th > vh - MARGIN) {
-      placement = "top";
-      pos = place(placement);
-    } else if (placement === "left" && pos.left < MARGIN) {
-      placement = "right";
-      pos = place(placement);
-    } else if (placement === "right" && pos.left + tw > vw - MARGIN) {
-      placement = "left";
-      pos = place(placement);
-    }
-
-    return {
-      top: Math.min(Math.max(pos.top, MARGIN), vh - th - MARGIN),
-      left: Math.min(Math.max(pos.left, MARGIN), vw - tw - MARGIN),
-      arrow: placement,
+    // Only along the axis the tooltip is offset on: sliding along the other
+    // one is what the clamp below is for, and leaves the arrow still
+    // pointing the right way.
+    const fits = (p: TourPlacement): boolean => {
+      const at = place(p);
+      return p === "top" || p === "bottom"
+        ? at.top >= MARGIN && at.top + th <= vh - MARGIN
+        : at.left >= MARGIN && at.left + tw <= vw - MARGIN;
     };
+
+    const opposite: Record<TourPlacement, TourPlacement> = {
+      top: "bottom",
+      bottom: "top",
+      left: "right",
+      right: "left",
+    };
+
+    // The step's own side, then its opposite, covers every target on a
+    // desktop. A phone is too narrow for a tooltip beside anything, so a
+    // side placement falls back to below or above the target too, rather
+    // than being clamped on top of the very thing it is pointing at.
+    const candidates: TourPlacement[] = [
+      step.placement,
+      opposite[step.placement],
+      "bottom",
+      "top",
+    ];
+    const placement = candidates.find(fits) ?? step.placement;
+    const pos = place(placement);
+
+    const top = Math.min(Math.max(pos.top, MARGIN), vh - th - MARGIN);
+    const left = Math.min(Math.max(pos.left, MARGIN), vw - tw - MARGIN);
+
+    // Where along its edge the arrow sits, so it still points at the target
+    // once the clamp above has slid the tooltip off-centre — which on a
+    // phone, with a tooltip nearly the screen's width, is most steps. Kept
+    // clear of the rounded corners.
+    const vertical = placement === "top" || placement === "bottom";
+    const arrowOffset = vertical
+      ? Math.min(
+          Math.max(targetRect.left + targetRect.width / 2 - left, ARROW_INSET),
+          tw - ARROW_INSET,
+        )
+      : Math.min(
+          Math.max(targetRect.top + targetRect.height / 2 - top, ARROW_INSET),
+          th - ARROW_INSET,
+        );
+
+    return { top, left, arrow: placement, arrowOffset };
   });
 
   function spotlightStyle(target: DOMRect): string {
@@ -258,7 +302,11 @@
     tabindex="-1"
   >
     {#if layout.arrow}
-      <div class="tour-arrow arrow-{layout.arrow}" aria-hidden="true"></div>
+      <div
+        class="tour-arrow arrow-{layout.arrow}"
+        style:--arrow-offset="{layout.arrowOffset}px"
+        aria-hidden="true"
+      ></div>
     {/if}
 
     <button class="tour-close" type="button" aria-label="Close tour" onclick={onClose}>
@@ -364,28 +412,28 @@
 
   .arrow-top {
     bottom: -7px;
-    left: calc(50% - 6px);
+    left: calc(var(--arrow-offset) - 6px);
     border-top: none;
     border-left: none;
   }
 
   .arrow-bottom {
     top: -7px;
-    left: calc(50% - 6px);
+    left: calc(var(--arrow-offset) - 6px);
     border-bottom: none;
     border-right: none;
   }
 
   .arrow-left {
     right: -7px;
-    top: calc(50% - 6px);
+    top: calc(var(--arrow-offset) - 6px);
     border-left: none;
     border-bottom: none;
   }
 
   .arrow-right {
     left: -7px;
-    top: calc(50% - 6px);
+    top: calc(var(--arrow-offset) - 6px);
     border-right: none;
     border-top: none;
   }

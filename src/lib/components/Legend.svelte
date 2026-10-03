@@ -225,6 +225,7 @@
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
     transition:
       color 160ms ease,
@@ -358,5 +359,23 @@
     flex-shrink: 0;
     color: var(--text-muted);
     font-size: 11px;
+  }
+
+  /* Matches `App.svelte`'s phone breakpoint. Tighter pills keep all three
+     filters on one row at phone width, and the divider goes: once the row
+     can wrap, it ends up stranded at a line's end, dividing nothing. */
+  @media (max-width: 720px), (max-height: 560px) {
+    .legend {
+      gap: 0.5rem;
+    }
+
+    .pill {
+      gap: 0.5rem;
+      padding: 0 0.875rem;
+    }
+
+    .divider {
+      display: none;
+    }
   }
 </style>

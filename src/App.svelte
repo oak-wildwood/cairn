@@ -571,6 +571,11 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    /* A phone's `vh` is the viewport with its browser chrome retracted, so
+       a `100vh` shell starts taller than the screen it opens on and the
+       footer sits under the address bar. `dvh` tracks what is actually
+       visible; `vh` above stays as the fallback for browsers without it. */
+    height: 100dvh;
   }
 
   .app {
@@ -619,11 +624,15 @@
     font-weight: 500;
   }
 
+  /* Wraps rather than squeezing: when the title and toolbar can't share a
+     line, the toolbar drops beneath the title instead of crushing it into
+     a one-word-per-line column and pushing its own buttons off the edge. */
   .page-heading {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 1.5rem;
+    gap: 0.75rem 1.5rem;
   }
 
   .file-notice {
@@ -637,12 +646,16 @@
   }
 
   .title {
+    min-width: 0;
     margin: 0;
     font-family: var(--font-display);
     font-size: 42px;
     font-style: italic;
     font-weight: 500;
     line-height: 1;
+    /* An owner's name is their own words, with no length limit; a single
+       long word must break rather than run off a narrow screen. */
+    overflow-wrap: anywhere;
   }
 
   /**
@@ -755,6 +768,91 @@
 
     .footer-data {
       text-align: center;
+    }
+  }
+
+  /*
+   * Phones, in either orientation. The desktop shell is a fixed-height,
+   * non-scrolling page whose canvas takes whatever the chrome leaves over —
+   * on a phone the chrome alone fills most of the screen, and the canvas, the
+   * one thing the page is for, is what gets squeezed (to nothing at all in
+   * landscape). Here the chrome tightens and the canvas gets a floor. The
+   * shell keeps its one-screen height, so the canvas still fills whatever is
+   * spare and still gives way when the detail panel opens beneath it; but it
+   * stops giving way at the floor, and from there the content overflows the
+   * shell and the page scrolls rather than the map shrinking further.
+   */
+  @media (max-width: 720px), (max-height: 560px) {
+    .app {
+      gap: 0.75rem;
+      overflow: visible;
+      padding: 1rem;
+    }
+
+    .mark {
+      width: 32px;
+      height: 32px;
+    }
+
+    .wordmark {
+      font-size: 22px;
+    }
+
+    .count {
+      font-size: 14px;
+    }
+
+    .count-meta {
+      margin-top: 0.125rem;
+      font-size: 12px;
+    }
+
+    .title {
+      font-size: 30px;
+    }
+
+    .file-notice {
+      margin: 0;
+    }
+
+    .workspace {
+      gap: 0.75rem;
+      /* Room for the canvas's floor plus the open panel, rather than the
+         desktop's zero — with zero the panel and canvas would overflow the
+         workspace onto the footer instead of pushing it down. */
+      min-height: auto;
+    }
+
+    /* `contain: size` stops the `<svg>`'s own aspect ratio counting towards
+       the workspace's content height: unchecked, a wide screen's canvas
+       claims its full width's worth of height and the floor below is moot. */
+    .canvas {
+      contain: size;
+      min-height: clamp(220px, 40vh, 360px);
+      min-height: clamp(220px, 40dvh, 360px);
+    }
+
+    /* The tagline is the one piece of the footer with nothing to operate,
+       so it is what gives way when the canvas needs the room. */
+    .footer-note {
+      display: none;
+    }
+  }
+
+  /* A landscape phone has no height to share: no floor short of the whole
+     screen leaves a map worth reading. So the canvas takes the full screen
+     and the chrome either side of it scrolls away. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .canvas {
+      min-height: calc(100vh - 2rem);
+      min-height: calc(100dvh - 2rem);
+    }
+
+    /* And the detail panel goes back beside the map, where the width is: a
+       strip under it would get a few lines of a screen this short. Same
+       query as `PartDetailPanel.svelte`'s matching rule. */
+    .workspace {
+      flex-direction: row;
     }
   }
 </style>

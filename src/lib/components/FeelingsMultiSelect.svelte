@@ -11,6 +11,7 @@
    * new one enters that vocabulary in the first place.
    */
   import { onMount, tick } from "svelte";
+  import { clampPopoverLeft } from "../touchGeometry";
 
   interface Props {
     /** The known feeling vocabulary and how many parts carry each, from
@@ -128,13 +129,27 @@
     null,
   );
 
+  /** `.popover`'s outer width (260px content, 28px padding, 2px border) and
+   * its least gap to a viewport edge, in px — kept in step with the
+   * stylesheet below by hand. */
+  const POPOVER_WIDTH = 290;
+  const POPOVER_MARGIN = 8;
+
   function measureAnchor(): void {
     const rect = trigger?.getBoundingClientRect();
     if (!rect) return;
+    // Kept on screen: a trigger near a phone's right edge (the legend's, at
+    // the end of its row) would otherwise open the popover half off it.
+    const left = clampPopoverLeft(
+      rect.left,
+      Math.min(POPOVER_WIDTH, window.innerWidth - 2 * POPOVER_MARGIN),
+      window.innerWidth,
+      POPOVER_MARGIN,
+    );
     anchor =
       dropDirection === "up"
-        ? { left: rect.left, bottom: window.innerHeight - rect.top + 8 }
-        : { left: rect.left, top: rect.bottom + 8 };
+        ? { left, bottom: window.innerHeight - rect.top + 8 }
+        : { left, top: rect.bottom + 8 };
   }
 
   function openPanel(): void {
@@ -596,7 +611,9 @@
   .popover {
     position: fixed;
     z-index: 20;
-    width: 260px;
+    /* Narrows on a phone to leave `POPOVER_MARGIN` either side: 16px of
+       margin, plus the 28px of padding and 2px of border outside `width`. */
+    width: min(260px, calc(100vw - 46px));
     padding: 14px;
     border: 1px solid var(--pill-border);
     border-radius: 10px;

@@ -68,8 +68,11 @@
     gap: 0.625rem;
   }
 
+  /* Wraps so a narrow screen pushes the last buttons onto a second row
+     rather than off the right-hand edge. */
   .actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.625rem;
   }
@@ -92,6 +95,9 @@
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
+    /* A pill whose label wraps grows taller than its neighbours and reads as
+       broken; better the row wrap than the label. */
+    white-space: nowrap;
     cursor: pointer;
     transition:
       color 160ms ease,
@@ -115,5 +121,18 @@
   .button:disabled {
     cursor: default;
     opacity: 0.5;
+  }
+
+  /* Matches `App.svelte`'s phone breakpoint: tighter pills so all four
+     controls usually still share one row at phone width. */
+  @media (max-width: 720px), (max-height: 560px) {
+    .actions,
+    .export-group {
+      gap: 0.5rem;
+    }
+
+    .button {
+      padding: 0 0.875rem;
+    }
   }
 </style>

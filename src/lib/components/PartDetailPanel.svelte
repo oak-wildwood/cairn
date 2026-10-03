@@ -77,9 +77,11 @@
    */
   function reveal(node: HTMLElement): TransitionConfig {
     const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Matches the stylesheet's breakpoint: a sidebar grows sideways, a panel
-    // docked underneath grows upward.
-    const sideways = matchMedia("(min-width: 901px)").matches;
+    // Matches the stylesheet's breakpoints: a sidebar (on a desktop, or a
+    // landscape phone) grows sideways, a panel docked underneath grows upward.
+    const sideways = matchMedia(
+      "(min-width: 901px), (max-height: 560px) and (orientation: landscape)",
+    ).matches;
     const extent = sideways ? node.offsetWidth : node.offsetHeight;
 
     return {
@@ -636,6 +638,27 @@
 
     .inner {
       width: 100%;
+    }
+  }
+
+  /* A landscape phone: a strip under the map would get a few lines of a
+     screen this short, so the panel goes back to being a sidebar, narrower
+     than the desktop's so the map keeps most of the width. Same query as
+     `App.svelte`'s matching rule, which turns the workspace back into a row. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .panel {
+      width: min(22rem, 42vw);
+      /* No taller than the canvas beside it, which fills the screen —
+         beyond that the panel scrolls inside itself as it does on a
+         desktop, rather than stretching the canvas to its own length. */
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem);
+      border-top: none;
+      border-left: 1px solid var(--rule);
+    }
+
+    .inner {
+      width: min(22rem, 42vw);
     }
   }
 </style>
