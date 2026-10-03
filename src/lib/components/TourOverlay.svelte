@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { TOUR_STEPS } from "../tour";
-  import type { TourPlacement } from "../tour";
+  import type { TourPlacement, TourStep } from "../tour";
   import { TOUR } from "../theme";
 
   interface Props {
+    /** The steps this run walks — the desktop or the phone tour. */
+    steps: readonly TourStep[];
     stepIndex: number;
     onNext: () => void;
     onBack: () => void;
@@ -13,11 +14,11 @@
     onShowDataInfo: () => void;
   }
 
-  const { stepIndex, onNext, onBack, onClose, onShowDataInfo }: Props = $props();
+  const { steps, stepIndex, onNext, onBack, onClose, onShowDataInfo }: Props = $props();
 
-  const step = $derived(TOUR_STEPS[stepIndex]);
+  const step = $derived(steps[stepIndex]);
   const isFirst = $derived(stepIndex === 0);
-  const isLast = $derived(stepIndex === TOUR_STEPS.length - 1);
+  const isLast = $derived(stepIndex === steps.length - 1);
 
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -313,7 +314,7 @@
       &times;
     </button>
 
-    <p class="tour-eyebrow">Step {stepIndex + 1} of {TOUR_STEPS.length}</p>
+    <p class="tour-eyebrow">Step {stepIndex + 1} of {steps.length}</p>
     <h2 id="tour-title" class="tour-title">{step.title}</h2>
     <p id="tour-body" class="tour-body">{step.body}</p>
 
@@ -324,7 +325,7 @@
     {/if}
 
     <div class="tour-dots" aria-hidden="true">
-      {#each TOUR_STEPS as dotStep, i (dotStep.id)}
+      {#each steps as dotStep, i (dotStep.id)}
         <span class="dot" class:active={i === stepIndex}></span>
       {/each}
     </div>

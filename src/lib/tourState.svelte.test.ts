@@ -3,7 +3,7 @@ import { flushSync } from "svelte";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { store } from "./store.svelte";
 import { makePart } from "./testParts";
-import { hasSeenTour, TOUR_STEPS } from "./tour";
+import { hasSeenTour, MOBILE_TOUR_STEPS, TOUR_STEPS } from "./tour";
 import { TourState } from "./tourState.svelte";
 
 const FIRST_PANEL_STEP = TOUR_STEPS.findIndex((step) => step.requiresPart);
@@ -113,6 +113,26 @@ describe("TourState navigation", () => {
     expect(tour.active).toBe(false);
     expect(hasSeenTour()).toBe(true);
     expect(store.selectedPartId).toBe("mine");
+  });
+
+  it("walks the steps it was started with, not the desktop list", () => {
+    const phoneSteps = MOBILE_TOUR_STEPS;
+    expect(phoneSteps.length).not.toBe(TOUR_STEPS.length);
+    startTracking();
+    tour.start(phoneSteps);
+    stepTo(phoneSteps.length - 1);
+    expect(tour.active).toBe(true);
+
+    tour.next();
+    flushSync();
+    expect(tour.active).toBe(false);
+  });
+
+  it("opens the first part on a phone tour's panel steps too", () => {
+    startTracking();
+    tour.start(MOBILE_TOUR_STEPS);
+    stepTo(MOBILE_TOUR_STEPS.findIndex((step) => step.requiresPart));
+    expect(store.selectedPartId).toBe("first");
   });
 
   it("restores the user's selection when skipped from a panel step", () => {

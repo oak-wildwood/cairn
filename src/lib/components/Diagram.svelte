@@ -61,6 +61,13 @@
     /** The tags the legend is filtering to. Empty means no tag filter. */
     tagFilter: readonly string[];
     /**
+     * False on a phone: parts can't be dragged, connections can't be drawn,
+     * and a connection's label is read-only. Each is a pointer gesture too
+     * fine for a finger on a map this small, and sits right next to the pan
+     * gesture it would be mistaken for.
+     */
+    editable?: boolean;
+    /**
      * The live `<svg>`, bound out so the toolbar can render it to a PNG.
      * Exposed rather than exporting from in here: this component owns the
      * element, and handing out a reference keeps the export logic in one
@@ -86,6 +93,7 @@
     activeFilter,
     activeOnlyFilter,
     tagFilter,
+    editable = true,
     element = $bindable(null),
   }: Props = $props();
 
@@ -789,6 +797,7 @@
         target={entry.target}
         selected={entry.connection.id === selectedConnectionId}
         reciprocal={reciprocalIds.has(entry.connection.id)}
+        {editable}
         onselect={onconnectselect}
         onlabelchange={onconnectlabel}
         ondelete={onconnectdelete}
@@ -800,6 +809,7 @@
   <SelfNode
     dropTarget={dropTargetId === SELF_ID}
     drawing={drawing !== null}
+    {editable}
     onconnectstart={() => startConnection(SELF_ID)}
     {onclear}
   />
@@ -832,6 +842,7 @@
           selected={part.id === selectedPartId}
           dropTarget={dropTargetId === part.id}
           drawing={drawing !== null}
+          {editable}
           onconnectstart={startConnection}
           {onselect}
           {onmove}

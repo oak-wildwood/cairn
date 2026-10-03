@@ -29,6 +29,9 @@
      * diagram, which is the only place that can see both connections.
      */
     reciprocal: boolean;
+    /** False on a phone: a selected connection shows its label as text, with no
+     * input to edit it and no delete button. */
+    editable?: boolean;
     onselect: (id: string) => void;
     onlabelchange: (id: string, label: string) => void;
     ondelete: (id: string) => void;
@@ -41,6 +44,7 @@
     target,
     selected,
     reciprocal,
+    editable = true,
     onselect,
     onlabelchange,
     ondelete,
@@ -150,7 +154,7 @@
     onclick={() => onselect(connection.id)}
   />
 
-  {#if selected}
+  {#if selected && editable}
     <foreignObject
       x={d.anchor.x - LABEL_WIDTH / 2}
       y={d.anchor.y - LABEL_HEIGHT / 2}

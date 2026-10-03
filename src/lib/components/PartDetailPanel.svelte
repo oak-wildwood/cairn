@@ -130,17 +130,25 @@
    */
   let lastPartId = $state(untrack(() => part.id));
 
+  /**
+   * The panel is one element across part changes, so without this the next
+   * part opens scrolled to wherever the last one was left — on a phone, with
+   * its header above the fold.
+   */
+  let scrollEl = $state<HTMLElement | null>(null);
+
   $effect(() => {
     if (part.id === lastPartId) return;
     lastPartId = part.id;
     confirmingDelete = false;
     editingFeelings = false;
+    if (scrollEl) scrollEl.scrollTop = 0;
   });
 </script>
 
 <aside class="panel" aria-label="Part details" data-tour="detail-panel" transition:reveal>
   <div class="inner">
-    <div class="scroll">
+    <div class="scroll" bind:this={scrollEl}>
       <header class="head">
         <div class="title">
           <p class="meta" style:color={accent}>

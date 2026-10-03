@@ -19,7 +19,10 @@
   import { autosaveMap, snapshotState } from "./lib/autosave.svelte";
   import { isDemoRoute, parseMap, saveState } from "./lib/persistence";
   import { store } from "./lib/store.svelte";
-  import { hasSeenTour } from "./lib/tour";
+  import MobileNoticeModal from "./lib/components/MobileNoticeModal.svelte";
+  import { hasSeenMobileNotice, markMobileNoticeSeen } from "./lib/mobileNotice";
+  import { phone } from "./lib/phone.svelte";
+  import { hasSeenTour, tourSteps } from "./lib/tour";
   import { TourState } from "./lib/tourState.svelte";
 
   /**
@@ -270,8 +273,30 @@
   // The demo page is a second static entry for looking at the seed map
   // alongside a real one (see `isDemoRoute` in persistence.ts) — it isn't a
   // first visit to the real app, so it shouldn't offer the tour either.
+  function startTour(): void {
+    tour.start(tourSteps(phone.matches));
+  }
+
+  /**
+   * The one-time "best on a computer" notice. On a first visit from a phone it
+   * comes before the tour, which starts when it is dismissed — two overlays at
+   * once would each be fighting for the screen.
+   */
+  let showingMobileNotice = $state(false);
+
+  function handleMobileNoticeClose(): void {
+    markMobileNoticeSeen();
+    showingMobileNotice = false;
+    if (!hasSeenTour()) startTour();
+  }
+
   onMount(() => {
-    if (!isDemoRoute() && !hasSeenTour()) tour.start();
+    if (isDemoRoute()) return;
+    if (phone.matches && !hasSeenMobileNotice()) {
+      showingMobileNotice = true;
+      return;
+    }
+    if (!hasSeenTour()) startTour();
   });
 
   /**
@@ -389,8 +414,9 @@
         onBackUp={handleBackUp}
         onRestore={handleRestore}
         onStartFresh={() => (startingFresh = true)}
-        onStartTour={() => tour.start()}
+        onStartTour={startTour}
         exporting={exportingPdf}
+        hideExport={phone.matches}
       />
     </div>
 
@@ -423,6 +449,7 @@
           activeFilter={store.activeFilter}
           activeOnlyFilter={store.activeOnlyFilter}
           tagFilter={store.tagFilter}
+          editable={!phone.matches}
         />
       </div>
 
@@ -510,12 +537,17 @@
 
 {#if tour.active}
   <TourOverlay
+    steps={tour.steps}
     stepIndex={tour.stepIndex}
     onNext={() => tour.next()}
     onBack={() => tour.back()}
     onClose={() => tour.end()}
     onShowDataInfo={() => (showingDataInfo = true)}
   />
+{/if}
+
+{#if showingMobileNotice}
+  <MobileNoticeModal onclose={handleMobileNoticeClose} />
 {/if}
 
 {#if showingDataInfo}

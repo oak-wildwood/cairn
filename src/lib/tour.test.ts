@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { hasSeenTour, markTourSeen } from "./tour";
+import { hasSeenTour, markTourSeen, MOBILE_TOUR_STEPS, TOUR_STEPS, tourSteps } from "./tour";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -8,6 +8,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("tourSteps", () => {
+  it("is the desktop tour on a computer and the phone tour on a phone", () => {
+    expect(tourSteps(false)).toBe(TOUR_STEPS);
+    expect(tourSteps(true)).toBe(MOBILE_TOUR_STEPS);
+  });
+
+  // The phone has no export buttons (see Toolbar's `hideExport`), so a step
+  // spotlighting them would point at nothing and sit centred, unexplained.
+  it("leaves the export step out of the phone tour but keeps it on desktop", () => {
+    expect(TOUR_STEPS.some((step) => step.target === "export")).toBe(true);
+    expect(MOBILE_TOUR_STEPS.some((step) => step.target === "export")).toBe(false);
+  });
+
+  it("gives every step in each tour a distinct id", () => {
+    for (const steps of [TOUR_STEPS, MOBILE_TOUR_STEPS]) {
+      expect(new Set(steps.map((step) => step.id)).size).toBe(steps.length);
+    }
+  });
 });
 
 describe("hasSeenTour", () => {

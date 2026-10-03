@@ -1,5 +1,6 @@
 import { store } from "./store.svelte";
 import { markTourSeen, TOUR_STEPS } from "./tour";
+import type { TourStep } from "./tour";
 
 /**
  * The guided tour's own state. `priorSelection` snapshots whatever was
@@ -13,9 +14,13 @@ import { markTourSeen, TOUR_STEPS } from "./tour";
 export class TourState {
   active = $state(false);
   stepIndex = $state(0);
+  /** The steps this run walks, fixed when it starts so rotating a phone
+   * mid-tour does not swap the list out from under the step index. */
+  steps = $state<readonly TourStep[]>(TOUR_STEPS);
   private priorSelection: string | null = null;
 
-  start(): void {
+  start(steps: readonly TourStep[] = TOUR_STEPS): void {
+    this.steps = steps;
     this.priorSelection = store.selectedPartId;
     this.stepIndex = 0;
     this.active = true;
@@ -28,7 +33,7 @@ export class TourState {
   }
 
   next(): void {
-    if (this.stepIndex >= TOUR_STEPS.length - 1) {
+    if (this.stepIndex >= this.steps.length - 1) {
       this.end();
       return;
     }
@@ -61,7 +66,7 @@ export class TourState {
   trackSelection(): void {
     $effect(() => {
       if (!this.active) return;
-      const step = TOUR_STEPS[this.stepIndex];
+      const step = this.steps[this.stepIndex];
       if (!step) return;
 
       if (step.requiresPart) {
