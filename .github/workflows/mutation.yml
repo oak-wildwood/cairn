@@ -6,14 +6,22 @@ name: Mutation
 # Advisory: not a required status check until its runtime and flakiness are known.
 
 on:
-  schedule:
-    # Nightly, well clear of the 10:00 UTC Nightly so the two don't compete.
-    - cron: "17 3 * * *"
-  workflow_dispatch:
+  # Pushes to main refresh the incremental file that PR runs restore from, but
+  # only when the code under test changed: most merges leave the score alone.
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/**"
+      - "stryker.config.mjs"
   pull_request:
     paths:
       - "src/lib/**"
       - "stryker.config.mjs"
+  schedule:
+    # Weekly, for drift no path filter sees, such as a Vitest or Stryker bump.
+    # Sunday 03:17 UTC, clear of the 10:00 UTC Nightly.
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
 
 permissions:
   contents: read
