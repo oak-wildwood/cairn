@@ -78,7 +78,7 @@ describe("computeLayout", () => {
   });
 
   it("gives a lone part in each sector that sector's midpoint", () => {
-    // One part per sector, so a phantom slot in any bucket moves it off-centre.
+    // One part per sector, so a phantom slot in any bucket moves it off-center.
     const positions = computeLayout([
       makePart({ id: "m", role: "manager" }),
       makePart({ id: "f", role: "firefighter" }),

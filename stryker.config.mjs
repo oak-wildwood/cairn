@@ -31,13 +31,13 @@ export default {
     // equals itself. The tour's step copy is fenced off in-source in tour.ts
     // for the same reason, leaving its storage logic mutated.
     "!src/lib/exampleData.ts",
-    // DOM and canvas rendering (PNG and PDF export). Nothing in them is
-    // reachable from a Node unit test today; excluded until #69 pulls their
-    // arithmetic out into something testable.
+    // DOM and canvas rendering (PNG and PDF export). #69 moved their size
+    // arithmetic into exportGeometry.ts, which is mutated; what's left here
+    // is html-to-image and jsPDF calls a Node unit test can't reach.
     "!src/lib/export.ts",
     "!src/lib/pdfExport.ts",
     // theme.ts is NOT excluded here, but most of it is: it is the design
-    // spec, and a mutant that changes a colour or a stroke width can only be
+    // spec, and a mutant that changes a color or a stroke width can only be
     // killed by a test asserting the constant equals its own copy, which the
     // testing conventions (#87) forbid. So the value tables are fenced off
     // in-source with `// Stryker disable all` and only the logic
@@ -67,6 +67,9 @@ export default {
   //   #88  75.27%  floor 72. Most of the gap is store.svelte.ts (93 mutants no
   //                test reaches) and layout.ts's ring-capacity, label-wrap and
   //                viewBox arithmetic; both are filed as follow-ups.
+  //   #69  84.37%  floor 81. #92's store, effect and export-geometry tests,
+  //                measured with this config on main after both merged.
+  //                What's left is #94 (store) and #95 (layout).
   //
   // The ten persistence.ts survivors at that baseline are all equivalent:
   //   - `typeof value !== "object"` -> false in the five shape guards: the
@@ -80,7 +83,7 @@ export default {
   // `Stryker disable next-line` can only name a mutator for the whole line,
   // and on each of those lines that would also hide a sibling mutant the
   // suite does kill.
-  thresholds: { high: 90, low: 80, break: 72 },
+  thresholds: { high: 90, low: 80, break: 81 },
 
   tempDirName: ".stryker-tmp",
   cleanTempDir: true,

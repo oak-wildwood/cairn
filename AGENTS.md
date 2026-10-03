@@ -178,7 +178,7 @@ Vitest PRs (#73, #84) found exactly that.
   where no test can. `stryker.config.mjs` records what is in scope and why, and the
   score floor (`thresholds.break`). Raise the floor as survivors are killed; never
   lower it without a reason in the PR. Kill a survivor with a test that asserts
-  behaviour, not by pinning a constant. A mutant that is genuinely equivalent gets
+  behavior, not by pinning a constant. A mutant that is genuinely equivalent gets
   `// Stryker disable next-line <mutator>: <reason>`, never an unexplained disable,
   and only when no killable mutant shares the line. There is deliberately no
   coverage-percentage gate: coverage counts lines run, not lines checked.
