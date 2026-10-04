@@ -9,6 +9,13 @@ npm-debug.log*
 reports/
 .stryker-tmp/
 
+# Playwright (npm run test:e2e): results, traces and the HTML report. A trace
+# records everything the page showed, so none of it is ever committed.
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Editor (per-machine)
 .vscode/
 

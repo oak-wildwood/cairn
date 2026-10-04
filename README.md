@@ -47,6 +47,7 @@ Other scripts:
 | `npm run check`    | Type-check the whole project (`svelte-check`) |
 | `npm test`         | Run the unit tests (`vitest`)       |
 | `npm run test:mutation` | Mutation-test the unit suite (StrykerJS); report in `reports/mutation/` |
+| `npm run test:e2e` | Build, serve and run the end-to-end tests in Chromium (Playwright). Run `npx playwright install chromium` once first |
 
 ## Stack
 
