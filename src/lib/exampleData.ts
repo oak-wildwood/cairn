@@ -3,7 +3,7 @@ import { SELF_ID } from "./types";
 
 /**
  * The six example parts the Nocturnal design was drawn around, with the same
- * names, roles and statuses. Generic placeholder content only — no real
+ * names. Generic placeholder content only — no real
  * personal data belongs in this repo (see PLAN.md's portfolio note).
  *
  * Most `x`/`y` are null so `computeLayout` places them: the original artwork's
@@ -11,12 +11,20 @@ import { SELF_ID } from "./types";
  * viewport. Listed in the order that reproduces that arrangement within each
  * sector.
  *
- * Two carry a hand-placed position instead, because the sector layout alone
- * collided two connector labels with node captions: "polarized with" ran
- * through The Analyst's "MANAGER · ACTIVE", and "triggers" sat on top of The
- * Unseen One's name. Nudging those two apart is cheaper than retuning the
- * sector maths for every map to fix one arrangement of six parts, and this is
- * the map every first-time visitor sees.
+ * Five carry a hand-placed position instead, arranged by eye in the running
+ * app. The sector layout alone ran "polarized with" through The Analyst's
+ * caption, and the unknown ring puts its first part at 180°, directly on the
+ * "EXILES" caption and under The Kid. Alarmist sits out to the right instead,
+ * clear of every sector caption, with The Unseen One drawn across beneath it so
+ * the one connector between them stays short and crosses nothing. Nudging these
+ * by hand is cheaper than retuning the sector maths for every map to fix one
+ * arrangement of six parts, and this is the map every first-time visitor sees.
+ *
+ * Beyond the original design, the sample is tuned to show what the app does
+ * with features added since: Alarmist's role is "unknown", so the outer ring
+ * and a dimmed connector both appear; only two parts are active this week, so
+ * the active-only filter has something to hide; and feelings recur across
+ * parts, so filtering by one picks out a group rather than a single node.
  *
  * Overriding a position does not reshuffle the others: `computeLayout` applies
  * overrides last, and an overridden part still consumes its slot in the sector
@@ -37,7 +45,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     role: "manager",
     description:
       "Keeps a running commentary on everything I do, looking for the flaw before anyone else can find it.",
-    feelings: ["harsh", "vigilant", "tired"],
+    feelings: ["harsh", "vigilant", "tired", "anxious"],
     bodyLocation: "Jaw and shoulders",
     trigger: "Sending work to someone before it feels finished",
     positiveIntention:
@@ -57,7 +65,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     role: "manager",
     description:
       "Builds the schedule, the contingency, and the contingency's contingency.",
-    feelings: ["busy", "braced", "capable"],
+    feelings: ["busy", "braced", "vigilant", "anxious"],
     bodyLocation: "Forehead, behind the eyes",
     trigger: "Unstructured time, or a decision without enough information",
     positiveIntention:
@@ -66,7 +74,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     origins: "Long stretches as a child where no adult was tracking what came next.",
     notes: "Pulls against the part that wants rest — the two rarely agree.",
     status: "",
-    active: true,
+    active: false,
     x: -57,
     y: -198,
   },
@@ -76,7 +84,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     role: "firefighter",
     description:
       "Reaches for the phone the moment a feeling gets close enough to name.",
-    feelings: ["numb", "restless", "far away"],
+    feelings: ["numb", "restless", "far away", "tired"],
     bodyLocation: "Hands and chest",
     trigger: "The first minute of sitting still with nothing to do",
     positiveIntention:
@@ -85,28 +93,29 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     origins: "Arrived around the same time The Kid's memories did.",
     notes: "Shows up fastest late at night.",
     status: "",
-    active: true,
-    x: null,
-    y: null,
+    active: false,
+    x: 206,
+    y: -153,
   },
   {
     id: "alarmist",
     name: "Alarmist",
-    role: "firefighter",
+    role: "unknown",
     description:
       "Runs the worst version of events, out loud, until the room feels dangerous.",
-    feelings: ["panicked", "urgent"],
+    feelings: ["panicked", "urgent", "anxious", "vigilant"],
     bodyLocation: "Throat",
     trigger: "An unanswered message, a change in someone's tone",
     positiveIntention:
       "If we've already imagined the worst, it can't land as a surprise.",
     fears: "Being blindsided.",
     origins: "Not yet clear — this part has only recently started speaking up.",
-    notes: "Still getting to know this one.",
+    notes:
+      "Still getting to know this one — not yet clear whether it is planning ahead or putting out fires.",
     status: "emerging",
     active: true,
-    x: null,
-    y: null,
+    x: 323,
+    y: -14,
   },
   {
     id: "the-kid",
@@ -114,8 +123,8 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     role: "exile",
     description:
       "Young, carries the memory of being left waiting and deciding that meant something about her.",
-    feelings: ["sad", "small", "hopeful"],
-    bodyLocation: "Centre of the chest",
+    feelings: ["sad", "small", "hopeful", "lonely"],
+    bodyLocation: "Center of the chest",
     trigger: "Being left out of something, however small",
     positiveIntention:
       "Holds the belief that connection is worth wanting, even after it hurt.",
@@ -125,8 +134,8 @@ export const EXAMPLE_PARTS: readonly Part[] = [
       "Has been witnessed once. Noticeably calmer since, and the protectors have eased.",
     status: "witnessed",
     active: false,
-    x: null,
-    y: null,
+    x: -8,
+    y: 207,
   },
   {
     id: "the-unseen-one",
@@ -134,7 +143,7 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     role: "exile",
     description:
       "Barely surfaced. Shows up as a heaviness rather than a memory or a voice.",
-    feelings: ["exhausted", "sad", "forgotten"],
+    feelings: ["exhausted", "sad", "forgotten", "lonely"],
     bodyLocation: "Low back, and somewhere behind the ribs",
     trigger: "Unclear so far",
     positiveIntention: "Not yet known.",
@@ -143,8 +152,8 @@ export const EXAMPLE_PARTS: readonly Part[] = [
     notes: "Approach slowly. The protectors get loud when this one gets close.",
     status: "unwitnessed",
     active: false,
-    x: -256,
-    y: 192,
+    x: 172,
+    y: 203,
   },
 ];
 
@@ -165,6 +174,11 @@ export const EXAMPLE_PARTS: readonly Part[] = [
  *
  * Polarization is the exception and stays a single connector: The Fixer and The
  * Analyst are in a mutual standoff, which is symmetric, so one line states it.
+ *
+ * Alarmist -> The Unseen One is not from the design either. It is here so the
+ * sample has a connector dimmed by an unknown-role endpoint, and it is the
+ * bond The Unseen One's notes already describe: the protectors get loud when
+ * it gets close, and their noise stirs it up in turn.
  */
 export const EXAMPLE_CONNECTIONS: readonly Connection[] = [
   {
@@ -208,5 +222,11 @@ export const EXAMPLE_CONNECTIONS: readonly Connection[] = [
     sourceId: "the-kid",
     targetId: "the-avoider",
     label: "triggers",
+  },
+  {
+    id: "c-alarmist-unseen",
+    sourceId: "alarmist",
+    targetId: "the-unseen-one",
+    label: "sets off",
   },
 ];
