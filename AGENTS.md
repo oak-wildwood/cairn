@@ -199,6 +199,13 @@ Vitest PRs (#73, #84) found exactly that.
   `@testing-library/svelte` on jsdom (not Vitest browser mode; real-browser coverage
   belongs to Playwright), and call its `cleanup` in `afterEach`. Prefer putting logic
   in modules over components so it can be tested without one.
+- **End to end.** `npm run test:e2e` runs Playwright specs in `e2e/` against the
+  production build (`npm run build && npm run preview`), in Chromium only for now.
+  Every spec imports `test` from `e2e/fixtures.ts`, not `@playwright/test`: its
+  auto fixture aborts any request off the app's origin and fails a test on any
+  uncaught page error. Select parts with the keyboard (`selectPart`) rather
+  than by clicking SVG, and wait on storage with `expect.poll` rather than a
+  fixed sleep, since saves are debounced.
 - **Fixtures.** Use the shared `makePart` helper in `src/lib/testParts.ts` and the six
   generic names. The no-real-data and no-network hard rules apply to tests, fixtures
   and snapshots as much as to app code.

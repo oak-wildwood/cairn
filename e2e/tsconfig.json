@@ -1,0 +1,12 @@
+{
+  // The end-to-end specs run in Node, driving a browser, so they need Node's
+  // types (`Buffer`, `node:fs`, `process`). They get their own project rather
+  // than adding those to the root one, which would let Node globals type-check
+  // in app code that runs in the browser. `npm run check` checks both.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "../playwright.config.ts", "../src/vite-env.d.ts"]
+}
