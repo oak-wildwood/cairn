@@ -833,8 +833,9 @@
 
   .option-count {
     flex-shrink: 0;
-    color: var(--text-muted);
-    font-size: 11px;
+    color: var(--text-bright);
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .popover-footer {
